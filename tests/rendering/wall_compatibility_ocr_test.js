@@ -187,6 +187,29 @@ if (process.argv.includes('--ocr-fixtures')) {
   console.log(JSON.stringify({ocr_fixture_checks: 'passed', category_text: categoryText, results,
     tesseract: cp.execFileSync(tesseract, ['--version'], {encoding: 'utf8'}).split('\n')[0]}));
 }
+const {startCaseBWindow} = require('./wall_compatibility_browser');
+const boundedBoot = {saveStarts: 0, launchCalls: 1, launchArgs: ['--time-scale','0.025','--','--skip-intro']};
+check('bounded edit uses the real new-shell arguments and monotonic host deadline', () => {
+  const report = {}; let t = 75;
+  const sample = startCaseBWindow(report, () => t);
+  t += 150000; sample('boundary', boundedBoot); // origin is not time zero
+  assert.equal(report.case_b_window.samples[0].elapsed_host_ms, 150000);
+  t += 0.001; assert.throws(() => sample('late', boundedBoot), /monotonic timing window/);
+  for (const boot of [{...boundedBoot,launchCalls:2}, {...boundedBoot,launchCalls:undefined},
+    {...boundedBoot,launchArgs:['--time-scale','0.1','--','--skip-intro']}, {...boundedBoot,launchArgs:null}])
+    assert.throws(() => startCaseBWindow({}, () => 0)('bad launch', boot));
+});
+check('the one window begins before new boot and ends after the raw authority check, immediately before Apply', () => {
+  assert(browserSource.includes('newPage = await createPage(context, CASE_B_NEW_SCALE)'));
+  const start = browserSource.indexOf('const recordWindow = startCaseBWindow(report)');
+  const boot = browserSource.indexOf("await boot(newPage, 'new', revision)");
+  const raw = browserSource.indexOf('check(canonical(await readSnapshot(fixture)) === canonical(baseline)', boot);
+  const end = browserSource.indexOf("recordWindow('before_apply', afterConfirm)");
+  const apply = browserSource.indexOf("await click(newPage, 'new', 'apply')");
+  assert(0 < start && start < boot && boot < raw && raw < end && end < apply);
+  assert(!browserSource.slice(end, apply).includes('await '));
+});
+
 async function verifyConfirmFailureEvidence() {
   // Execute the actual boundary/collector source with synthetic read-only pages.
   // This checks diagnostics and unchanged input order, not browser qualification.
@@ -195,7 +218,7 @@ async function verifyConfirmFailureEvidence() {
   assert(start > 0 && end > start, 'Actual confirmation boundary is present');
   const AsyncFunction = Object.getPrototypeOf(async function() {}).constructor;
   const run = new AsyncFunction('observation', 'check', 'click', 'idle', 'newPage', 'oldPage',
-    'fixture', 'report', 'baseline', 'layouts', 'readSnapshot', 'path', 'output', browserSource.slice(start, end));
+    'fixture', 'report', 'baseline', 'layouts', 'readSnapshot', 'path', 'output', 'recordWindow', browserSource.slice(start, end));
   const beforeMessage = 'New tray/product/target actions cause no save before the verified wall confirmation';
   const afterMessage = 'Wall Confirm changes only the Decorate draft before Apply';
   for (const [beforeCount, afterCount, failReads, acknowledged] of [
@@ -204,7 +227,7 @@ async function verifyConfirmFailureEvidence() {
   ]) {
     const calls = [], report = {}, baseline = {authority: 'synthetic baseline'};
     const acknowledgement = {ok: true, durable: true, revision: 9, creditedCoins: 0};
-    const observed = count => ({saveStarts: count, saves: count && acknowledged ? [acknowledgement] : []});
+    const observed = count => ({...boundedBoot, saveStarts: count, saves: count && acknowledged ? [acknowledgement] : []});
     const boundary = observed(beforeCount), successor = observed(afterCount);
     let observations = 0;
     const page = label => ({
@@ -222,11 +245,15 @@ async function verifyConfirmFailureEvidence() {
         if (failReads) throw Error('synthetic screenshot failure');
       },
     });
+    const clockTicks = [0, beforeCount ? 150001 : 100];
+    const recordWindow = startCaseBWindow({}, () => clockTicks.shift());
     const promise = run(async () => {calls.push('observe'); return observations++ ? successor : boundary;},
       assert, async () => {calls.push('confirm');}, async () => {calls.push('idle');},
       page('new'), page('old'), {}, report, baseline, {new: {points: {confirm: [12, 34]}}},
       async () => {calls.push('authority read'); if (failReads) throw Error('synthetic authority failure'); return {authority: 'synthetic after'};},
-      path, '/unused-synthetic-output');
+      path, '/unused-synthetic-output',
+      // A timing violation must not replace the real pre-Confirm save assertion.
+      recordWindow);
     if (!beforeCount && !afterCount) {
       await promise;
       check('successful confirmation performs no diagnostic reads or extra input', () => {
@@ -262,7 +289,25 @@ async function verifyConfirmFailureEvidence() {
     });
   }
 }
-verifyConfirmFailureEvidence().then(() => console.log(JSON.stringify({passed: true, checks,
+async function verifyApplyWindow() {
+  // Execute the actual raw-IDB/Apply boundary, including the await: no late or corrupt Apply.
+  const start = browserSource.indexOf('        check(canonical(await readSnapshot(fixture))');
+  const end = browserSource.indexOf('        const committed = ', start);
+  assert(start > 0 && end > start);
+  const run = new (Object.getPrototypeOf(async function() {}).constructor)('check', 'canonical', 'readSnapshot',
+    'fixture', 'baseline', 'recordWindow', 'afterConfirm', 'click', 'newPage', 'idle', browserSource.slice(start, end));
+  for (const [elapsed, same, expected] of [[149999,true,null], [150001,true,/monotonic timing window/],
+    [150001,false,/Unapplied wall edit preserves every durable/]]) {
+    const inputs = [], report = {}; let clock = 0;
+    const window = startCaseBWindow(report, () => clock);
+    const result = run(assert, JSON.stringify, async () => {clock = elapsed; return {bytes:same ? 'R' : 'changed'};},
+      {}, {bytes:'R'}, window, boundedBoot, async (_page,_label,name) => {inputs.push(name);}, {}, async () => {});
+    if (expected) await assert.rejects(result, expected); else await result;
+    assert.deepEqual(inputs, expected ? [] : ['apply']);
+  }
+  check('late or mutated raw authority cannot reach Apply; honest bounded entry clicks exactly once', () => {});
+}
+verifyConfirmFailureEvidence().then(verifyApplyWindow).then(() => console.log(JSON.stringify({passed: true, checks,
   browser_runtime_exercised: false,
   method: 'native-source geometry, retained-pixel and failure-only boundary guards'})))
   .catch(error => {console.error(error); process.exitCode = 1;});

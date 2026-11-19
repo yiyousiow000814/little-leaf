@@ -72,13 +72,32 @@ input; raw screenshots and crops remain unchanged. The detached processing canva
 does not change game rendering, state, input, or storage. Only idempotent Build
 category selection may retry while
 the real opening tween still disables input; the confirmation is clicked once.
+For a paged category rail, the initial Tables label can be readable before the
+opening tween enables mouse input. Before its one real page click, the gate moves
+the pointer over the receipt-bound arrow and requires its complete rendered
+“Next categories · swipe to browse” tooltip. Tables, the bounded native tooltip
+rectangle, and (only when the pointer-side placement would overflow) the
+same-size mirrored placement are read from one retained browser frame. The
+alternate rectangle follows Godot's embedded-popup rule with the native cursor
+offset and the matching browser viewport. Neither larger crops nor partial
+labels can qualify the arrow.
+The original fully exposed Build OCR remains mandatory after that click.
 The gate requires zero new-client saves before that verified confirmation and
 retains the expected/actual wall segment if the final state assertion fails.
 
-The old stale-tab case uses the supported `--time-scale 0` argument. The new edit
-uses `--time-scale 0.1` so real GUI tweens finish, while its autosave interval is
-150 seconds. The old recovery/autosave case uses scale 1. No production timer is
-changed. A legitimate new page-hide save is allowed to advance revision, then the
+The old stale-tab case uses the supported `--time-scale 0` argument; the new edit
+uses `--time-scale 0.025` so real GUI tweens still finish. A dirty autosave slot is
+five simulated seconds (nominally 200 host seconds at this scale). Case B fails
+if its host-monotonic window from before new navigation to just before Apply
+exceeds 150 seconds. That budgets 3.75 simulated seconds, not a measurement
+of Godot's clock. The report records host elapsed time and the actual shell
+hook's launch arguments/count. Rendered readiness, zero save starts, all
+pre-Apply durable bytes and precisely one R+1 Apply remain required. A timeout
+is not permission to skip OCR, retry Apply, reset R or ignore a write. This
+isolates an edit from the scheduler; it does **not** prohibit periodic saves of
+the session-entry baseline during ordinary play. See the [save interval](../development/autosave-interval.md)
+and [Decorate transaction](../development/decoration-refund-010.md) contracts.
+The old recovery/autosave case uses scale 1. No production timer is changed. A legitimate new page-hide save is allowed to advance revision, then the
 new page is closed before the forbidden-old-write snapshot is frozen.
 The shared `tests/tooling/engine_launch_hook.js` binds the actual exported shell instance before
 startup; it forwards the original feature result, startup receiver, options and

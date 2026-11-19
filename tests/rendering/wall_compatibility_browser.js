@@ -7,7 +7,7 @@ const path = require('node:path');
 const http = require('node:http');
 const cp = require('node:child_process');
 const {installEngineLaunchHook} = require('../tooling/engine_launch_hook');
-const {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, requireVisibleText, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved, verifyCodecProjection, assertImported, archiveRows, assertOriginalArchived} = require('./wall_compatibility_helpers');
+const {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, requireVisibleText, requireInitialRailOCR, categoryHintRegions, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved, verifyCodecProjection, assertImported, archiveRows, assertOriginalArchived} = require('./wall_compatibility_helpers');
 const root = path.resolve(__dirname, '../..');
 const fixtureDir = path.join(__dirname, '../fixtures/wall-compatibility');
 const contract = JSON.parse(fs.readFileSync(path.join(fixtureDir, 'contract.json')));
@@ -149,6 +149,24 @@ async function seed(page, oldSource, oldText, newSource, newText) {
   return readSnapshot(page);
 }
 
+// Test isolation only. Host elapsed time is measured; scaled time is a budget, not engine telemetry.
+const CASE_B_NEW_SCALE = 0.025;
+const CASE_B_WINDOW_MS = 150000;
+function startCaseBWindow(report, now = () => performance.now()) {
+  const start = now();
+  const log = report.case_b_window = {scale: CASE_B_NEW_SCALE, max_host_ms: CASE_B_WINDOW_MS, samples: []};
+  return (stage, observed) => {
+    const elapsed = now() - start, prior = log.samples.at(-1)?.elapsed_host_ms ?? 0;
+    log.samples.push({stage, elapsed_host_ms: elapsed, save_starts: observed.saveStarts,
+      launch_calls: observed.launchCalls, launch_args: observed.launchArgs});
+    assert.equal(observed.launchCalls, 1, 'Case B needs exactly one actual new-shell launch');
+    assert.deepEqual(observed.launchArgs, ['--time-scale', String(CASE_B_NEW_SCALE), '--', '--skip-intro'],
+      'Case B new shell must forward the bounded edit scale');
+    assert(Number.isFinite(elapsed) && elapsed >= prior && elapsed <= CASE_B_WINDOW_MS,
+      'Case B live edit exceeded its monotonic timing window; not a qualifying isolated run');
+  };
+}
+
 async function main() {
   if (process.argv.includes('--parallel-cases')) {
     return require('./wall_compatibility_parallel').runParallel(process.argv.slice(2));
@@ -244,7 +262,9 @@ async function main() {
       await page.waitForTimeout(500);
       const result = await page.evaluate(() => JSON.parse(__littleLeafVault.bootJson));
       check(result.ok && result.source === 'authority' && result.revision === revision, label + ' actual export reads the expected verified authority revision');
-      check((await observation(page)).launchArgs !== null, label + ' accepts supported runtime launch arguments');
+      const observed = await observation(page);
+      check(observed.launchArgs !== null, label + ' accepts supported runtime launch arguments');
+      return observed;
     };
     const click = async (page, label, name, delay = 250) => {
       const point = layouts[label].points[name]; assert(point && point.length === 2, 'Derived point ' + name);
@@ -261,25 +281,55 @@ async function main() {
       check(true, name + ' rendered Help text verified by local OCR');
     };
     const screenUiText = async (page, name, region, phrases, retryTarget = null) => {
-      const regions = (Array.isArray(region) ? region : [region]).map(key => {
+      const requested = Array.isArray(region) ? region : [region];
+      const hintCheck = requested.includes('category_hint');
+      const viewport = hintCheck ? page.viewportSize() : null;
+      const regions = requested.flatMap(key => {
+        if (key === 'category_hint') return categoryHintRegions(layouts.new, viewport);
         const spec = layouts.new.regions?.[key];
         assert(spec && spec.width > 0 && spec.height > 0, 'Derived UI region ' + key);
-        return {key, ...spec};
+        return [{key, ...spec}];
       });
       const deadline = Date.now() + 45000;
       let lastError;
       do {
+        if (hintCheck) {
+          const [x, y] = layouts.new.points.build_next;
+          // Motion only: re-hit-test after enable; sub-5px motion does not restart a matching tooltip.
+          await page.mouse.move(x + 1, y); await page.mouse.move(x, y);
+        }
         // Build category selection is idempotent. The real tray disables input
         // during its opening tween, so a slow exported frame may ignore the
         // first click even after a fixed wall-clock delay. Never retry payment.
         if (retryTarget) await click(page, 'new', retryTarget, 0);
         await page.waitForTimeout(400);
-        await page.screenshot({path: path.join(output, name + '.png')});
+        const frame = await page.screenshot({path: path.join(output, name + '.png')});
+        // For the hover gate, read the label and both bounded tooltip
+        // positions from the exact same retained frame. Do not recapture while
+        // the tooltip can move or disappear, or modify the actual game canvas.
+        const sameFrameCrops = hintCheck ? await page.evaluate(async ({base64, regions, viewport}) => {
+          const raw = Uint8Array.from(atob(base64), character => character.charCodeAt(0));
+          const bitmap = await createImageBitmap(new Blob([raw], {type: 'image/png'}));
+          try {
+            if (bitmap.width !== viewport.width || bitmap.height !== viewport.height) throw new Error('Tooltip frame dimensions differ from viewport');
+            const crops = [];
+            for (const {x, y, width, height} of regions) {
+              const canvas = new OffscreenCanvas(width, height);
+              const context = canvas.getContext('2d');
+              context.imageSmoothingEnabled = false;
+              context.drawImage(bitmap, x, y, width, height, 0, 0, width, height);
+              const blob = await canvas.convertToBlob({type: 'image/png'});
+              crops.push(Array.from(new Uint8Array(await blob.arrayBuffer())));
+            }
+            return crops;
+          } finally { bitmap.close(); }
+        }, {base64: frame.toString('base64'), regions, viewport}) : null;
         const texts = [];
-        for (const spec of regions) {
+        for (const [index, spec] of regions.entries()) {
           const {x, y, width, height} = spec;
           const crop = path.join(output, name + '-' + spec.key + '-crop.png');
-          const png = await page.screenshot({path: crop, clip: {x, y, width, height}});
+          const png = sameFrameCrops ? Buffer.from(sameFrameCrops[index]) : await page.screenshot({path: crop, clip: {x, y, width, height}});
+          if (sameFrameCrops) fs.writeFileSync(crop, png);
           let input = crop;
           if (spec.scale > 1) {
             // Preserve raw evidence. This separate OCR input repeats each
@@ -309,6 +359,8 @@ async function main() {
         try {
           const backIndex = regions.findIndex(spec => spec.key === 'wall_back');
           if (backIndex >= 0) requireWallBackText(texts[backIndex]);
+          if (hintCheck) requireInitialRailOCR(texts[regions.findIndex(spec => spec.key === 'category_ready')],
+            texts.filter((_, index) => regions[index].key.startsWith('category_hint')));
           requireVisibleText(text, phrases);
           check(true, name + ' rendered UI state verified before the next action');
           return;
@@ -376,14 +428,14 @@ async function main() {
       } finally {await context.close();}
     }
     // Case B: the old engine stays genuinely loaded throughout the real new UI
-    // edit. Its scale 0 prevents unrelated old autosaves. New scale .1 keeps UI
-    // tweens working and gives a50-second dirty-save interval for this short edit.
+    // edit. Old scale 0 prevents unrelated old autosaves. The new page keeps real
+    // UI tweens, with a bounded input window shorter than one periodic save slot.
     if (selectedCase === 'all' || selectedCase === 'already_open_old') {
       const context = await createContext();
       try {
         const fixture = await context.newPage(); await fixture.goto(origin + '/fixture');
         const seeded = await seed(fixture, oldSource, fixtures['old-format1.json']);
-        const oldPage = await createPage(context, 0), newPage = await createPage(context, .1);
+        const oldPage = await createPage(context, 0), newPage = await createPage(context, CASE_B_NEW_SCALE);
         await oldPage.bringToFront(); await boot(oldPage, 'old', active(seeded).revision);
         // Prove the real old controller accepted its model, then restore the
         // operating state. A vault-only boot result is not engine acceptance.
@@ -400,7 +452,8 @@ async function main() {
         // Start observation at R, before the new engine opens. Never clear a
         // post-commit old mutation, even if it happened on a focus transition.
         await oldPage.evaluate(() => {__wallCompatibility.writes = []; __wallCompatibility.transactions = []; __wallCompatibility.saves = []; __wallCompatibility.saveStarts = 0;});
-        await boot(newPage, 'new', revision);
+        const recordWindow = startCaseBWindow(report); // before navigation, including boot, OCR and all actions
+        recordWindow('boot', await boot(newPage, 'new', revision));
         await selectWallReplacement(
           (name, delay) => click(newPage, 'new', name, delay),
           (name, region, phrases, retryTarget) => screenUiText(newPage, name, region, phrases, retryTarget),
@@ -431,6 +484,7 @@ async function main() {
           await captureConfirmFailure(evidence, 'case-b-before-confirm-failure.png');
         }
         check(beforeConfirm.saveStarts === 0, 'New tray/product/target actions cause no save before the verified wall confirmation');
+        recordWindow('before_confirm', beforeConfirm);
         await click(newPage, 'new', 'confirm'); await idle(newPage);
         const afterConfirm = await observation(newPage);
         const confirmFinishedAt = new Date().toISOString();
@@ -443,6 +497,7 @@ async function main() {
         }
         check(afterConfirm.saveStarts === 0, 'Wall Confirm changes only the Decorate draft before Apply');
         check(canonical(await readSnapshot(fixture)) === canonical(baseline), 'Unapplied wall edit preserves every durable authority, wallet and ownership byte');
+        recordWindow('before_apply', afterConfirm); // includes the raw byte comparison above
         await click(newPage, 'new', 'apply'); await idle(newPage);
         const committed = await readSnapshot(fixture), payload = JSON.parse(active(committed).payload);
         report.new_ui_edit = {revision_before: revision, revision_after: active(committed).revision,
@@ -503,4 +558,4 @@ async function main() {
   }
 }
 if (require.main === module) main().catch(error => {console.error(error); process.exitCode = 1;});
-module.exports = {observeOwnedTestPage, readSnapshot};
+module.exports = {observeOwnedTestPage, readSnapshot, startCaseBWindow};
