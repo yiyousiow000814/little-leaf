@@ -164,7 +164,8 @@ static func advance(model,guest:Dictionary,delta:float)->void:
  if int(mobility.route_index)>=mobility.route.size():
   guest.seated=str(mobility.kind)=="to_assigned_seat";guest.mobility={};guest.waiting=guest.phase=="checkout_wait"
   model._mobility_validated.erase(int(guest.id))
-static func geometry_error(model,guests:Array,layout:Array,walls:Array,ownership:Array,openings:Array)->String:
+static func geometry_error(model,guests:Array,layout:Array,walls:Array,ownership:Array,openings:Array,keys=null)->String:
+ var snapshot_checked:bool=keys!=null
  var by_id={};var solids={}
  for item in layout:
   by_id[int(item.id)]=item
@@ -188,7 +189,10 @@ static func geometry_error(model,guests:Array,layout:Array,walls:Array,ownership
     if solids.has(here) and not final_seat:return "Relocation route is blocked by furniture"
     if here!=prior_cell:
      if absi(here.x-prior_cell.x)+absi(here.y-prior_cell.y)!=1:return "Relocation route skips a walking tile"
-     if model._built_edge_blocked(prior_cell,here,walls,openings):return "Relocation route crosses a wall"
+     if not snapshot_checked:
+      keys=model.WallReachability.direct_edge_snapshot(walls,openings)
+      snapshot_checked=true
+     if model._built_edge_blocked(prior_cell,here,walls,openings,keys):return "Relocation route crosses a wall"
     prior_cell=here
    previous=next
  return ""

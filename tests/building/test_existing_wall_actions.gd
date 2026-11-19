@@ -88,6 +88,34 @@ func check_blocked_edge_index(model):
     var cells=Walls.adjacent_cells(wall)
     if model._built_edge_blocked(cells[0],cells[1],tested,cases[i]):before[Walls.key_of(wall)]=true
    check(WallReachability.blocked_grid_edges(tested,cases[i])==before,"indexed wall clearance matches legacy lookup for %s case %d"%[axis,i])
+func check_direct_edge_snapshot(model):
+ var walls:Array=[]
+ var openings:Array=[]
+ for z in range(12):
+  for x in range(12):
+   for axis in ["x","z"]:
+    var id:="wall:%d"%walls.size()
+    walls.append(Walls.installed(id,Walls.make(axis,x,z),0,0))
+    if (x+z)%4==0:
+     var critical=[.46,.46002,.4600201,.5,.7,1.0][(x+2*z)%6]
+     openings.append({"id":walls.size(),"kind":"door" if z%2==0 else "window","wall_ids":[id],"offset":.5,"width":critical})
+ openings.append({"id":400,"kind":"door","wall_ids":["wall:2","wall:4"],"offset":1.0,"width":1.5})
+ var keys=WallReachability.direct_edge_snapshot(walls,openings)
+ check(keys is Dictionary,"Regular integer midpoint layout builds an exact direct snapshot")
+ var same_answers=true
+ for z in range(-1,13):
+  for x in range(-1,13):
+   var a=Vector2i(x,z)
+   for dir in [Vector2i.RIGHT,Vector2i.DOWN,Vector2i(2,0)]:
+    same_answers=same_answers and model._built_edge_blocked(a,a+dir,walls,openings)==model._built_edge_blocked(a,a+dir,walls,openings,keys)
+ check(same_answers,"Every sampled midpoint, including fractional door widths near clearance, matches the original direct check")
+ var legacy=OpeningGeometry.initial_attachments()
+ check(WallReachability.direct_edge_snapshot(walls,legacy)==null,"Legacy host reference retains original direct resolver")
+ var duplicate=walls.duplicate();duplicate.append(walls[0])
+ check(WallReachability.direct_edge_snapshot(duplicate,openings)==null,"Duplicate wall rows retain original first-match oracle")
+ var fractional=walls.duplicate(true);fractional[0].x=.25
+ check(WallReachability.direct_edge_snapshot(fractional,openings)==null,"Noncanonical candidate coordinates retain original direct resolver")
+
 func _initialize():run.call_deferred()
 func settle():
  game._update_ui();game.illustration.queue_redraw()
@@ -112,6 +140,7 @@ func run():
  await process_frame;game.model.coins=1600;game._toggle_edit();game._set_catalog_category("Build");game.compact_ui._set_tray_reveal(1);await settle()
  var ui=game.compact_ui;var model=game.model;var tool=game.build_tools
  check_installed_support_index(model)
+ check_direct_edge_snapshot(game.model)
  check_blocked_edge_index(model)
  game._cancel_selection();await settle();await click(aim(2.5))
  check(ui.selected_wall=="x:2:0","click existing wall selects exact one-tile host")

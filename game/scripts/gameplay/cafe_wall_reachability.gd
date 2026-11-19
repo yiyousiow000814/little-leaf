@@ -19,6 +19,27 @@ static func _clear_cut(position:float,low:float,high:float,clearance:float)->boo
 	# Match the installed-door midpoint test. The render cut list is not rebuilt.
 	return position>low+clearance+.00001 and position<high-clearance-.00001
 
+## Same answer as the direct midpoint oracle only for supported grid rows.
+## Avoid silently replacing first-wall and legacy host behavior in edit/save guards.
+static func direct_edge_snapshot(walls:Array,attachments:Array)->Variant:
+	var edges:Dictionary={}
+	var ids:Dictionary={}
+	for wall in walls:
+		var x:float=float(wall.x)
+		var z:float=float(wall.z)
+		if wall.axis not in ["x","z"] or not is_finite(x) or not is_finite(z) or absf(x)>64.0 or absf(z)>64.0 or x!=floorf(x) or z!=floorf(z):return null
+		var edge:=Walls.key_of(wall)
+		var id:=Walls.identity(wall)
+		if edges.has(edge) or ids.has(id):return null
+		edges[edge]=true;ids[id]=true
+	for attachment in attachments:
+		if attachment.kind!="door":continue
+		if not attachment.has("wall_ids") or not attachment.wall_ids is Array or attachment.wall_ids.size()>MAX_CANONICAL_DOOR_SUPPORTS:return null
+		var offset:=float(attachment.offset)
+		var width:=float(attachment.width)
+		if not is_finite(offset) or not is_finite(width) or absf(offset)>64.0 or width<=0.0 or width>64.0:return null
+	return blocked_grid_edges(walls,attachments)
+
 static func blocked_grid_edges(walls:Array,attachments:Array)->Dictionary:
 	# One snapshot of unit grid edges. Door support is resolved in authored
 	# order once per opening; windows never affect pedestrian clearance.

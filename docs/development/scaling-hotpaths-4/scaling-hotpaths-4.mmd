@@ -1,0 +1,20 @@
+flowchart TB
+  base["Batch 4: #375 afd1471 runtime, cf04b3e metadata successor"]
+  base --> p["Index wall identities for opening pointer selection"]
+  base --> a["Reuse admission search per west entry and outside start"]
+  base --> e["Reuse proposal-local blocked edges for wall egress and movement"]
+  base --> d["Compact bulk departures in stable order after callbacks"]
+  p --> two["Pointer and admission: 11,136 assertions in 10 suites"]
+  a --> two
+  two --> all["Four-change pass: 39,937 assertions in 15 suites after test fixture correction"]
+  e --> all
+  d --> all
+  all --> atlas["Computed atlas dependencies unchanged versus #375"]
+  all --> web["Ordinary exact-head Web and live save pending"]
+  atlas --> perf["Larger scene and candidate-only FPS pending"]
+  web --> perf
+  base --> open["Cold staff floor, section and chair scans, bounded/legacy paths remain"]
+  classDef checked fill:#E7F3EE,stroke:#398170,color:#153B33;
+  classDef waiting fill:#FDF1DB,stroke:#AD731B,color:#452B0B;
+  class two,all,atlas checked;
+  class web,perf,open waiting;
