@@ -1,6 +1,6 @@
 # Scaling hot paths: batch 9
 
-Local evidence for two separately filtered candidates. [Mermaid map](scaling-hotpaths-9.mmd) · [Excel ledger](scaling-ledger-9.xlsx) · [Previous batch](../scaling-hotpaths-8/). Exact combined local qualification passed 121,745 assertions across eight suites, including 1,298 clean layout reconciliation assertions. Source closure adoption and new combined atlas qualification remain pending.
+Local evidence for two separately filtered candidates. [Mermaid map](scaling-hotpaths-9.mmd) · [Excel ledger](scaling-ledger-9.xlsx) · [Previous batch](../scaling-hotpaths-8/). Exact combined local qualification passed 121,745 assertions across eight suites, including 1,298 clean layout reconciliation assertions. Hosted [#388 run 44482218573](https://github.com/yiyousiow000814/little-leaf/actions/runs/44482218573) passed both qualification jobs. The [litter artifact](https://github.com/yiyousiow000814/little-leaf/actions/runs/44482218573/artifacts/14509421353) contains a matching native X11 1360 × 880 pair and equal receipts; the frame pair was visually reviewed. The [canonical atlas artifact](https://github.com/yiyousiow000814/little-leaf/actions/runs/44482218573/artifacts/14508827115) passed original-three import, READY, direct and saved checks, and all nine PNGs were independently verified byte-identical within their groups.
 
 | Lane | Evidence and scope |
 | --- | --- |
