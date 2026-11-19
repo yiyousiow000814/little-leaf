@@ -6,6 +6,7 @@ flowchart TD
     EXIT --> EPROOF["Preserve directed edges and original entry/path order<br/>8 / 16 / 24-grid probes: 879 → 204 / 8,211 → 804 / 28,923 → 1,788<br/>748 assertions / 5 suites isolated"]
     FPROOF --> Q["Exact local combined: 30,124 assertions / 14 suites passed"]
     EPROOF --> Q
-    Q --> RUN["Open: hosted-door pixels, canonical atlas, ordinary Web/save, larger scene, matched cloud FPS"]
+    Q --> VIS["Exact #380 via #381: 7 frame pairs + 7 semantic rows matched<br/>Original 3 canonical atlases · 9 PNGs matched"]
+    VIS --> RUN["Open: ordinary Web/save, larger scene, matched cloud FPS"]
     BASE -.-> REM["Separate: bounded admission E × V and cleaner ownership"]
     RUN -.-> FROZEN["Use one frozen native baseline; no historical rerun"]

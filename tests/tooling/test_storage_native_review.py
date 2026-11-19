@@ -174,8 +174,9 @@ class StorageNativeReviewTests(unittest.TestCase):
         # PR371 independently requalifies the original atlases and changes only
         # scoped producer metadata. Independently qualified PR373 advances one
         # atlas producer and the current Main postimage. Independently qualified
-        # PR378 advances three sink producers. None of these is evidence from
-        # the old Storage capture. Other pins stay.
+        # PR378 advances three sink producers and PR380 independently qualifies
+        # two floor-stance closure changes. None of these is evidence from the
+        # old Storage capture. Other pins stay.
         for name, captured_sha in review.REVIEWED_POSTIMAGES.items():
             expected = captured_sha
             if name == "game/scripts/ui/cafe_shop_ui.gd":
@@ -186,14 +187,14 @@ class StorageNativeReviewTests(unittest.TestCase):
                 expected = "ce5e31dabaa771689227275ab60fc38e66fd0df294a93077c4aa3543922f0473"
             if name == "game/data/prebaked_atlas_manifest.json":
                 self.assertEqual(captured_sha, "81724088c204877ce1f31d2620f8cd9db27aabffca12f2bc3d74d813c526b283")
-                expected = "4fb76f2a2d4bc23e5a212fe8d1015dad17ba8221eb4376097c4d8cfb3f242ae4"
+                expected = "b61766be3f15497dac26add7ace0dd78fc98de5edec51e0908cefcd680b1403a"
             self.assertEqual(review.file_sha(ROOT / name), expected, name)
 
     def test_post_capture_exceptions_accept_only_exact_qualified_postimages(self):
         expected = dict(review.REVIEWED_POSTIMAGES)
         expected["game/scripts/ui/cafe_shop_ui.gd"] = "5854f2deabb6d99781847c33497a3eb66fb0a1a99f40f755b2b51820a15e12e3"
         expected["game/scripts/main.gd"] = "ce5e31dabaa771689227275ab60fc38e66fd0df294a93077c4aa3543922f0473"
-        expected["game/data/prebaked_atlas_manifest.json"] = "4fb76f2a2d4bc23e5a212fe8d1015dad17ba8221eb4376097c4d8cfb3f242ae4"
+        expected["game/data/prebaked_atlas_manifest.json"] = "b61766be3f15497dac26add7ace0dd78fc98de5edec51e0908cefcd680b1403a"
         def current(path):
             return expected[path.relative_to(ROOT).as_posix()]
         with patch.object(review, "file_sha", side_effect=current):
@@ -226,8 +227,37 @@ class StorageNativeReviewTests(unittest.TestCase):
         self.assertIn("37d9904f066b111c8b7ece5b53f2339459760f52f1a04378f11ede1362fd28e2", current)
         self.assertIn("6117588144ac91122aadd90d6651fff158b07dd1647f6ba3b9ef992fff1dabde", current)
         self.assertEqual(manifest["source_sha256"]["scripts/rendering/cafe_native_draw_node.gd"], "485c298089fb735ccad3e99af0980b19eb4d44b5e434b1f1dc2c1a7c6baa60a3")
-        previous = self.check_service_lookup_manifest(self.check_indexed_sink_manifest(manifest))
+        indexed_sink = self.check_cold_floor_manifest(manifest)
+        previous = self.check_service_lookup_manifest(self.check_indexed_sink_manifest(indexed_sink))
         self.assertEqual(self.check_scaling_manifest(previous)["scripts/rendering/illustrated_cafe.gd"], "11ff59969cf60918b5e2b48c1df7f436b76d48ee9798530d82d8caa7d178023e")
+
+    def check_cold_floor_manifest(self, manifest):
+        prior, separator, current = manifest["provenance"].partition(" PR380 cold floor qualification ")
+        self.assertTrue(separator)
+        self.assertEqual(review.digest(prior.encode()), "f06915e4ae6620b95e1d178b841b2eb44a9cad5bbe063824b1ffcab8fc6df455")
+        self.assertIn("https://github.com/yiyousiow000814/little-leaf/actions/runs/44477371804", current)
+        self.assertIn("51b97f1149b6d27736e4f64b73233023ab88afc0 / tree 581c159c8edf753d14a285f3dcb2ee2d41d371ad", current)
+        self.assertIn("54248f764624ad53db6f7f43a98345a58722122986b562f775f6848c28907102", current)
+        closure = "3e2fbbc903834631e612cc3b782903a67683ac3dc85c08a94ce35332cc207b27"
+        self.assertIn(closure, current)
+        digest = lambda value: review.digest(json.dumps(value, sort_keys=True, separators=(",", ":")).encode())
+        sources = dict(manifest["source_sha256"])
+        self.assertEqual(len(sources), 85)
+        self.assertEqual(digest(sources), closure)
+        self.assertEqual(digest(manifest["atlases"]), "6a5dd21da0a1a548f8489624abaf0d2cc738634c4605abd0de48219aa9db5714")
+        # Reverse exactly the one changed floor producer and one newly reachable
+        # collision dependency; retain the whole PR378 closure and old history.
+        self.assertEqual(sources.pop("scripts/gameplay/cafe_wall_collision.gd"),
+                         "9a40d56cf81f1a84774359c8030369362df9b50a7455b83e704fc84f2a1b3db1")
+        key = "scripts/gameplay/floor_cleaning_approach.gd"
+        self.assertEqual(sources[key], "b43fec8c370d608faeaec5a57c9c40894ad699b36fdce8d58bb5f88e189243fe")
+        sources[key] = "82f41e439423558f0d73b29456f934cada2bc653a1612e41932b4d2fc9d98fda"
+        previous = {**manifest, "provenance": prior, "source_sha256": sources}
+        self.assertEqual(len(sources), 84)
+        self.assertEqual(digest(sources), "8cec2b771aeae3e3019a8381434ce011c692df6a2a9e01feb9fda19ee4efe352")
+        self.assertEqual(review.digest((json.dumps(previous, indent=2, ensure_ascii=False) + "\n").encode()),
+                         "4fb76f2a2d4bc23e5a212fe8d1015dad17ba8221eb4376097c4d8cfb3f242ae4")
+        return previous
 
     def check_indexed_sink_manifest(self, manifest):
         prior, separator, current = manifest["provenance"].partition(" PR378 indexed sink qualification ")
