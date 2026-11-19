@@ -1,0 +1,444 @@
+--- a/drivers/gles3/rasterizer_gles3.cpp
++++ b/drivers/gles3/rasterizer_gles3.cpp
+@@ -28,6 +28,8 @@
+ /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+ /**************************************************************************/
+ 
++#include "core/profiling/ll397_native_scopes.h"
++
+ #include "rasterizer_gles3.h"
+ #include "storage/utilities.h"
+ 
+@@ -107,7 +109,10 @@
+ 	scene->set_time(time_total, frame_step);
+ 
+ 	GLES3::Utilities *utils = GLES3::Utilities::get_singleton();
+-	utils->_capture_timestamps_begin();
++	{
++		LL397_SCOPE(OLD_GL_QUERY);
++		utils->_capture_timestamps_begin();
++	}
+ 
+ 	//scene->iteration();
+ }
+@@ -119,9 +124,15 @@
+ 
+ void RasterizerGLES3::gl_end_frame(bool p_swap_buffers) {
+ 	if (p_swap_buffers) {
+-		DisplayServer::get_singleton()->swap_buffers();
+-	} else {
+-		glFinish();
++		{
++			LL397_SCOPE(BUFFER_SWAP);
++			DisplayServer::get_singleton()->swap_buffers();
++		}
++	} else {
++		{
++			LL397_SCOPE(EXISTING_FINISH);
++			glFinish();
++		}
+ 	}
+ }
+ 
+@@ -458,6 +469,7 @@
+ 
+ // is this p_screen useless in a multi window environment?
+ void RasterizerGLES3::blit_render_targets_to_screen(DisplayServer::WindowID p_screen, const BlitToScreen *p_render_targets, int p_amount) {
++	LL397_SCOPE(SCREEN_BLIT);
+ 	for (int i = 0; i < p_amount; i++) {
+ 		_blit_render_target_to_screen(p_screen, p_render_targets[i], i == 0);
+ 	}
+--- a/main/main.cpp
++++ b/main/main.cpp
+@@ -27,6 +27,8 @@
+ /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+ /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+ /**************************************************************************/
++
++#include "core/profiling/ll397_native_scopes.h"
+ 
+ #include "main.h"
+ 
+@@ -4974,8 +4976,12 @@
+ 	NavigationServer3D::get_singleton()->process(process_step * time_scale);
+ #endif // NAVIGATION_3D_DISABLED
+ 
++	LL397_POINT(begin(Engine::get_singleton()->get_frames_drawn()));
+ 	GodotProfileZoneGrouped(_profile_zone, "RenderingServer::sync");
+-	RenderingServer::get_singleton()->sync(); //sync if still drawing from previous frames.
++	{
++		LL397_SCOPE(SYNC);
++		RenderingServer::get_singleton()->sync(); //sync if still drawing from previous frames.
++	}
+ 
+ 	GodotProfileZoneGrouped(_profile_zone, "RenderingServer::draw");
+ 	const bool has_pending_resources_for_processing = RD::get_singleton() && RD::get_singleton()->has_pending_resources_for_processing();
+@@ -4997,6 +5003,7 @@
+ 		}
+ 	}
+ 
++	LL397_POINT(end());
+ 	process_ticks = OS::get_singleton()->get_ticks_usec() - process_begin;
+ 	process_max = MAX(process_ticks, process_max);
+ 	uint64_t frame_time = OS::get_singleton()->get_ticks_usec() - ticks;
+--- a/servers/rendering/renderer_canvas_cull.cpp
++++ b/servers/rendering/renderer_canvas_cull.cpp
+@@ -28,6 +28,8 @@
+ /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+ /**************************************************************************/
+ 
++#include "core/profiling/ll397_native_scopes.h"
++
+ #include "renderer_canvas_cull.h"
+ 
+ #include "core/config/project_settings.h"
+@@ -68,6 +70,7 @@
+ }
+ 
+ void RendererCanvasCull::_render_canvas_item_tree(RID p_to_render_target, Canvas::ChildItem *p_child_items, int p_child_item_count, const Transform2D &p_transform, const Rect2 &p_clip_rect, const Color &p_modulate, RendererCanvasRender::Light *p_lights, RendererCanvasRender::Light *p_directional_lights, RenderingServer::CanvasItemTextureFilter p_default_filter, RenderingServer::CanvasItemTextureRepeat p_default_repeat, bool p_snap_2d_vertices_to_pixel, uint32_t p_canvas_cull_mask, RenderingMethod::RenderInfo *r_render_info) {
++	LL397_SCOPE(CANVAS_CULL);
+ 	RENDER_TIMESTAMP("Cull CanvasItem Tree");
+ 
+ 	// This is used to avoid passing the camera transform down the rendering
+@@ -98,10 +101,14 @@
+ 		}
+ 	}
+ 
++	LL397_CLOSE(CANVAS_CULL);
+ 	RENDER_TIMESTAMP("Render CanvasItems");
+ 
+ 	bool sdf_flag;
+-	RSG::canvas_render->canvas_render_items(p_to_render_target, list, p_modulate, p_lights, p_directional_lights, p_transform, p_default_filter, p_default_repeat, p_snap_2d_vertices_to_pixel, sdf_flag, r_render_info);
++	{
++		LL397_SCOPE(CANVAS_SUBMIT);
++		RSG::canvas_render->canvas_render_items(p_to_render_target, list, p_modulate, p_lights, p_directional_lights, p_transform, p_default_filter, p_default_repeat, p_snap_2d_vertices_to_pixel, sdf_flag, r_render_info);
++	}
+ 	if (sdf_flag) {
+ 		sdf_used = true;
+ 	}
+--- a/servers/rendering/renderer_viewport.cpp
++++ b/servers/rendering/renderer_viewport.cpp
+@@ -27,6 +27,8 @@
+ /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+ /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+ /**************************************************************************/
++
++#include "core/profiling/ll397_native_scopes.h"
+ 
+ #include "renderer_viewport.h"
+ 
+@@ -891,7 +893,10 @@
+ 			RSG::scene->set_debug_draw_mode(vp->debug_draw);
+ 
+ 			// render standard mono camera
+-			_draw_viewport(vp);
++			{
++				LL397_SCOPE(VIEWPORT_OTHER);
++				_draw_viewport(vp);
++			}
+ 
+ 			if (vp->viewport_to_screen != DisplayServer::INVALID_WINDOW_ID && (!vp->viewport_render_direct_to_screen || !RSG::rasterizer->is_low_end())) {
+ 				//copy to screen if set as such
+--- a/servers/rendering/rendering_server_default.cpp
++++ b/servers/rendering/rendering_server_default.cpp
+@@ -28,6 +28,8 @@
+ /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+ /**************************************************************************/
+ 
++#include "core/profiling/ll397_native_scopes.h"
++
+ #include "rendering_server_default.h"
+ 
+ #include "core/os/os.h"
+@@ -68,12 +70,16 @@
+ 
+ void RenderingServerDefault::_draw(bool p_swap_buffers, double frame_step) {
+ 	GodotProfileZoneGroupedFirst(_profile_zone, "rasterizer->begin_frame");
+-	RSG::rasterizer->begin_frame(frame_step);
++	{
++		LL397_SCOPE(RENDER_BEGIN);
++		RSG::rasterizer->begin_frame(frame_step);
++	}
+ 
+ 	TIMESTAMP_BEGIN()
+ 
+ 	uint64_t time_usec = OS::get_singleton()->get_ticks_usec();
+ 
++	LL397_SCOPE(PREPARE);
+ 	RENDER_TIMESTAMP("Prepare Render Frame");
+ 
+ #ifndef XR_DISABLED
+@@ -91,6 +97,7 @@
+ 	RSG::canvas->update();
+ 
+ 	frame_setup_time = double(OS::get_singleton()->get_ticks_usec() - time_usec) / 1000.0;
++	LL397_CLOSE(PREPARE);
+ 
+ 	GodotProfileZoneGrouped(_profile_zone, "particles_storage->update_particles");
+ 	RSG::particles_storage->update_particles(); //need to be done after instances are updated (colliders and particle transforms), and colliders are rendered
+@@ -116,8 +123,10 @@
+ #endif // XR_DISABLED
+ 
+ 	GodotProfileZoneGrouped(_profile_zone, "update_visibility_notifiers");
++	LL397_SCOPE(NOTIFIERS);
+ 	RSG::canvas->update_visibility_notifiers();
+ 	RSG::scene->update_visibility_notifiers();
++	LL397_CLOSE(NOTIFIERS);
+ 
+ 	GodotProfileZoneGrouped(_profile_zone, "post_draw_steps");
+ 	if (create_thread) {
+@@ -206,6 +215,7 @@
+ }
+ 
+ void RenderingServerDefault::_run_post_draw_steps() {
++	LL397_SCOPE(POST_CALLBACKS);
+ 	while (frame_drawn_callbacks.front()) {
+ 		Callable c = frame_drawn_callbacks.front()->get();
+ 		Variant result;
+@@ -219,6 +229,8 @@
+ 		frame_drawn_callbacks.pop_front();
+ 	}
+ 
++	LL397_CLOSE(POST_CALLBACKS);
++	LL397_POINT(render_end());
+ 	emit_signal(SNAME("frame_post_draw"));
+ }
+ 
+@@ -437,6 +449,7 @@
+ 	ERR_FAIL_COND_MSG(!Thread::is_main_thread(), "Manually triggering the draw function from the RenderingServer can only be done on the main thread. Call this function from the main thread or use call_deferred().");
+ 	// Needs to be done before changes is reset to 0, to not force the editor to redraw.
+ 	RS::get_singleton()->emit_signal(SNAME("frame_pre_draw"));
++	LL397_POINT(render_begin(create_thread));
+ 	changes = 0;
+ 	if (create_thread) {
+ 		command_queue.push(this, &RenderingServerDefault::_draw, p_present, frame_step);
+--- /dev/null
++++ b/core/profiling/ll397_native_scopes.h
+@@ -0,0 +1,227 @@
++#pragma once
++// Diagnostic-only Godot Linux x86_64 source variant. No GL calls or hot-path I/O.
++#ifdef LL397_ENGINE_DIAG
++#include <array>
++#include <cstdint>
++#include <cstdio>
++#include <cstdlib>
++#include <ctime>
++#include <cstring>
++
++namespace LL397 {
++enum Bucket : uint8_t {
++	SYNC, RENDER_OTHER, RENDER_BEGIN, OLD_GL_QUERY, PREPARE, VIEWPORT_OTHER,
++	CANVAS_CULL, CANVAS_SUBMIT, SCREEN_BLIT, BUFFER_SWAP, EXISTING_FINISH, NOTIFIERS, POST_CALLBACKS, N_BUCKETS
++};
++inline constexpr const char *LABELS[] = {
++	"sync", "render_other", "render_begin", "older_gl_query_and_begin", "prepare",
++	"viewport_other", "canvas_cull", "canvas_submit", "screen_blit", "buffer_swap",
++	"existing_finish", "visibility_notifiers", "post_callbacks"
++};
++static_assert(sizeof(LABELS) / sizeof(*LABELS) == N_BUCKETS);
++struct Pair {
++	int64_t wall = 0;
++	int64_t cpu = 0;
++};
++inline bool stamp(Pair &out) {
++	timespec wall{}, cpu{};
++	if (clock_gettime(CLOCK_MONOTONIC, &wall) || clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cpu)) {
++		return false;
++	}
++	out = {wall.tv_sec * int64_t{1000000000} + wall.tv_nsec,
++		cpu.tv_sec * int64_t{1000000000} + cpu.tv_nsec};
++	return true;
++}
++inline Pair diff(Pair a, Pair b) {
++	return {a.wall - b.wall, a.cpu - b.cpu};
++}
++struct Row {
++	uint64_t id = 0;
++	bool detail = false;
++	Pair outer, tail;
++	std::array<Pair, N_BUCKETS> spent{};
++	std::array<uint32_t, N_BUCKETS> calls{};
++};
++struct State {
++	static constexpr size_t CAP = 512;
++	std::array<Row, CAP> rows{};
++	std::array<Bucket, 10> stack{};
++	Row row{};
++	Pair last{}, pre{}, post{};
++	std::array<char, 4096> output{};
++	size_t used = 0, errors = 0, depth = 0;
++	bool initialized = false, current = false, seen_pre = false, seen_post = false;
++};
++inline thread_local State state;
++inline bool phase_stamp(Pair &out) {
++	if (!stamp(out)) {
++		state.errors++;
++		return false;
++	}
++	return true;
++}
++inline void accrue(Pair now) {
++	if (!state.depth) {
++		return;
++	}
++	const Pair delta = diff(now, state.last);
++	if (delta.wall < 0 || delta.cpu < 0) {
++		state.errors++;
++		return;
++	}
++	Pair &dest = state.row.spent[state.stack[state.depth - 1]];
++	dest.wall += delta.wall;
++	dest.cpu += delta.cpu;
++}
++inline bool push_at(Bucket name, Pair now) {
++	if (state.depth == state.stack.size()) {
++		state.errors++;
++		return false;
++	}
++	accrue(now);
++	state.last = now;
++	state.stack[state.depth++] = name;
++	state.row.calls[name]++;
++	return true;
++}
++inline void pop_at(Bucket name, Pair now) {
++	if (!state.depth || state.stack[state.depth - 1] != name) {
++		state.errors++;
++		return;
++	}
++	accrue(now);
++	state.last = now;
++	--state.depth;
++}
++struct Scope {
++	Bucket name;
++	bool active = false;
++	explicit Scope(Bucket bucket) : name(bucket) {
++		if (state.current && (name == SYNC || (state.row.detail && state.depth))) {
++			Pair now;
++			active = phase_stamp(now) && push_at(name, now);
++		}
++	}
++	~Scope() {
++		close();
++	}
++	void close() {
++		if (active) {
++			active = false;
++			Pair now;
++			if (phase_stamp(now)) {
++				pop_at(name, now);
++			}
++		}
++	}
++	Scope(const Scope &) = delete;
++	Scope &operator=(const Scope &) = delete;
++};
++inline void dump() {
++	if (!state.output[0]) {
++		return;
++	}
++	// The harness supplies a fixed fresh output in its private synthetic directory.
++	std::FILE *f = std::fopen(state.output.data(), "wx");
++	if (!f) {
++		return; // Missing output fails closed in the harness.
++	}
++	std::fprintf(f, "ll397-engine-scopes-v1\terrors\t%zu\n", state.errors);
++	std::fputs("frame\tdetail\touter_wall_ns\touter_thread_cpu_ns\ttail_wall_ns\ttail_thread_cpu_ns", f);
++	for (const char *label : LABELS) {
++		std::fprintf(f, "\t%s_wall_ns\t%s_thread_cpu_ns\t%s_calls", label, label, label);
++	}
++	std::fputc('\n', f);
++	for (size_t i = 0; i < state.used; ++i) {
++		const Row &r = state.rows[i];
++		std::fprintf(f, "%llu\t%u\t%lld\t%lld\t%lld\t%lld",
++			(unsigned long long)r.id, unsigned(r.detail), (long long)r.outer.wall,
++			(long long)r.outer.cpu, (long long)r.tail.wall, (long long)r.tail.cpu);
++		for (size_t j = 0; j < N_BUCKETS; ++j) {
++			std::fprintf(f, "\t%lld\t%lld\t%u",
++				(long long)r.spent[j].wall, (long long)r.spent[j].cpu, unsigned(r.calls[j]));
++		}
++		std::fputc('\n', f);
++	}
++	std::fclose(f);
++}
++inline void begin(uint64_t serial) {
++	if (!state.initialized) {
++		state.initialized = true;
++		const char *path = std::getenv("LL397_ENGINE_TRACE");
++		if (path && path[0] == '/' && std::strlen(path) < state.output.size() && !std::atexit(dump)) {
++			std::strcpy(state.output.data(), path);
++		}
++	}
++	if (!state.output[0]) {
++		return;
++	}
++	const char *arm = std::getenv("LL397_ENGINE_ARM");
++	if (!arm || (arm[0] != '0' && arm[0] != '1') || arm[1]) {
++		return;
++	}
++	if (state.current || state.depth) {
++		state.errors++;
++		return;
++	}
++	state.row = {};
++	state.row.id = serial;
++	state.row.detail = arm[0] == '1';
++	state.seen_pre = state.seen_post = false;
++	state.current = true;
++}
++inline void render_begin(bool separate) {
++	if (!state.current) {
++		return;
++	}
++	if (separate || state.seen_pre || state.depth) {
++		state.errors++;
++		return;
++	}
++	if (!phase_stamp(state.pre)) {
++		return;
++	}
++	state.seen_pre = true;
++	if (state.row.detail) {
++		push_at(RENDER_OTHER, state.pre);
++	}
++}
++inline void render_end() {
++	if (!state.current) {
++		return;
++	}
++	if (!state.seen_pre || state.seen_post || state.depth != unsigned(state.row.detail)) {
++		state.errors++;
++		return;
++	}
++	if (!phase_stamp(state.post)) {
++		return;
++	}
++	if (state.row.detail) {
++		pop_at(RENDER_OTHER, state.post);
++	}
++	state.row.outer = diff(state.post, state.pre);
++	state.seen_post = true;
++}
++inline void end() {
++	if (!state.current) {
++		return;
++	}
++	Pair now;
++	if (!state.seen_pre || !state.seen_post || state.depth || !phase_stamp(now) || state.used == state.CAP) {
++		state.errors++;
++	} else {
++		state.row.tail = diff(now, state.post);
++		state.rows[state.used++] = state.row;
++	}
++	state.current = false;
++}
++} // namespace LL397
++#define LL397_POINT(expr) LL397::expr
++#define LL397_SCOPE(bucket) LL397::Scope ll397_scope_##bucket(LL397::bucket)
++#define LL397_CLOSE(bucket) ll397_scope_##bucket.close()
++#else
++#define LL397_POINT(expr) ((void)0)
++#define LL397_SCOPE(bucket) ((void)0)
++#define LL397_CLOSE(bucket) ((void)0)
++#endif // LL397_ENGINE_DIAG
