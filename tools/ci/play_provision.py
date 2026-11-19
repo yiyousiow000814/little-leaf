@@ -9,9 +9,14 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 
 LOCK = Path(__file__).with_name("noble-lock.json")
 ORIGIN = "https://archive.ubuntu.com/ubuntu/pool/"
+RETRYABLE_DOWNLOAD_CODES = {28, 52}  # Timeout, empty reply.
+DOWNLOAD_PHASE_SECONDS = 110  # Shared by all packages, inside each 3-minute CI step.
+FIRST_DOWNLOAD_SECONDS = 45
+RETRY_DOWNLOAD_SECONDS = 55
 # Playwright 1.63.0's Noble Chromium dependency/tool list, excluding locked fonts.
 # Also require the helpers used by the original headed lane.
 LOCKED_TRANSITIVE = {
@@ -85,14 +90,39 @@ def simulate(files, report, write):
         raise RuntimeError(f"Offline apt simulation failed ({sims.returncode}); no packages installed")
     return sims.stdout
 
-def fetch_package(name, spec, root):
+def download_pinned_package(name, url, dest, deadline):
+    resume = False
+    for attempt, limit in enumerate((FIRST_DOWNLOAD_SECONDS, RETRY_DOWNLOAD_SECONDS)):
+        budget = min(limit, deadline - time.monotonic())
+        if budget < 0.01:
+            raise TimeoutError(f"Pinned package download budget exhausted before {name}")
+        try:
+            # No redirects, mirror fallback, or unverified URL. Only curl's
+            # validated Range continuation may reuse a timeout's partial bytes.
+            run("curl", "--fail", "--silent", "--show-error", "--proto", "=https",
+                "--connect-timeout", f"{min(10, budget):.3f}", "--max-time", f"{budget:.3f}",
+                *(("--continue-at", "-") if resume else ()), "--output", str(dest), url,
+                timeout=budget + 1)
+            return
+        except subprocess.CalledProcessError as error:
+            if attempt or error.returncode not in RETRYABLE_DOWNLOAD_CODES:
+                raise
+            resume = error.returncode == 28 and dest.exists() and dest.stat().st_size > 0
+            if not resume:
+                dest.unlink(missing_ok=True)
+            print(f"Retrying pinned package {name} once after curl exit {error.returncode}"
+                  f" ({'resume' if resume else 'restart'})", file=sys.stderr)
+
+def fetch_package(name, spec, root, deadline=None):
     rel = spec["file"]
     if not re.fullmatch(r"(main|universe)/[a-z0-9+.-]+/[a-z0-9+.-]+/[A-Za-z0-9+._~%-]+[.]deb", rel):
         raise ValueError(f"Unsafe package path: {rel}")
     dest = root / Path(rel).name
-    # No redirects, retries, mirror fallback, or unverified URL.
-    run("curl", "--fail", "--silent", "--show-error", "--proto", "=https",
-        "--connect-timeout", "10", "--max-time", "45", "--output", str(dest), ORIGIN + rel)
+    if deadline is None:
+        deadline = time.monotonic() + DOWNLOAD_PHASE_SECONDS
+    download_pinned_package(name, ORIGIN + rel, dest, deadline)
+    # Check the entire file after either a fresh transfer or continuation.
+    # Hash and package metadata failures never trigger a retry.
     with dest.open("rb") as stream:
         actual = hashlib.file_digest(stream, "sha256").hexdigest()
     if actual != spec["sha256"]:
@@ -125,8 +155,9 @@ def main(mode, receipt):
             write()
             with tempfile.TemporaryDirectory(prefix="checked-noble-") as td:
                 root = Path(td)
+                deadline = time.monotonic() + DOWNLOAD_PHASE_SECONDS
                 with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-                    files = list(pool.map(lambda n: fetch_package(n, lock[n], root), needed))
+                    files = list(pool.map(lambda n: fetch_package(n, lock[n], root, deadline), needed))
                 if files:
                     # Dry-run uses installed versions and local file dependencies only. It must
                     # resolve before the original lane's existing sudo is allowed to mutate dpkg.

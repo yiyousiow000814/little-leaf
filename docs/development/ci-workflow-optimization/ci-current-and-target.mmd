@@ -82,9 +82,20 @@ flowchart TB
     R1 --> R2["Pending ordinary-PR pilot: omit only archival music scores at Build and Play checkout<br/>Exact source tree and required proof/assets retained; no runtime, release or preview change"]
     R2 --> R3["280 archival paths · 831.94 MB tracked; not compressed Git transfer<br/>Prior two checkout steps combined 53.07 s; hosted savings unknown"]
   end
+  subgraph transport["Same-host recovery for pinned Chromium package transport · candidate"]
+    T0["Ordinary PR lane: official Ubuntu HTTPS, fixed package path + SHA"]
+    T0 --> T1["First curl request: up to 45 s"]
+    T1 -->|timeout or empty reply only| T2["One same-URL retry: up to 55 s; all workers share 110 s"]
+    T2 -->|non-empty timeout prefix only| T3["Validated Range resume; otherwise start with an empty file"]
+    T1 & T3 --> T4["Check whole SHA-256, name, version and architecture; offline solve and install unchanged"]
+    T2 -->|other failure or no time left| T5["Fail closed before package install; no mirror or trust fallback"]
+    T4 --> T6["Hosted timing and stability still to be measured; signed WebKit APT path unchanged"]
+  end
   classDef measured fill:#EAF1F2,stroke:#607C84,color:#253640
   classDef change fill:#EEF2E5,stroke:#7C8D66,color:#304028
   classDef caution fill:#F9EBDF,stroke:#AA5538,color:#703620
   class Q,G,GB,BP,BR,J,ON,OH,OC,OA,OP,OJ measured
   class PF,PW,RA,PR,PX,PJ change
   class F2,L0,L1,L2,L3,L4,L5,L6 caution
+  class T0,T1,T2,T3,T4 change
+  class T5,T6 caution
