@@ -29,5 +29,28 @@ class PrArchivedScoresCheckoutTests(unittest.TestCase):
                     "sparse-checkout": "${{ " + selector + " == 'true' && env.ARCHIVE_FREE_CHECKOUT || '' }}",
                 })
         for name, job in jobs.items():
-            if name not in by_job:
+            if name not in {*by_job, "compatibility"}:
                 self.assertNotIn("ARCHIVE_FREE_CHECKOUT", job.get("env", {}))
+
+    def test_compatibility_only_excludes_archived_scores_from_ordinary_current_checkout(self):
+        jobs = yaml.safe_load((ROOT / ".github/workflows/build-web.yml").read_text())["jobs"]
+        job = jobs["compatibility"]
+        self.assertEqual(job["strategy"]["matrix"]["case"], ["old_opened_after_new", "already_open_old"])
+        self.assertEqual(job["env"]["ARCHIVE_FREE_CHECKOUT"], PATTERNS)
+        self.assertEqual(job["env"]["PR_LOCKED_CHROMIUM_PROVISION"],
+                         "${{ github.event_name == 'pull_request' && inputs.release_tag == '' && "
+                         "!inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && "
+                         "inputs.publication_receipt == '' }}")
+        current, historical = [step for step in job["steps"] if step.get("uses") == PIN]
+        self.assertNotIn("if", current)
+        self.assertEqual(current["with"], {
+            "fetch-depth": 0,
+            "persist-credentials": False,
+            "sparse-checkout-cone-mode": False,
+            "sparse-checkout": "${{ env.PR_LOCKED_CHROMIUM_PROVISION == 'true' && env.ARCHIVE_FREE_CHECKOUT || '' }}",
+        })
+        self.assertEqual(historical["with"], {
+            "ref": "9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc",
+            "path": ".compatibility-old",
+            "persist-credentials": False,
+        })

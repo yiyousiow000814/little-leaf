@@ -601,6 +601,9 @@ jobs:
         lane: [compatibility]
         case: [old_opened_after_new, already_open_old]
     env:
+      ARCHIVE_FREE_CHECKOUT: |
+        /*
+        !/docs/art-audio/scores/
       PR_LOCKED_CHROMIUM_PROVISION: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
       CHROMIUM_PROVISION_RELATIVE: chromium-provision/compatibility-${{ matrix.case }}
     steps:
@@ -608,6 +611,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: ${{ env.PR_LOCKED_CHROMIUM_PROVISION == 'true' && env.ARCHIVE_FREE_CHECKOUT || '' }}
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           artifact-ids: ${{ needs.build.outputs.inputs_id }}
