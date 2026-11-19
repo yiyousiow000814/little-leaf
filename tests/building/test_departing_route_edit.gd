@@ -145,6 +145,7 @@ func _initialize():
  public_reroutes()
  arrival_shared_search()
  arrival_held_seat()
+ legacy_departure_distances()
  for x in [-.5,-.00000665,-.0000001,0.0,.0000001,.2]:
   var m=fresh(x);var before=state(m);var id=int(m.items[-1].id);var g=m.customers[0].duplicate(true)
   var plan=Motion.plan(m,id,2,0,0)
@@ -274,3 +275,76 @@ func arrival_held_seat():
  if m.customers.size()<2:return
  var admitted=m.customers[1]
  check(admitted.table_id!=held.table_id and admitted.chair_id!=held.chair_id,"new guest never takes occupied held table or chair")
+
+class LegacyDepartureGrid extends ArrivalGrid:
+ var ports:Array[int]=[]
+ var directed:Dictionary={}
+ var occupied:Dictionary={}
+ func edge_blocked(a:Vector2i,b:Vector2i)->bool:
+  return super.edge_blocked(a,b) or directed.has([a,b])
+ func boundary_entries()->Array[Dictionary]:
+  if ports.is_empty():return super.boundary_entries()
+  var result:Array[Dictionary]=[]
+  for z in ports:result.append({"cell":Vector2i(0,z),"outside":Vector2i(-1,z),"direction":Vector2i.LEFT})
+  return result
+ func _egress_occupied(_id:int,cell:Vector2i)->bool:return occupied.has(cell)
+
+func original_seated_departure(m,chair_id:int,table_id:int,exit_z:float,guest_id:int)->Dictionary:
+ var chair=m.get_item(chair_id)
+ var chair_cell=Vector2i(int(chair.x),int(chair.z))
+ var forward=m._chair_table_direction(chair_id,table_id)
+ var approaches=m.chair_egress_cells(chair_id,table_id)
+ var best={};var best_rank=4;var best_length=INF
+ for entry in m.boundary_entries():
+  for approach in approaches:
+   var direction=approach-chair_cell
+   var rank=(0 if direction.x*forward.x+direction.y*forward.y==0 else 1)+(2 if m._egress_occupied(guest_id,approach) else 0)
+   var indoor=m.Checkout.path(m,entry.cell,approach)
+   if indoor.is_empty():continue
+   indoor.reverse()
+   var route:Array[Vector2]=[]
+   for cell in indoor:route.append(m.cell_center(cell))
+   route.append_array(m._exterior_approach(entry,false,exit_z))
+   var length=m._route_length(m.cell_center(chair_cell),route)
+   if rank<best_rank or (rank==best_rank and length+.000001<best_length):
+    best_rank=rank;best_length=length
+    best={"entry_cell":entry.cell,"entry_direction":entry.direction,"entry_outside":entry.outside,
+      "approach":approach,"route":route,"length":length,"chair_approach":"side" if rank%2==0 else "rear_fallback"}
+ return best
+
+func legacy_departure_distances():
+ var m=LegacyDepartureGrid.new()
+ m.ports.assign([0,2])
+ m.items.assign([
+  {"id":1,"kind":"chair","x":4,"z":2,"rot":0},{"id":2,"kind":"table","x":5,"z":2,"rot":0},
+  {"id":3,"kind":"plant","x":3,"z":2},{"id":4,"kind":"plant","x":4,"z":3}])
+ var expected=original_seated_departure(m,1,2,1.5,3)
+ var current=m.guest_access_for(1,false,Vector2.ZERO,1.5,2,3)
+ check(current==expected and current.entry_cell==Vector2i(0,0),"exact equal-length exterior tie keeps first west entry")
+ check(current.route[0]==Vector2(4.5,1.5) and current.route[1]==Vector2(4.5,.5),"equal indoor route uses old forward direction tie, then reverses it")
+ m.directed[[Vector2i(3,0),Vector2i(4,0)]]=true
+ current=m.guest_access_for(1,false,Vector2.ZERO,1.5,2,3)
+ check(current==original_seated_departure(m,1,2,1.5,3) and current.route[1]==Vector2(3.5,1.5),"one-way transition tests forward edge orientation, not reverse traversal permission")
+ m.items.resize(2);m.occupied[Vector2i(4,1)]=true
+ current=m.guest_access_for(1,false,Vector2.ZERO,1.5,2,3)
+ check(current==original_seated_departure(m,1,2,1.5,3) and current.approach==Vector2i(4,3),"occupied side ranks after clear side, exact whole route retained")
+ var real=Model.new();Minimal.apply(real)
+ var chair_id=int(real.items.filter(func(item):return item.kind=="chair")[0].id)
+ var attached=real.wall_attachments.duplicate(true)
+ var public_route=real.guest_access_for(chair_id,false,Vector2.ZERO,-2.5)
+ check(not public_route.is_empty() and public_route==original_seated_departure(real,chair_id,-1,-2.5,-1),"real authored door cut and exit tail match old route")
+ real.wall_attachments.clear()
+ check(real.guest_access_for(chair_id,false,Vector2.ZERO,-2.5).is_empty(),"closing real authored door cut blocks departure")
+ real.wall_attachments.assign(attached)
+ check(real.guest_access_for(chair_id,false,Vector2.ZERO,-2.5)==public_route,"reopening real door observes current geometry, not a previous search")
+ m.ports.clear();m.directed.clear();m.occupied.clear()
+ for size in [8,16,24]:
+  m.extent=size;m.barriers.clear()
+  m.items.assign([{"id":1,"kind":"chair","x":size-3,"z":size/2,"rot":0},{"id":2,"kind":"table","x":size-2,"z":size/2,"rot":0}])
+  for z in size:
+   if z!=size/2:m.barriers[[Vector2i(1,z),Vector2i(2,z)]]=true
+  m.checks=0;expected=original_seated_departure(m,1,2,-2.5,4);var before=m.checks
+  m.checks=0;current=m.guest_access_for(1,false,Vector2.ZERO,-2.5,2,4);var after=m.checks
+  print("LEGACY_DEPARTURE_WORK ",size," ",before," ",after)
+  check(current==expected and not current.is_empty(),"scaled route, exact length, and exterior tail match, grid %s"%size)
+  check(after<=4*size*size and after*2<before,"expanded cells independent of entry count, grid %s"%size)

@@ -88,6 +88,12 @@ func touches_body(point:Vector2)->bool:
 		if Openings.body_touches(segments[i],point,BODY_RADIUS):return true
 	return false
 
+## Ordered broad-phase candidates for the existing capsule-style body tests.
+func swept_indices(a:Vector2,b:Vector2,radius:float)->Array:
+	if not a.is_finite() or not b.is_finite():return _all_indices
+	var margin:=Vector2.ONE*radius
+	return _indices(a.min(b)-margin,a.max(b)+margin)
+
 func _indices(low:Vector2,high:Vector2)->Array:
 	if not _can_query_grid or not _small_range(low,high):return _all_indices
 	var first:=Vector2i(floori(low.x),floori(low.y))

@@ -991,32 +991,77 @@ func guest_access_for(chair_id: int, arriving: bool = true, start: Vector2 = Vec
 	if chair.is_empty():
 		return {}
 	var chair_cell := Vector2i(int(chair.x), int(chair.z))
-	var best: Dictionary = {}
-	var best_length := INF
-	var best_rank := 4
-	var forward := _chair_table_direction(chair_id,table_id)
-	var egress_cells := chair_egress_cells(chair_id,table_id)
-	for entry in boundary_entries():
-		for approach in egress_cells:
-			var direction:Vector2i=approach-chair_cell
-			var approach_rank := 0 if direction.x*forward.x+direction.y*forward.y==0 else 1
-			if _egress_occupied(customer_id,approach):approach_rank+=2
-			var indoor := Checkout.path(self,entry.cell,approach)
-			if indoor.is_empty():
-				continue
-			var route: Array[Vector2] = []
-			indoor.reverse()
-			for cell in indoor:
-				route.append(cell_center(cell))
-			route.append_array(_exterior_approach(entry, false, exit_z))
-			var length := _route_length(cell_center(chair_cell), route)
-			if approach_rank<best_rank or (approach_rank==best_rank and length+.000001<best_length):
-				best_rank=approach_rank
-				best_length = length
-				best = {"entry_cell": entry.cell, "entry_direction": entry.direction,
-					"entry_outside": entry.outside, "approach": approach,
-					"route": route, "length": length,"chair_approach":"side" if approach_rank%2==0 else "rear_fallback"}
-	return best
+	var entrances:=boundary_entries()
+	if entrances.is_empty():return {}
+	var forward:=_chair_table_direction(chair_id,table_id)
+	var approaches:=chair_egress_cells(chair_id,table_id)
+	if approaches.is_empty():return {}
+	var solids={}
+	for item in items:
+		if item.kind!="rug":solids[Vector2i(int(item.x),int(item.z))]=true
+	var targets={}
+	for entry in entrances:
+		if not solids.has(entry.cell) and is_floor_owned(entry.cell):targets[entry.cell]=true
+	if targets.is_empty():return {}
+	var distance_maps={}
+	for approach in approaches:
+		distance_maps[approach]=_departure_distances(approach,solids,targets)
+	var best_entry:Dictionary={}
+	var best_approach:=Vector2i.ZERO
+	var best_rank:=4
+	var best_length:=INF
+	for entry in entrances:
+		for approach in approaches:
+			var direction:=approach-chair_cell
+			var rank:=0 if direction.x*forward.x+direction.y*forward.y==0 else 1
+			if _egress_occupied(customer_id,approach):rank+=2
+			var distances:Dictionary=distance_maps[approach]
+			if not distances.has(entry.cell):continue
+			# Bounded, cardinal half-tile centers add exactly one per
+			# indoor step. Keep the exterior additions in the old order.
+			var length:=cell_center(chair_cell).distance_to(cell_center(approach))+float(distances[entry.cell])
+			var prior:=cell_center(entry.cell)
+			for next in _exterior_approach(entry,false,exit_z):
+				length+=prior.distance_to(next)
+				prior=next
+			if rank<best_rank or (rank==best_rank and length+.000001<best_length):
+				best_rank=rank;best_length=length;best_entry=entry;best_approach=approach
+	if best_entry.is_empty():return {}
+	var winning_distances:Dictionary=distance_maps[best_approach]
+	var cell:Vector2i=best_entry.cell
+	var route:Array[Vector2]=[cell_center(cell)]
+	while cell!=best_approach:
+		# Recover the original forward BFS tie order, not reverse BFS's
+		# arbitrary parent order. Then reverse the winning path as before.
+		var moved:=false
+		for direction in DIRECTIONS:
+			var next:Vector2i=cell+direction
+			if winning_distances.get(next,-1)!=int(winning_distances[cell])-1 or edge_blocked(cell,next):continue
+			cell=next;route.append(cell_center(cell));moved=true;break
+		if not moved:return {}
+	route.reverse()
+	route.append_array(_exterior_approach(best_entry,false,exit_z))
+	return {"entry_cell":best_entry.cell,"entry_direction":best_entry.direction,
+		"entry_outside":best_entry.outside,"approach":best_approach,"route":route,
+		"length":best_length,"chair_approach":"side" if best_rank%2==0 else "rear_fallback"}
+
+func _departure_distances(approach:Vector2i,solids:Dictionary,targets:Dictionary)->Dictionary:
+	if solids.has(approach) or not is_floor_owned(approach):return {}
+	var pending:=targets.duplicate()
+	pending.erase(approach)
+	var distances={approach:0}
+	var cells:Array[Vector2i]=[approach]
+	var cursor:=0
+	while cursor<cells.size() and not pending.is_empty():
+		var cell:=cells[cursor]
+		cursor+=1
+		for direction in DIRECTIONS:
+			var prior:Vector2i=cell+direction
+			if distances.has(prior) or solids.has(prior) or not is_floor_owned(prior) or edge_blocked(prior,cell):continue
+			distances[prior]=int(distances[cell])+1
+			cells.append(prior)
+			pending.erase(prior)
+	return distances
 
 
 func _arrival_access(chair_id:int,start:Vector2,table_id:int,index:Dictionary)->Dictionary:
