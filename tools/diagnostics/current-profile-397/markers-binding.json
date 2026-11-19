@@ -1,0 +1,43 @@
+{
+  "base_sha256": {
+    "project.godot": "09a15b9558d981fe31f4a0fe4b83c6c98bbad4cd7bbc03d840e76ad7da87bf93",
+    "scripts/core/cafe_model.gd": "14ed712d28bc5ea67dfcb5fbac6e7e1c05da29e0910ded22ad52d8764a9837b5",
+    "scripts/main.gd": "8c61d1056fc19d206d1bfbfeed6d1f746c94cd32d847ca8c66b0ed84e06b847f",
+    "scripts/rendering/cafe_native_draw_node.gd": "485c298089fb735ccad3e99af0980b19eb4d44b5e434b1f1dc2c1a7c6baa60a3",
+    "scripts/rendering/illustrated_cafe.gd": "ab7f4942e446c1e0d4116635d8aa5329b2ae82ff5ec6bd0cc99db2c86ee1926b"
+  },
+  "diagnostic_sha256": {
+    "ll397_scopes.gd": "a2580432ad8f2dc2893c105f5271d55e5e0f99d9ae10293a36b316132ccdaa9e",
+    "project.godot": "4330cea55bd7ffbd4600aa5ae69acb0aced7f5dc45ed5ab27112f96a42dc949e",
+    "scripts/core/cafe_model.gd": "60a8668e67bef57944c57f296c9cdeb9160dac69f6acea8b8689875573773605",
+    "scripts/main.gd": "afef6acd9e5bf57a2254eaec54b750871f4d5da21c586307fda6f4767b95b055",
+    "scripts/rendering/cafe_native_draw_node.gd": "07165d5a2dfac062c4d0c5b50172fd8dead732e679f3d13ef25f2c2cb0769c9f",
+    "scripts/rendering/illustrated_cafe.gd": "d1761f0b34fbc7340ad9e7e2b2877a8c597e4e88cecbf39a763fe708588c5e34"
+  },
+  "keys": [
+    "main_dispatch",
+    "duty_sync",
+    "input_hud",
+    "service_coordination",
+    "model_tick",
+    "staff_runtime",
+    "task_assignment",
+    "navigation",
+    "autosave",
+    "ui_refresh",
+    "roster",
+    "audio",
+    "renderer_update",
+    "street_motion",
+    "actor_motion",
+    "draw_prepare",
+    "ground_draw",
+    "exterior_draw",
+    "depth_sort",
+    "entity_draw",
+    "draw_finish",
+    "native_redraw"
+  ],
+  "source_sha": "ce1435afb2329a6c1d2d77a8a19923dfd96bd205",
+  "source_tree": "03632a0d56e4294f5664859656c8809541766d1b"
+}
