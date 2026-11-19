@@ -11,6 +11,34 @@ var operations=[]
 func check(ok:bool,label:String):
  checks+=1
  if not ok:failures.append(label);printerr("FAIL ",label)
+const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
+const WallReachability=preload("res://scripts/gameplay/cafe_wall_reachability.gd")
+func check_blocked_edge_index(model):
+ for axis in ["x","z"]:
+  var walls=[]
+  for i in range(3):
+   walls.append(Walls.installed("wall:%d"%(i+1),Walls.make(axis,2+i if axis=="x" else 2,2 if axis=="x" else 2+i),55,55))
+  var cases=[
+   [],
+   [{"id":1,"kind":"door","wall_ids":["wall:1"],"offset":.5,"width":1.0}],
+   [{"id":1,"kind":"door","wall_ids":["wall:1","wall:2"],"offset":.75,"width":1.5}],
+   [{"id":1,"kind":"door","wall_ids":["wall:2","wall:1"],"offset":.75,"width":1.5}],
+   [{"id":1,"kind":"door","wall_ids":["wall:1","wall:3"],"offset":.75,"width":1.5}],
+   [{"id":1,"kind":"window","wall_ids":["wall:1"],"offset":.5,"width":1.0}],
+   [{"id":1,"kind":"door","host_id":"span:1,2","offset":.75,"width":1.5}],
+   [{"id":1,"kind":"door","wall_ids":["wall:1"],"offset":.5,"width":.460020}],
+   [{"id":1,"kind":"door","wall_ids":["wall:1"],"offset":.5,"width":.460040}],
+  ]
+  for i in range(cases.size()):
+   var tested=walls
+   if cases[i].size()>0 and cases[i][0].has("host_id"):
+    tested=walls.duplicate(true)
+    for j in range(tested.size()):tested[j].id=j+1
+   var before={}
+   for wall in tested:
+    var cells=Walls.adjacent_cells(wall)
+    if model._built_edge_blocked(cells[0],cells[1],tested,cases[i]):before[Walls.key_of(wall)]=true
+   check(WallReachability.blocked_grid_edges(tested,cases[i])==before,"indexed wall clearance matches legacy lookup for %s case %d"%[axis,i])
 func _initialize():run.call_deferred()
 func settle():
  game._update_ui();game.illustration.queue_redraw()
@@ -34,6 +62,7 @@ func run():
  root.size=Vector2i(1164,624);game=TestMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false);game.paused=true
  await process_frame;game.model.coins=1600;game._toggle_edit();game._set_catalog_category("Build");game.compact_ui._set_tray_reveal(1);await settle()
  var ui=game.compact_ui;var model=game.model;var tool=game.build_tools
+ check_blocked_edge_index(model)
  game._cancel_selection();await settle();await click(aim(2.5))
  check(ui.selected_wall=="x:2:0","click existing wall selects exact one-tile host")
  await click(ui.finish_button.get_global_rect().get_center())

@@ -14,6 +14,7 @@ const DiningSets=preload("res://scripts/gameplay/cafe_dining_sets.gd")
 const WallTransactions=preload("res://scripts/gameplay/cafe_wall_transactions.gd")
 const FurnitureMotion=preload("res://scripts/gameplay/cafe_furniture_motion.gd")
 const LayoutAccess=preload("res://scripts/gameplay/cafe_layout_access.gd")
+const WallReachability=preload("res://scripts/gameplay/cafe_wall_reachability.gd")
 const OpeningGeometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 const BuildingCodec=preload("res://scripts/persistence/cafe_building_codec.gd")
 const ShellSegments=preload("res://scripts/gameplay/cafe_shell_segments.gd")
@@ -1809,12 +1810,19 @@ func save_data()->Dictionary:
 			if int(host.id)>=_next_item_id:return _save_data_error("Held host exceeds furniture identity sequence")
 	var checkout_error=Checkout.state_error(included_checkout_pending,cashiers,items,customers,duty_targets,duty_counts,register_unplaced,operating_open,held_format)
 	if checkout_error!="":return _save_data_error(checkout_error)
-	checkout_error=Checkout.layout_error(self,items,built_walls,owned_parcels,active_guests)
+	# These validators read one layout during this preflight. Codec-normalized
+	# openings may differ, in which case they get a separate result.
+	var reachability:Dictionary={}
+	var draft_reach := func()->Dictionary:
+		if not reachability.has("draft"):
+			reachability.draft=_wall_reachable(built_walls,items,owned_parcels)
+		return reachability.draft
+	checkout_error=Checkout.layout_error(self,items,built_walls,owned_parcels,active_guests,null,draft_reach)
 	if checkout_error!="":return _save_data_error(checkout_error)
 	## Only our explicit reconstructed schema is written; no legacy paths probed.
 	var group_check=DiningSets.validate(dining_sets,items,active_guests)
 	if not group_check.ok:return _save_data_error(str(group_check.error))
-	var reserved_error:=_reserved_chair_egress_error(built_walls,items,active_guests,_wall_reachable(built_walls,items,owned_parcels))
+	var reserved_error:=_reserved_chair_egress_error(built_walls,items,active_guests,draft_reach.call())
 	if reserved_error!="":return _save_data_error("Could not save inconsistent active service: "+reserved_error)
 	var outside=codec.encode({"format":OutsideQueue.FORMAT,"visitors":outside_queue})
 	var queue_check=OutsideQueue.validate(outside,customers,_next_customer_id)
@@ -1856,7 +1864,16 @@ func save_data()->Dictionary:
 	# walking access a placement rule. Active service keeps its existing gates.
 	var physical_error=_furniture_body_error(items,saved_actors) if active_guests.is_empty() else ""
 	if physical_error!="":return _save_data_error("Could not save physical layout: "+physical_error)
-	var egress_error="" if active_guests.is_empty() else _wall_egress_error(built_walls,saved_actors,items,owned_parcels,active_guests,openings_check.attachments)
+	var egress_error:=""
+	if not active_guests.is_empty():
+		var openings:Array=openings_check.attachments
+		var checked_reach:Callable=draft_reach
+		if openings!=wall_attachments:
+			checked_reach=func()->Dictionary:
+				if not reachability.has("checked"):
+					reachability.checked=_wall_reachable(built_walls,items,owned_parcels,openings)
+				return reachability.checked
+		egress_error=_wall_egress_error(built_walls,saved_actors,items,owned_parcels,active_guests,openings,checked_reach)
 	if egress_error!="":return _save_data_error("Could not save invalid walls: "+egress_error)
 	var actors=saved_actors.duplicate()
 	for guest in active_guests:
@@ -2226,10 +2243,7 @@ func _wall_reachable(walls:Array,layout:Array,ownership:Array,openings=null) -> 
 	var blocked:Dictionary={}
 	for item in layout:
 		if str(item.kind)!="rug":blocked[Vector2i(int(item.x),int(item.z))]=true
-	var keys:Dictionary={}
-	for wall in walls:
-		var sides=WallGeometry.adjacent_cells(wall)
-		if _built_edge_blocked(sides[0],sides[1],walls,openings):keys[WallGeometry.key_of(wall)]=true
+	var keys:=WallReachability.blocked_grid_edges(walls,wall_attachments if openings==null else openings)
 	var reachable:Dictionary={}
 	var queue:Array[Vector2i]=[]
 	for z in range(MAX_DEPTH):
@@ -2249,12 +2263,12 @@ func _wall_reachable(walls:Array,layout:Array,ownership:Array,openings=null) -> 
 			reachable[next]=true;queue.append(next)
 	return reachable
 
-func _wall_egress_error(walls:Array,actors:Array,layout:Array,ownership:Array,guests:Array,openings=null) -> String:
+func _wall_egress_error(walls:Array,actors:Array,layout:Array,ownership:Array,guests:Array,openings=null, shared_reach:Callable=Callable()) -> String:
 	var motion_error=_layout_motion_geometry_error(guests,layout,walls,ownership,wall_attachments if openings==null else openings)
 	if motion_error!="":return motion_error
-	var checkout_error=Checkout.layout_error(self,layout,walls,ownership,guests,openings)
+	var checkout_error=Checkout.layout_error(self,layout,walls,ownership,guests,openings,shared_reach)
 	if checkout_error!="":return checkout_error
-	var reachable:=_wall_reachable(walls,layout,ownership,openings)
+	var reachable:Dictionary=shared_reach.call() if shared_reach.is_valid() else _wall_reachable(walls,layout,ownership,openings)
 	var reserved_error:=_reserved_chair_egress_error(walls,layout,guests,reachable,openings)
 	if reserved_error!="":return reserved_error
 	if not reachable.has(ENTRY_LANDING):return "Keep a reachable open entrance and exit for the cafe"
