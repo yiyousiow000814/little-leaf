@@ -75,8 +75,24 @@ func check_scalar_save_preservation():
   check(not receiver.load_save(write("scalar-invalid-"+str(spec[0]),malformed)) and state(receiver)==before,"reader rejects scalar atomically: "+str(spec[0]))
   check(receiver.last_error==writer_error,"reader and writer share the existing diagnostic: "+str(spec[0]))
 
+func verify_dining_index_order():
+ var layout=[
+  {"id":50,"kind":"table","x":3,"z":3},
+  {"id":22,"kind":"chair","x":2,"z":3},
+  {"id":10,"kind":"chair","x":4,"z":3},
+  {"id":100,"kind":"table","x":5,"z":3},
+  {"id":98,"kind":"chair","x":5,"z":4},
+ ]
+ var natural=Sets.migrate(layout,[])
+ check(natural.map(func(g):return [g.table_id,g.seat_id])==[[50,10],[100,98]],"migration chooses the lowest adjacent seat id before considering the next table")
+ var metadata=[{"table_id":50,"seat_id":22,"variant":"oak_single","paid_cost":280},{"table_id":50,"seat_id":22,"variant":"oak_single","paid_cost":140}]
+ var restored=Sets.migrate(layout,[{"table_id":100,"chair_id":10}],metadata)
+ check(restored.map(func(g):return [g.table_id,g.seat_id,g.paid_cost])==[[100,10,140],[50,22,280]],"existing guest and first matching ledger record keep precedence over automatic pairing")
+ check(Sets.validate(restored,layout,[{"table_id":100,"chair_id":10}]).ok,"indexed membership accepts the chosen diner association")
+ check(Sets.validate(restored,layout,[{"table_id":100,"chair_id":98}]).error=="Diner association disagrees with its table set","indexed membership preserves diner mismatch validation")
 func _initialize():run.call_deferred()
 func run():
+ verify_dining_index_order()
  if not "saveguard" in OS.get_user_data_dir():printerr("Use an isolated generated profile");quit(2);return
  check_scalar_save_preservation()
  var model=fresh();var before=state(model)

@@ -46,6 +46,20 @@ func verify_public_routes(m,label:String):
  check(loaded.load_save(path),label+": synthetic reload")
  check(FileAccess.get_sha256(path)==digest and loaded.coins==m.coins and loaded.owned_parcels==m.owned_parcels,label+": source save and economy preserved")
  check(loaded.boundary_entries()==entries,label+": reload preserves public thresholds")
+func corridor_cell_index_edits():
+ var m=Model.new();Minimal.apply(m)
+ var initial=m.boundary_entries()
+ check(initial.size()==1 and initial[0].cell==Vector2i(0,5),"starter has exactly its original western threshold")
+ var entry=Vector2i(0,5)
+ m.items.append({"id":999,"kind":"rug","x":entry.x,"z":entry.y,"rot":0})
+ check(m.boundary_entries()==initial,"a corridor threshold rug is not a walking obstruction")
+ m.items[-1].kind="plant"
+ check(m.boundary_entries().is_empty(),"in-place solid item edit invalidates the navigation index")
+ m.items[-1].z=0
+ check(m.boundary_entries()==initial,"direct move restores the threshold in its original order")
+ m.items.pop_back()
+ m.wall_attachments.clear()
+ check(m.boundary_entries().is_empty(),"in-place aperture deletion refreshes the geometry without requiring a revision notification")
 func ownership_routes():
  var m=Model.new();Minimal.apply(m);m.coins=10000000
  verify_public_routes(m,"original")
@@ -104,6 +118,7 @@ func public_reroutes():
    var before=guest.duplicate(true)
    check(not m.reroute_guest(guest) and guest==before,"non-corridor origin refuses without rewriting guest "+str(position))
 func _initialize():
+ corridor_cell_index_edits()
  ownership_routes()
  public_reroutes()
  for x in [-.5,-.00000665,-.0000001,0.0,.0000001,.2]:
