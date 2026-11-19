@@ -13,18 +13,10 @@ var _buckets:Dictionary={}
 var _can_query_grid:=true
 
 func _init(hosts:Array,walls:Array,attachments:Array)->void:
-	var by_id:Dictionary={}
-	for wall in walls:
-		var id:=Openings.Walls.identity(wall)
-		if not by_id.has(id):by_id[id]=wall
-	var apertures:Array[Dictionary]=[]
+	var apertures:=resolved_apertures(walls,attachments,true)
 	var aperture_cells:Dictionary={}
 	var can_bucket_cuts:=true
-	for attachment in attachments:
-		if attachment.kind!="door":continue
-		var opening:=_door_aperture(attachment,walls,by_id)
-		if opening.is_empty():continue
-		apertures.append(opening)
+	for opening in apertures:
 		var axis:String=opening.host.axis
 		var cross:float=opening.a.y if axis=="x" else opening.a.x
 		var low:=Openings.axis_value(opening.a,axis)
@@ -51,7 +43,22 @@ func _init(hosts:Array,walls:Array,attachments:Array)->void:
 			for z in range(floori(rect.position.y),floori(rect.end.y)+1):
 				_add(_buckets,Vector2i(x,z),i)
 
-static func _door_aperture(attachment:Dictionary,walls:Array,by_id:Dictionary)->Dictionary:
+## In input order, using the first installed wall per identity just like
+## resolve_ids. Legacy host references still use the full geometry resolver.
+static func resolved_apertures(walls:Array,attachments:Array,doors_only:bool=false)->Array[Dictionary]:
+	var result:Array[Dictionary]=[]
+	if attachments.is_empty():return result
+	var by_id:Dictionary={}
+	for wall in walls:
+		var id:=Openings.Walls.identity(wall)
+		if not by_id.has(id):by_id[id]=wall
+	for attachment in attachments:
+		if doors_only and attachment.kind!="door":continue
+		var opening:=_indexed_aperture(attachment,walls,by_id)
+		if not opening.is_empty():result.append(opening)
+	return result
+
+static func _indexed_aperture(attachment:Dictionary,walls:Array,by_id:Dictionary)->Dictionary:
 	if not attachment.has("wall_ids") or attachment.wall_ids.size()>MAX_SUPPORTS:
 		return Openings.aperture(attachment,walls)
 	var supports:Array=[]

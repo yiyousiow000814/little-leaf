@@ -143,6 +143,8 @@ func _initialize():
  corridor_cell_index_edits()
  ownership_routes()
  public_reroutes()
+ arrival_shared_search()
+ arrival_held_seat()
  for x in [-.5,-.00000665,-.0000001,0.0,.0000001,.2]:
   var m=fresh(x);var before=state(m);var id=int(m.items[-1].id);var g=m.customers[0].duplicate(true)
   var plan=Motion.plan(m,id,2,0,0)
@@ -186,3 +188,89 @@ func _initialize():
  check(Vector2(g.x,g.z).distance_to(start)<=m.WALK_SPEED/30.0+.0001 and float(g.x)<start.x,"first post-edit step is continuous and outbound")
  print("DEPARTING_ROUTE_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
  quit(0 if failures.is_empty() else 1)
+
+class ArrivalGrid extends "res://scripts/core/cafe_model.gd":
+ var extent:=8
+ var checks:=0
+ var barriers:Dictionary={}
+ func is_floor_owned(cell:Vector2i)->bool:
+  return cell.x>=0 and cell.y>=0 and cell.x<extent and cell.y<extent
+ func edge_blocked(a:Vector2i,b:Vector2i)->bool:
+  checks+=1
+  return barriers.has([a,b]) or barriers.has([b,a])
+ func boundary_entries()->Array[Dictionary]:
+  var result:Array[Dictionary]=[]
+  for z in range(extent):
+   result.append({"cell":Vector2i(0,z),"outside":Vector2i(-1,z),"direction":Vector2i.LEFT})
+  return result
+ func _wall_reachable(_walls:Array,_layout:Array,_ownership:Array,_openings=null,_known_keys=null)->Dictionary:
+  var result={}
+  for x in range(extent):
+   for z in range(extent):
+    result[Vector2i(x,z)]=true
+  return result
+
+func legacy_arrival(m,chair_id:int,table_id:int,start:Vector2)->Dictionary:
+ var chair=m.get_item(chair_id)
+ var chair_cell=Vector2i(int(chair.x),int(chair.z))
+ var forward=m._chair_table_direction(chair_id,table_id)
+ var best={};var best_rank=4;var best_length=INF
+ for entry in m.boundary_entries():
+  for approach in m.chair_egress_cells(chair_id,table_id):
+   var indoor=m.Checkout.path(m,entry.cell,approach)
+   if indoor.is_empty():continue
+   var direction=approach-chair_cell
+   var rank=0 if direction.x*forward.x+direction.y*forward.y==0 else 1
+   var route=m._exterior_approach(entry,true)
+   for cell in indoor:route.append(m.cell_center(cell))
+   route.append(m.cell_center(chair_cell))
+   var length=m._route_length(start,route)
+   if rank<best_rank or (rank==best_rank and length+.000001<best_length):
+    best_rank=rank;best_length=length
+    best={"entry_cell":entry.cell,"entry_direction":entry.direction,"entry_outside":entry.outside,
+      "approach":approach,"route":route,"length":length,"chair_approach":"side" if rank==0 else "rear_fallback"}
+ return best
+
+func arrival_shared_search():
+ var m=ArrivalGrid.new()
+ for size in [8,16,24]:
+  m.extent=size;m.items.clear();m.barriers.clear()
+  for z in range(1,size-1,2):
+   m.items.append({"id":z*2,"kind":"chair","x":size-3,"z":z,"rot":0})
+   m.items.append({"id":z*2+1,"kind":"table","x":size-2,"z":z,"rot":0})
+  for z in range(size):
+   if z!=size/2:m.barriers[[Vector2i(1,z),Vector2i(2,z)]]=true
+  var start:=Vector2(-.85,12.319)
+  m.checks=0
+  var old:Array=[]
+  for z in range(1,size-1,2):old.append(legacy_arrival(m,z*2,z*2+1,start))
+  var before=m.checks
+  m.checks=0
+  var index:Dictionary={}
+  var current:Array=[]
+  for z in range(1,size-1,2):current.append(m._arrival_access(z*2,start,z*2+1,index))
+  var after=m.checks
+  print("ARRIVAL_TREE_WORK ",size," ",before," ",after)
+  check(current==old and not current[0].is_empty(),"exact route/float length and west-entry or side ties, grid %s"%size)
+  check(after<=size*size*size and after*3<before,"entry searches expand at most one grid per admission and reuse across chair pairs, grid %s"%size)
+  var different_start:=Vector2(-.85,-2.49)
+  check(m._arrival_access(2,different_start,3,index)==legacy_arrival(m,2,3,different_start),"different street start does not reuse prior continuous costs")
+  m.items.append({"id":1000,"kind":"plant","x":size-3,"z":0,"rot":0})
+  m.items.append({"id":1001,"kind":"plant","x":size-3,"z":2,"rot":0})
+  var rerouted=m.guest_access_for(2,true,start,12.5,3)
+  check(rerouted==legacy_arrival(m,2,3,start) and rerouted!=current[0] and rerouted.get("chair_approach","")=="rear_fallback","fresh scan sees in-place furniture changes and preserves rear fallback")
+
+func arrival_held_seat():
+ var m=Model.new()
+ m._spawn_walkers(1)
+ check(m.customers.size()==1,"first direct admission reserves a real dining pair")
+ if m.customers.is_empty():return
+ var held=m.customers[0]
+ held.phase="ordering"
+ m.service_snapshot={"layout_hold":{"guests":[{"id":held.id}]}}
+ var unchanged=held.duplicate(true)
+ m._spawn_walkers(1)
+ check(m.layout_held("guests",int(held.id)) and m.customers.size()==2 and held==unchanged,"arrival leaves held guest and its job untouched")
+ if m.customers.size()<2:return
+ var admitted=m.customers[1]
+ check(admitted.table_id!=held.table_id and admitted.chair_id!=held.chair_id,"new guest never takes occupied held table or chair")

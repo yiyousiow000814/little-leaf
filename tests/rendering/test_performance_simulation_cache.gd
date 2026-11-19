@@ -44,6 +44,7 @@ func verify_step_capacity():
  check(m.customers[32].elapsed==.5,"next simulation step sees direct beverage restoration without revision")
 func _initialize():run.call_deferred()
 func run():
+ departing_compaction_bounds()
  verify_step_capacity()
  var m=Model.new();m.items.clear();m.customers.clear();m.built_walls.clear();m.wall_attachments.clear()
  var a=Vector2i(3,3);var b=Vector2i(4,3)
@@ -136,3 +137,75 @@ func verify_station_assignment_scope():
   check(second.job_kind==job and second.job_guest_id==11 and second.station_id==102,role+" next assignment sees the preceding worker's new station claim")
   for node in [game.people,game.ui]:node.free()
   game.free()
+
+class DepartureAuditModel extends "res://scripts/core/cafe_model.gd":
+ var fast_compacts:=0
+ var fallback_compacts:=0
+ func _advance_walk(customer:Dictionary,_delta:float)->void:
+  customer.exit_completed=true
+ func _begin_departure(customer:Dictionary)->void:
+  customer.phase="leaving"
+ func _compact_departed_guests(departing:Array[Dictionary])->bool:
+  var compacted=super._compact_departed_guests(departing)
+  if compacted:fast_compacts+=1
+  else:fallback_compacts+=1
+  return compacted
+
+func check_guest_identity_order(actual:Array,expected:Array,label:String):
+ var matching=actual.size()==expected.size()
+ if matching:
+  for index in actual.size():matching=matching and is_same(actual[index],expected[index])
+ check(matching,label)
+
+func departing_compaction_bounds():
+ var m=DepartureAuditModel.new()
+ m.operating_open=false
+ for size in [8,32,128]:
+  m.customers.clear()
+  var survivors:Array[Dictionary]=[]
+  for i in size:
+   var completes=i%2==0
+   var guest={"id":i+1,"paid":false,"phase":"leaving" if completes else "ordering","elapsed":0.0,"duration":4.0}
+   m.customers.append(guest)
+   if not completes:survivors.append(guest)
+  var alias=m.customers
+  var before=m.fast_compacts
+  m._tick_step(.1)
+  check(m.fast_compacts==before+1 and is_same(m.customers,alias),"canonical departures compact their original live array once at size %s"%size)
+  check_guest_identity_order(alias,survivors,"all surviving Dictionaries retain identity and order at size %s"%size)
+ for replace_departing in [false,true]:
+  var first={"id":1,"paid":false,"phase":"leaving","elapsed":0.0,"duration":4.0}
+  var second={"id":2,"paid":false,"phase":"leaving","elapsed":0.0,"duration":4.0}
+  var observer_guest={"id":3,"paid":false,"phase":"eating","elapsed":0.0,"duration":.05}
+  var waiting={"id":4,"paid":false,"phase":"ordering","elapsed":0.0,"duration":4.0}
+  var original:Array[Dictionary]=[first,second,observer_guest,waiting]
+  var replaced:Array[Dictionary]=[]
+  var expected:Array[Dictionary]=[waiting,observer_guest]
+  var observer_sizes:Array[int]=[]
+  m.customers=original
+  var before=m.fast_compacts;var fallbacks=m.fallback_compacts
+  var listener=func(_id:int,_payment:int):
+   observer_sizes.append(m.customers.size())
+   # Reassign the live array while the old iteration is still in progress.
+   # A replaced equal row is removed by value; a different replacement is kept.
+   var new_first=first.duplicate(true) if replace_departing else first
+   var new_second=second.duplicate(true) if replace_departing else second
+   if replace_departing:
+    new_second["replacement"]=true
+    expected.insert(1,new_second)
+   replaced.assign([waiting,new_first,new_second,observer_guest])
+   m.customers=replaced
+  m.meal_completed.connect(listener)
+  m._tick_step(.1)
+  m.meal_completed.disconnect(listener)
+  check(observer_sizes==[4] and original.size()==4 and is_same(m.customers,replaced),"synchronous observer sees pre-removal array and its replacement remains authoritative")
+  check_guest_identity_order(replaced,expected,"same-identity compaction and replacement fallback match legacy erase")
+  check(m.fast_compacts-before==(0 if replace_departing else 1) and m.fallback_compacts-fallbacks==(1 if replace_departing else 0),"ambiguous callback replacements keep the original value-erase fallback")
+ # The raw fallback must retain erase's first-value behavior after duplicate IDs.
+ var prior={"id":1,"phase":"leaving"}
+ var same=prior.duplicate(true)
+ var another={"id":2,"phase":"leaving"}
+ m.customers.assign([prior,same,another])
+ var scheduled:Array[Dictionary]=[same,another]
+ m._remove_departed_guests(scheduled)
+ check_guest_identity_order(m.customers,[same],"malformed duplicate IDs preserve the first-value erase and survivor identity")

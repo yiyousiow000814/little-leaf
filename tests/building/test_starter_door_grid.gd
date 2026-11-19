@@ -218,6 +218,32 @@ func check_collision_grid():
  check(indexed._indices(low,high).size()==reference.size() and indexed.crosses(low,high)==reference.any(func(segment):return Openings.crosses(segment,low,high)),
        "Long or out-of-profile traversals keep complete fallback candidates")
 
+func check_pointer_openings():
+ var model=Model.new()
+ var walls:Array[Dictionary]=[]
+ var attachments:Array[Dictionary]=[]
+ for z in range(8):
+  for x in range(18):
+   var id:="wall:%d"%walls.size()
+   walls.append(Openings.Walls.installed(id,Openings.Walls.make("x",x,z),0,0))
+   if (x+z)%3==0:
+    attachments.push_front({"id":walls.size(),"kind":"door" if x%2==0 else "window","wall_ids":[id],"offset":.5,"width":.625})
+ # Keep first identity, reject missing/duplicate members, preserve non-unit
+ # loaded widths and support order, and support old direct host references.
+ walls.push_front(Openings.Walls.installed("wall:0",Openings.Walls.make("x",0,25),0,0))
+ for spec in [[["wall:1","wall:2"],.75,1.25],[["wall:1","wall:1"],.5,.7],[["wall:999"],.5,.7]]:
+  attachments.append({"id":200+attachments.size(),"kind":"window","wall_ids":spec[0],"offset":spec[1],"width":spec[2]})
+ attachments.append({"id":401,"kind":"door","host_id":"shell:back","offset":.5,"width":.7})
+ model.built_walls=walls;model.wall_attachments=attachments
+ var reference:Array[Dictionary]=[]
+ for attachment in attachments:
+  var opening=Openings.aperture(attachment,walls)
+  if not opening.is_empty():reference.append(opening)
+ check(reference.size()==attachments.size()-2,"Pointer fixture contains two rejected supports")
+ check(model.wall_openings()==reference,"Pointer openings match original kind, geometry, input order and legacy fallback")
+ model.built_walls[0].z=26
+ check(model.wall_openings()!=reference,"Fresh pointer query reads changed support without retained results")
+
 func _init():
  if not "geometry-saveguard" in OS.get_user_data_dir():printerr("SAVEGUARD FAILED");quit(2);return
  DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
@@ -226,6 +252,7 @@ func _init():
  var model=Model.new();var door=model.wall_openings()[0]
  check_collision_index(model)
  check_collision_grid()
+ check_pointer_openings()
  check(door.a==Vector2(0,5) and door.b==Vector2(0,6),"fresh rendered aperture exactly meets grid boundaries 5/6")
  check(door.width==1.0 and (door.a+door.b)*.5==Vector2(0,5.5),"fresh center unchanged and one tile wide")
  check(model.wall_attachments[0].wall_ids==["wall:18"] and model.wall_attachments[0].offset==.5,"fresh door uses its installed grid support")
