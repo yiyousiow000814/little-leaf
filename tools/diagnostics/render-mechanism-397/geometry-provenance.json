@@ -1,0 +1,16 @@
+{
+  "engine_sha256": "f64d4ed19fc9df9440321653fcc80df8c6e365ba7b6de0a29e2cfa9fa71bfeb3",
+  "fixture_sha256": "ed6fcfc1e4a3396389eff71b09f60740d099de9c046eb0e37eabe900e8c1cf4f",
+  "illustrated_cafe_sort_source_sha256": "ab7f4942e446c1e0d4116635d8aa5329b2ae82ff5ec6bd0cc99db2c86ee1926b",
+  "scene_sha256": "55abd21e9305293539b88327c9cd1b3dbc46d5a38fe44f77664243851cb42490",
+  "scope": "#397 exact tree standalone wall painter only, no Main/display/benchmark/player data",
+  "sources": {
+    "scripts/gameplay/cafe_footprint.gd": "53bd9f7725c67439f895171c1bd4389d85f25129a487e9b4474473bbec25384c",
+    "scripts/gameplay/cafe_wall_openings.gd": "3bb835e16cbce15dd0e51e8716c6896bc6fbf7407d5296fe4fc673d88a0de933",
+    "scripts/gameplay/cafe_walls.gd": "8a49755497ecfdd3eb68eac80eef9a5614c5e1418421850be3e3101d80d5be31",
+    "scripts/rendering/cafe_canvas_draw.gd": "3061f9f1b9f3417ed8cd3ebcdde9d5b98f7dda5955b42294b92b63d8ea36388e",
+    "scripts/rendering/illustrated_openings.gd": "068253f3f5ee43f419831697476f14221ffa61938e1c39b097095a85f84e3493",
+    "scripts/rendering/illustrated_walls.gd": "9e97d6baf437fd7f0f6cd232e8688bdf37ec148f1bdc81a100c754d3f43621c4"
+  },
+  "tree": "03632a0d56e4294f5664859656c8809541766d1b"
+}
