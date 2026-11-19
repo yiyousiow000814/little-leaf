@@ -1,0 +1,9 @@
+flowchart TD
+    BASE["Exact #387 · 079cee5"] --> PRE["Earlier legacy validator optimization<br/>Separate evidence: A²W validation"]
+    BASE --> P["Remaining legacy projection: host-subset and coordinate indexes"]
+    P -.-> X["Original whole scan for unproven inputs"]
+    P --> A["W96 / A97<br/>Projection 97.474 → 4.645 ms<br/>Full 102.737 → 18.142 ms"]
+    P --> B["W299 / A300<br/>Projection 787.777 → 12.746 ms<br/>Full 755.662 → 45.128 ms"]
+    A --> Q["40,875 checks / 4 native suites · 13 new<br/>300-opening v15/v16/v17 parity"]
+    B --> Q
+    Q --> N["Separate local medians, not FPS<br/>New #387 visual, ordinary Web/save and merge unclaimed"]

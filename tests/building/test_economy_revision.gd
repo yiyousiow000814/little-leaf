@@ -3,6 +3,20 @@ const Model=preload("res://scripts/core/cafe_model.gd")
 const MinimalStart=preload("res://scripts/minimal_start.gd")
 const Sets=preload("res://scripts/gameplay/cafe_dining_sets.gd")
 const Checkout=preload("res://scripts/gameplay/cafe_checkout.gd")
+class CheckoutScanModel extends "res://scripts/core/cafe_model.gd":
+ var ready_calls:=0
+ var claim_checks:=0
+ var attempts:Array=[]
+ func checkout_ready(guest:Dictionary,register_id:int)->bool:
+  ready_calls+=1
+  return super.checkout_ready(guest,register_id)
+ func layout_held(scope:String,id:int)->bool:
+  claim_checks+=1
+  return super.layout_held(scope,id)
+ func can_place(_kind:String,x:int,z:int,_ignore_id:int=-1,rot:int=0,_actor_positions:Array=[])->bool:
+  attempts.append([x,z,rot]);return false
+class CheckoutScanMain extends "res://scripts/main.gd":
+ func _service_cell(_item:Dictionary,_from=Vector2i(7,1),_claimed=[],_role="")->Vector2i:return Vector2i(6,4)
 var checks=0
 var failures=[]
 func check(ok:bool,label:String):
@@ -75,8 +89,63 @@ func check_scalar_save_preservation():
   check(not receiver.load_save(write("scalar-invalid-"+str(spec[0]),malformed)) and state(receiver)==before,"reader rejects scalar atomically: "+str(spec[0]))
   check(receiver.last_error==writer_error,"reader and writer share the existing diagnostic: "+str(spec[0]))
 
+func checkout_scan_bounds():
+ var game=CheckoutScanMain.new();var m=CheckoutScanModel.new();game.model=m
+ m.items.clear();m.built_walls.clear();m.wall_attachments.clear();m.customers.clear()
+ m.items.append({"id":51,"kind":"register","x":6,"z":4,"rot":0})
+ var front=m.workface_cell(m.items[0])
+ var staff={"role":"cashier","job_kind":"","pos":Vector2(6.5,4.5),"on_duty":true}
+ game.staff_states=[staff]
+ for i in 32:
+  var guest={"id":i+1,"phase":"checkout_wait","paid":false,"settlement_mode":"register","checkout_ticket":32-i,"checkout_register_id":51,"checkout_token":-1,"checkout_cell":front,"x":front.x+.5,"z":front.y+.5,"seated":false}
+  m.customers.append(guest);game.service_guests[i+1]={"token":i+1,"guest":guest}
+ m.service_snapshot={"layout_hold":{"guests":[{"id":32}]}}
+ game._assign_service_job(staff,0)
+ check(staff.job_kind=="" and m.ready_calls==0,"held FIFO head prevents evaluating or paying later diners")
+ m.service_snapshot={}
+ m.customers[-1].seated=true
+ game._assign_service_job(staff,0)
+ check(staff.job_kind=="" and m.ready_calls==1,"unready FIFO head does not cause repeated candidate validation")
+ m.customers[-1].seated=false
+ m.ready_calls=0
+ game._assign_service_job(staff,0)
+ check(staff.job_kind=="take_payment" and staff.job_guest_id==32 and m.ready_calls==1,"cashier validates the sole FIFO head even when array order differs")
+ check(m.customers[-1].checkout_token==32 and m.customers[0].checkout_token==-1,"cashier claims only the exact head token")
+ for node in [game.people,game.ui]:node.free()
+ game.free()
+ for guest in m.customers:guest.checkout_cell=Checkout.NONE;guest.checkout_token=-1
+ m.claim_checks=0
+ check(not Checkout.busy(m,51) and m.claim_checks==m.customers.size(),"register use check inspects guests once when there are no claims")
+ m.customers[-1].checkout_cell=front
+ check(Checkout.busy(m,51),"existing claim still prevents register removal")
+ m.items.clear();m.width=18;m.depth=18;m.included_checkout_pending=true
+ check(not Checkout.ensure(m),"blocked entitlement remains pending")
+ var starts=[]
+ for i in range(0,m.attempts.size(),4):starts.append(Vector2i(m.attempts[i][0],m.attempts[i][1]))
+ check(starts.slice(0,3)==[Vector2i(6,4),Vector2i(8,4),Vector2i(5,1)] and starts[3]==Vector2i(2,1) and starts[-1]==Vector2i(16,16),"priority attempts and row-major fallback preserve placement ordering")
+ var distinct={}
+ for cell in starts:distinct[cell]=true
+ check(starts.size()==240 and distinct.size()==240 and m.attempts.size()==960,"full plot checks each candidate exactly once at every rotation")
+func verify_dining_index_order():
+ var layout=[
+  {"id":50,"kind":"table","x":3,"z":3},
+  {"id":22,"kind":"chair","x":2,"z":3},
+  {"id":10,"kind":"chair","x":4,"z":3},
+  {"id":100,"kind":"table","x":5,"z":3},
+  {"id":98,"kind":"chair","x":5,"z":4},
+ ]
+ var natural=Sets.migrate(layout,[])
+ check(natural.map(func(g):return [g.table_id,g.seat_id])==[[50,10],[100,98]],"migration chooses the lowest adjacent seat id before considering the next table")
+ var metadata=[{"table_id":50,"seat_id":22,"variant":"oak_single","paid_cost":280},{"table_id":50,"seat_id":22,"variant":"oak_single","paid_cost":140}]
+ var restored=Sets.migrate(layout,[{"table_id":100,"chair_id":10}],metadata)
+ check(restored.map(func(g):return [g.table_id,g.seat_id,g.paid_cost])==[[100,10,140],[50,22,280]],"existing guest and first matching ledger record keep precedence over automatic pairing")
+ check(Sets.validate(restored,layout,[{"table_id":100,"chair_id":10}]).ok,"indexed membership accepts the chosen diner association")
+ check(Sets.validate(restored,layout,[{"table_id":100,"chair_id":98}]).error=="Diner association disagrees with its table set","indexed membership preserves diner mismatch validation")
 func _initialize():run.call_deferred()
 func run():
+ checkout_scan_bounds()
+ checkout_departure_tree()
+ verify_dining_index_order()
  if not "saveguard" in OS.get_user_data_dir():printerr("Use an isolated generated profile");quit(2);return
  check_scalar_save_preservation()
  var model=fresh();var before=state(model)
@@ -216,3 +285,68 @@ func run():
  check(legacy.coins==wallet+200 and legacy.total_earned==200 and legacy.served==1,"legacy settlement awards exactly200 for future completion")
  print("ECONOMY_REVISION_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"meal_payment":200,"wages":[18,11,10,11],"table_price":280,"historical_oak_bases":[140,280]}))
  quit(0 if failures.is_empty() else 1)
+
+class DepartureSearchModel extends "res://scripts/core/cafe_model.gd":
+ var extent:=9
+ var edge_checks:=0
+ var open_thresholds:Array[int]=[]
+ var barriers:Dictionary={}
+ func is_floor_owned(cell:Vector2i)->bool:
+  return cell.x>=0 and cell.y>=0 and cell.x<extent and cell.y<extent
+ func edge_blocked(a:Vector2i,b:Vector2i)->bool:
+  edge_checks+=1
+  return barriers.has([a,b]) or barriers.has([b,a])
+ func boundary_entries()->Array[Dictionary]:
+  var result:Array[Dictionary]=[]
+  for z in open_thresholds:
+   result.append({"cell":Vector2i(0,z),"outside":Vector2i(-1,z),"direction":Vector2i.LEFT})
+  return result
+
+func legacy_departure(m,guest:Dictionary)->bool:
+ var position=Checkout.point(guest);var start=Vector2i(floori(position.x),floori(position.y))
+ var best={};var route:Array[Vector2]=[];var length=INF
+ for entry in m.boundary_entries():
+  var cells=Checkout.path(m,start,entry.cell)
+  if cells.is_empty():continue
+  var candidate:Array[Vector2]=[]
+  for cell in cells:candidate.append(m.cell_center(cell))
+  candidate.append_array(m._exterior_approach(entry,false,m._departure_exit_z(int(guest.id))))
+  var distance=m._route_length(position,candidate)
+  if distance<length:length=distance;route=candidate;best=entry
+ guest.phase="leaving";guest.seated=false;guest.dismounting=false;guest.elapsed=0.0;guest.route_index=0
+ guest.exterior_exit=false;guest.waiting=true;guest.departure_blocked=route.is_empty();guest.route=route
+ guest.duration=0.0 if route.is_empty() else length/m.WALK_SPEED
+ if best.is_empty():guest.checkout_reason="Register exit blocked";return false
+ guest.entry_cell=best.cell;guest.entry_direction=best.direction;guest.entry_outside=best.outside;guest.checkout_reason="";return true
+
+func checkout_departure_tree():
+ var m=DepartureSearchModel.new()
+ for scenario in range(9):
+  m.open_thresholds.assign([0,2,4,6,8]);m.barriers.clear();m.items.clear()
+  var start=Vector2(6.81,4.12)
+  if scenario==1:start=Vector2(.5,4.5)
+  if scenario==2:start=Vector2(-.51,4.5)
+  if scenario==3:m.open_thresholds.clear()
+  if scenario==4:m.open_thresholds.assign([8])
+  if scenario in [5,6]:
+   for z in range(m.extent):
+    if scenario==5 and z==6:continue
+    m.barriers[[Vector2i(2,z),Vector2i(3,z)]]=true
+  if scenario==7:
+   for z in [0,2,4]:m.items.append({"kind":"plant","x":0,"z":z})
+  if scenario==8:m.items.append({"kind":"rug","x":0,"z":4})
+  for id in [1,2]:
+   var previous={"id":id,"x":start.x,"z":start.y,"phase":"paying","elapsed":9.5,"paid":true,"entry_cell":Vector2i(99,99)}
+   var current=previous.duplicate(true)
+   var expected=legacy_departure(m,previous)
+   check(Checkout.depart(m,current)==expected and current==previous,"checkout exact route, entry, length and state: case %s guest %s"%[scenario,id])
+ for size in [8,16,32]:
+  m.extent=size;m.open_thresholds.assign(range(size));m.barriers.clear();m.items.clear()
+  var previous={"id":2,"x":size-.5,"z":size/2.0+.5}
+  var current=previous.duplicate(true)
+  m.edge_checks=0
+  var expected=legacy_departure(m,previous);var old_checks=m.edge_checks
+  m.edge_checks=0
+  var found=Checkout.depart(m,current)
+  print("DEPARTURE_TREE_WORK ",size," ",old_checks," ",m.edge_checks)
+  check(found==expected and current==previous and m.edge_checks<=size*size and old_checks>=m.edge_checks*size/2,"all thresholds use one BFS at grid width %s"%size)

@@ -28,30 +28,40 @@ func load_at(sink_id:int,except_record:Dictionary={})->int:
   if not is_same(record,except_record) and int(record.get("dish_sink_id",-1))==sink_id:count+=1
  return count
 func busy(sink_id:int)->bool:return load_at(sink_id)>0
+func _reservation_loads(except_record:Dictionary)->Dictionary:
+ var loads={};var total=dishes.size()
+ for dish in dishes.values():
+  var sink_id=int(dish.sink_id)
+  loads[sink_id]=int(loads.get(sink_id,0))+1
+ for record in game.service_guests.values():
+  if is_same(record,except_record):continue
+  var sink_id=int(record.get("dish_sink_id",-1))
+  loads[sink_id]=int(loads.get(sink_id,0))+1
+  if sink_id>=0:total+=1
+ return {"by_sink":loads,"total":total}
 func reserve(record:Dictionary,staff:Dictionary)->Dictionary:
  var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
  var current=game.model.get_item(int(record.get("dish_sink_id",-1)))
  var carrying=record.plate_owner=="staff"
- if not current.is_empty() and current.kind=="sink" and load_at(int(current.id),record)<CAPACITY and drop_destination(staff,current,from,[],true)!=Vector2i(-1,-1):
+ var reservation_loads=_reservation_loads(record)
+ var loads:Dictionary=reservation_loads.by_sink
+ if not current.is_empty() and current.kind=="sink" and int(loads.get(int(current.id),0))<CAPACITY and drop_destination(staff,current,from,[],true)!=Vector2i(-1,-1):
   # Keep capacity while waiting, but do not wait at an unusable sink when
   # another basin has a reachable, unclaimed drop-off and a free slot.
   if carrying and drop_destination(staff,current,from)==Vector2i(-1,-1):
-   var alternate=_choose_drop_sink(record,staff,from,true)
+   var alternate=_choose_drop_sink(loads,staff,from,true)
    if not alternate.is_empty():return _reserve_drop_sink(record,staff,alternate)
   return current
  record.dish_sink_id=-1
- var total_load=dishes.size()
- for live in game.service_guests.values():
-  if int(live.get("dish_sink_id",-1))>=0:total_load+=1
- if total_load>=MAX_DISHES:return {}
- var chosen=_choose_drop_sink(record,staff,from,carrying)
- if chosen.is_empty() and carrying:chosen=_choose_drop_sink(record,staff,from,false)
+ if int(reservation_loads.total)>=MAX_DISHES:return {}
+ var chosen=_choose_drop_sink(loads,staff,from,carrying)
+ if chosen.is_empty() and carrying:chosen=_choose_drop_sink(loads,staff,from,false)
  return _reserve_drop_sink(record,staff,chosen)
-func _choose_drop_sink(record:Dictionary,staff:Dictionary,from:Vector2i,available_only:bool)->Dictionary:
+func _choose_drop_sink(loads:Dictionary,staff:Dictionary,from:Vector2i,available_only:bool)->Dictionary:
  var chosen={};var best_load=CAPACITY;var shortest=1000000
  for sink in game.model.items:
   if sink.kind!="sink":continue
-  var count=load_at(int(sink.id),record)
+  var count=int(loads.get(int(sink.id),0))
   if count>=CAPACITY:continue
   var face=drop_destination(staff,sink,from,[],not available_only)
   if face==Vector2i(-1,-1):continue
@@ -206,10 +216,12 @@ static func migrate_snapshot(service:Dictionary):
  service.dishwashing=data
 static func validate_snapshot(data,staff:Array,records:Dictionary,item_map:Dictionary,codec)->Dictionary:
  if not data is Dictionary or data.get("format")!=FORMAT or not codec._integer(data.get("next_id"),1,1000000000) or not codec._integer(data.get("completed"),0,1000000000) or not data.get("dishes") is Array or data.dishes.size()>MAX_DISHES:return {"ok":false,"error":"Invalid dishwashing ledger"}
+ var transporting={}
  for worker in staff:
   if not worker is Dictionary:return {"ok":false,"error":"Invalid dishwashing staff record"}
   for key in ["job_guest_id","job_token","job_step","station_id"]:
    if not codec._integer(worker.get(key),-1,1000000000):return {"ok":false,"error":"Invalid dishwashing staff identity"}
+  if worker.get("job_kind")=="cleanup" and int(worker.job_step) in [0,1]:transporting[int(worker.job_guest_id)]=true
  var ids={};var loads={};var links={};var jobs={};var stations={}
  for dish in data.dishes:
   if not dish is Dictionary or not codec._integer(dish.get("id"),1,int(data.next_id)-1) or ids.has(int(dish.id)) or not codec._integer(dish.get("sink_id"),1,1000000000) or not item_map.has(int(dish.sink_id)) or item_map[int(dish.sink_id)].kind!="sink" or not codec._number(dish.get("elapsed"),0,WASH_SECONDS):return {"ok":false,"error":"Invalid queued dish identity, sink or progress"}
@@ -220,10 +232,7 @@ static func validate_snapshot(data,staff:Array,records:Dictionary,item_map:Dicti
   if sink_id!=-1:
    var cup_only=record.plate_owner=="clean" and record.drink_owner=="table" and not record.dishes_collected
    if not item_map.has(sink_id) or item_map[sink_id].kind!="sink" or (record.plate_owner not in ["table","staff"] and not cup_only):return {"ok":false,"error":"Dish reservation has no valid sink or payload"}
-   var owner_found=false
-   for worker in staff:
-    if worker.get("job_kind")=="cleanup" and int(worker.get("job_guest_id",-1))==int(record.guest_id) and int(worker.get("job_step",-1)) in [0,1]:owner_found=true;break
-   if not owner_found:return {"ok":false,"error":"Dish reservation has no transporting worker"}
+   if not transporting.has(int(record.guest_id)):return {"ok":false,"error":"Dish reservation has no transporting worker"}
    loads[sink_id]=int(loads.get(sink_id,0))+1
   if record.plate_owner=="dish_queue":
    if not ids.has(dish_id) or links.has(dish_id) or int(record.plate_target_id)!=-1 or not record.dishes_collected or record.drink_owner!="cleared":return {"ok":false,"error":"Queued dish ownership mismatch"}

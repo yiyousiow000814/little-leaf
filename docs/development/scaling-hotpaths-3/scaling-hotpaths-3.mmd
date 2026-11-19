@@ -1,0 +1,20 @@
+flowchart TB
+  base["Third batch based on #373 at 29251c4"]
+  base --> support["Installed opening support index and interval checks"]
+  base --> move["Furniture commit uses two first-match ID maps"]
+  base --> leave["Checkout departure reuses one BFS tree"]
+  base --> broad["Collision resolves door apertures once and indexes nearby segments"]
+  support --> three["First three: 42,431 assertions in 10 headless suites"]
+  move --> three
+  leave --> three
+  three --> all["Four-change local pass: 45,945 assertions in 11 headless suites"]
+  broad --> all
+  all --> atlas["Computed atlas producer closure unchanged; inherits #373 metadata gate"]
+  all --> web["Ordinary exact-head Web and live save verification pending"]
+  atlas --> performance["Larger scene and integrated FPS pending; reuse frozen #368 baseline"]
+  web --> performance
+  base --> remaining["Still open: arrival routes, pointer/editor lookup and other paths"]
+  classDef checked fill:#E7F3EE,stroke:#398170,color:#153B33;
+  classDef waiting fill:#FDF1DB,stroke:#AD731B,color:#452B0B;
+  class three,all checked;
+  class atlas,web,performance,remaining waiting;

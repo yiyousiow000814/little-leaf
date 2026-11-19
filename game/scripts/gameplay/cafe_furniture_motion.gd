@@ -122,14 +122,23 @@ static func commit(model,transaction:Dictionary)->bool:
  if bool(transaction.get("noop",false)):return true
  # Keep dictionaries already referenced by service records alive. IDs, money,
  # purchase metadata and physical floor messes are never recreated or reset.
+ var items_by_id=first_by_id(model.items)
  for proposed in transaction.items:
-  var original=model.get_item(int(proposed.id))
+  var original:Dictionary=items_by_id.get(int(proposed.id),{})
   for key in ["x","z","rot"]:original[key]=proposed[key]
  model.dining_sets.assign(transaction.groups)
+ var guests_by_id=first_by_id(model.customers)
  for proposed in transaction.guests:
-  for original in model.customers:
-   if int(original.id)==int(proposed.id):original.merge(proposed,true);break
+  var id=int(proposed.id)
+  if guests_by_id.has(id):guests_by_id[id].merge(proposed,true)
  model.last_error="";model.last_event="Moved furniture · guests and staff keep their work";model._notify();return true
+static func first_by_id(records:Array)->Dictionary:
+ # Preserve the old first-match rule even on a duplicate legacy ID.
+ var result={}
+ for record in records:
+  var id=int(record.id)
+  if not result.has(id):result[id]=record
+ return result
 static func advance(model,guest:Dictionary,delta:float)->void:
  if not active(guest):return
  var invalid="" if model._mobility_validated.get(int(guest.id),-1)==model.revision else geometry_error(model,[guest],model.items,model.built_walls,model.owned_parcels,model.wall_attachments)
@@ -155,7 +164,8 @@ static func advance(model,guest:Dictionary,delta:float)->void:
  if int(mobility.route_index)>=mobility.route.size():
   guest.seated=str(mobility.kind)=="to_assigned_seat";guest.mobility={};guest.waiting=guest.phase=="checkout_wait"
   model._mobility_validated.erase(int(guest.id))
-static func geometry_error(model,guests:Array,layout:Array,walls:Array,ownership:Array,openings:Array)->String:
+static func geometry_error(model,guests:Array,layout:Array,walls:Array,ownership:Array,openings:Array,keys=null)->String:
+ var snapshot_checked:bool=keys!=null
  var by_id={};var solids={}
  for item in layout:
   by_id[int(item.id)]=item
@@ -179,7 +189,10 @@ static func geometry_error(model,guests:Array,layout:Array,walls:Array,ownership
     if solids.has(here) and not final_seat:return "Relocation route is blocked by furniture"
     if here!=prior_cell:
      if absi(here.x-prior_cell.x)+absi(here.y-prior_cell.y)!=1:return "Relocation route skips a walking tile"
-     if model._built_edge_blocked(prior_cell,here,walls,openings):return "Relocation route crosses a wall"
+     if not snapshot_checked:
+      keys=model.WallReachability.direct_edge_snapshot(walls,openings)
+      snapshot_checked=true
+     if model._built_edge_blocked(prior_cell,here,walls,openings,keys):return "Relocation route crosses a wall"
     prior_cell=here
    previous=next
  return ""
