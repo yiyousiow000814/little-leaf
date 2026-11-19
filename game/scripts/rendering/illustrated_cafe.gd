@@ -1066,6 +1066,7 @@ func _render_anchor_visible(anchor:Vector2,extra:Vector2=Vector2.INF)->bool:
 var _drawing_guest_rows:Variant=null
 var _drawing_chair_cells:Variant=null
 var _presentation_item_rows:Variant=null
+var _drawing_sink_rows:Variant=null
 
 func _begin_drawing_lookups()->void:
 	var by_key:Dictionary={}
@@ -1083,6 +1084,7 @@ func _finish_drawing_lookups()->void:
 	_drawing_guest_rows=null
 	_drawing_chair_cells=null
 	_presentation_item_rows=null
+	_drawing_sink_rows=null
 
 func _index_presentation_items(chair_cells:Variant=null)->Dictionary:
 	var by_id:Dictionary={}
@@ -1413,7 +1415,7 @@ func _draw():
 						# the character painter owns the fixed-length contact stroke.
 						surface=Vector2(0,-DiningPlacement.TABLE_HEIGHT-1.0)
 				elif kind=="sink" and action=="washing":
-					var wash=SinkWashArt.state(game,int(target_item.id))
+					var wash=_sink_wash_state(int(target_item.id))
 					if not wash.is_empty():
 						var wash_geometry=SinkWashArt.geometry(int(target_item.rot),float(wash.seconds),int(wash.count))
 						surface=wash_geometry.center
@@ -2162,7 +2164,44 @@ func _draw_floor_tools(at:Vector2,pose:Dictionary,action:String,payload:String):
 
 
 var sink_drop_lowering={}
+func _sink_draw_row(sink_id:int)->Variant:
+	# Lazy within the synchronous world draw, so icon/editing and off-screen
+	# sinks do no grouping. Standalone/archived painters keep the old queries.
+	if _drawing_guest_rows==null or not "dishwashing" in game:return null
+	if _drawing_sink_rows==null:
+		_drawing_sink_rows={}
+		for dish in game.dishwashing.dishes.values():
+			_sink_draw_bucket(int(dish.sink_id)).ids.append(int(dish.id))
+		for index in range(game.staff_states.size()):
+			var staff=game.staff_states[index]
+			var action=str(staff.get("art_action",""))
+			if action=="dropping_dishes":
+				_sink_draw_bucket(int(staff.get("art_target_id",-1))).drops.append({"staff":staff,"index":index})
+			elif action=="washing" and staff.get("role")=="cleaner" and staff.get("job_kind")=="wash":
+				_sink_draw_bucket(int(staff.get("station_id",-1))).washers.append(staff)
+	return _drawing_sink_rows.get(sink_id,{})
+
+func _sink_draw_bucket(sink_id:int)->Dictionary:
+	if not _drawing_sink_rows.has(sink_id):_drawing_sink_rows[sink_id]={"ids":[],"drops":[],"washers":[]}
+	return _drawing_sink_rows[sink_id]
+
+func _sink_wash_state(sink_id:int)->Dictionary:
+	var row=_sink_draw_row(sink_id)
+	if row==null:return SinkWashArt.state(game,sink_id)
+	if row.is_empty():return {}
+	if not row.has("wash"):
+		row.wash={} if row.washers.is_empty() else SinkWashArt.state(game,sink_id,_presentation_item(sink_id),row.washers,row.ids.size())
+	return row.wash
+
 func _sink_queue_ids(sink_id:int,active_id:int)->Array:
+	var row=_sink_draw_row(sink_id)
+	if row!=null:
+		if row.is_empty():return []
+		if row.get("active")!=active_id:
+			row.active=active_id
+			row.queue=row.ids.filter(func(id):return id!=active_id)
+			row.queue.sort()
+		return row.queue
 	var ids=[]
 	for dish in game.dishwashing.dishes.values():
 		if int(dish.sink_id)==sink_id and int(dish.id)!=active_id:ids.append(int(dish.id))
@@ -2176,7 +2215,7 @@ func _sink_drop_geometry(staff:Dictionary,index:int)->Dictionary:
 	var facing=character_facings.get(key,{"back":false,"mirror":1.0})
 	var carry=carry_hand_offsets.get(key,DirectionalCharacter.carry_anchor(bool(facing.back))*Vector2(float(facing.mirror),1))
 	var start=origin+carry+Vector2(4*float(facing.mirror),0)
-	var wash=SinkWashArt.state(game,int(sink.id))
+	var wash=_sink_wash_state(int(sink.id))
 	var active_id=-1 if wash.is_empty() else int(wash.worker.job_dish_id)
 	var ids=_sink_queue_ids(int(sink.id),active_id)
 	var record=game.service_guests.get(int(staff.job_guest_id),{})
@@ -2204,19 +2243,25 @@ func _sink_drop_geometry(staff:Dictionary,index:int)->Dictionary:
 
 func _sink_dishes(sink_id: int):
 	var sink=_presentation_item(sink_id)
-	var count=game.dishwashing.count_at(sink_id) if "dishwashing" in game else 0
-	if not "dishwashing" in game:
-		for record in game.service_guests.values():
-			if record.plate_owner=="sink" and int(record.plate_target_id)==sink_id:count+=1
-	var dropping=[]
-	for index in game.staff_states.size():
-		var staff=game.staff_states[index]
-		if str(staff.get("art_action",""))=="dropping_dishes" and int(staff.get("art_target_id",-1))==sink_id:dropping.append({"staff":staff,"index":index})
+	var row=_sink_draw_row(sink_id)
+	var count:int=0
+	var dropping:Array=[]
+	if row!=null:
+		if row.is_empty():return
+		count=row.ids.size();dropping=row.drops
+	else:
+		count=game.dishwashing.count_at(sink_id) if "dishwashing" in game else 0
+		if not "dishwashing" in game:
+			for record in game.service_guests.values():
+				if record.plate_owner=="sink" and int(record.plate_target_id)==sink_id:count+=1
+		for index in game.staff_states.size():
+			var staff=game.staff_states[index]
+			if str(staff.get("art_action",""))=="dropping_dishes" and int(staff.get("art_target_id",-1))==sink_id:dropping.append({"staff":staff,"index":index})
 	if count<=0 and dropping.is_empty():return
 	var rotation=int(sink.get("rot",0));var geometry=FurnitureArt.KitchenGeometry
 	var aperture=geometry.sink_outline(geometry.SINK_BASIN_INNER,geometry.SINK_OPENING_HEIGHT,rotation)
 	var at=geometry.sink_plate_anchor(rotation)
-	var wash=SinkWashArt.state(game,sink_id)
+	var wash=_sink_wash_state(sink_id)
 	var active_id=-1 if wash.is_empty() else int(wash.worker.job_dish_id)
 	# The static basin already owns the original rim color and silhouette.
 	# Mask submerged dishes to its opening below instead of repainting the
