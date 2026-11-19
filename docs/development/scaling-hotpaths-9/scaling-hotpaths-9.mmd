@@ -1,0 +1,12 @@
+flowchart TD
+    BASE["Batch 9 · two separately filtered local candidates"] --> L["Live litter eligibility"]
+    BASE --> W["Supported legacy opening checks"]
+    L --> LC["Lazy eligibility once per observation<br/>Stationary skips item scan · one item pass"]
+    W --> WC["96 walls / 97 openings<br/>Whole 6.674 s → 98.873 ms<br/>Nested validator 6,529.683 → 4.226 ms"]
+    LC --> LT["Starter: 34.38 → 24.87 μs<br/>I=24 B=2 C=8: 542.12 → 67.76 μs<br/>76,829/3 verified · cafe_floor_tasks only"]
+    WC --> WT["40,861 scoped checks · 300 accepted / 301 rejected<br/>Legacy projection remains O(A×W) · atlas unchanged"]
+    LT --> Q["Exact local: 121,745 assertions · 8 suites passed"]
+    WT --> Q
+    Q --> V["#388: matching 1360 × 880 native X11 litter pair and receipts<br/>Original-three atlases · nine byte-equal PNGs"]
+    V --> R["No hosted Web/save, actual FPS, or merge result"]
+    BASE -.-> H["Prior #384 dining and atlas proofs are not batch 9 proof"]
