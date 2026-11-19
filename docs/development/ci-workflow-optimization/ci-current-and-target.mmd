@@ -12,6 +12,7 @@
 %% PR 67c69b54752dc994c94a6259518047eb1e498c85; merge a63df863622d792a2965dd6cfbb0256d407e42e4.
 %% Latest green #363: https://github.com/yiyousiow000814/little-leaf/actions/runs/44282529270/attempts/1
 %% PR c9fd786c9948f47c4b403b6c6f86ea6b4cc2d8ed; tested merge 4adba7ad8024b21b0dd767ac9e93d3facb95b283.
+%% Main push regression (8c415d94): https://github.com/yiyousiow000814/little-leaf/actions/runs/44460244371
 flowchart TB
   subgraph latest["Latest measured #363 pass · run 44282529270 · 10:48 end to end; 10-minute ceiling not met"]
     Q["Initial queue · about 43 s"] --> G["Guard then existing serial ordinary-PR preflight · about 21 s"]
@@ -82,9 +83,22 @@ flowchart TB
     R1 --> R2["Pending ordinary-PR pilot: omit only archival music scores at Build and Play checkout<br/>Exact source tree and required proof/assets retained; no runtime, release or preview change"]
     R2 --> R3["280 archival paths · 831.94 MB tracked; not compressed Git transfer<br/>Prior two checkout steps combined 53.07 s; hosted savings unknown"]
   end
+  subgraph hotfix["Main push and other non-PR routes · hotfix qualification pending"]
+    H0["Guard runs complete inline preflight"]
+    H0 --> H1["PR-only sibling preflight intentionally skipped"]
+    H0 --> H2["Required native jobs and Web build succeed"]
+    H1 -. "Observed implicit status propagation" .-> H3["Play/recovery/compatibility skipped; final gate rejected the run"]
+    H2 --> H4["Candidate: explicitly require successful direct inputs and no cancellation"]
+    H4 --> H5["Play + recovery + both compatibility cases still mandatory"]
+    H5 --> H6["Firebase preview only after all direct needs succeed"]
+    H5 --> H7["Original fail-closed evidence gate unchanged"]
+  end
   classDef measured fill:#EAF1F2,stroke:#607C84,color:#253640
   classDef change fill:#EEF2E5,stroke:#7C8D66,color:#304028
   classDef caution fill:#F9EBDF,stroke:#AA5538,color:#703620
   class Q,G,GB,BP,BR,J,ON,OH,OC,OA,OP,OJ measured
   class PF,PW,RA,PR,PX,PJ change
   class F2,L0,L1,L2,L3,L4,L5,L6 caution
+  class H0,H1,H2 measured
+  class H4,H5,H6,H7 change
+  class H3 caution
