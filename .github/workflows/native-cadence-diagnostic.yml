@@ -1,0 +1,91 @@
+name: Disposable cloud-native game cadence
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - '.github/workflows/native-cadence-diagnostic.yml'
+      - 'tools/diagnostics/native-cadence/**'
+permissions:
+  contents: read
+concurrency:
+  group: native-cadence-diagnostic-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  paired-once:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'qa/native-cadence-364'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      BEFORE: 8c415d94fdb86e68dd0ce90d3482f9e668e8805d
+      BEFORE_TREE: e2f47c90931397e6d633bb3b7b6824fd4b4005cb
+      AFTER: 2e3c7f6be9a633fff8e05450033ccdb3a2959c5f
+      AFTER_TREE: 3f76c412ecd12e4782b53ce037be378b019d7270
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          sparse-checkout: tools/diagnostics/native-cadence
+      - name: Get immutable pre-optimization source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.BEFORE }}
+          path: source-before
+          persist-credentials: false
+          sparse-checkout: |
+            game
+            tools/ci
+      - name: Get immutable #364 optimization source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.AFTER }}
+          path: source-after
+          persist-credentials: false
+          sparse-checkout: |
+            game
+            tools/ci
+      - name: Verify official Godot and existing cloud display tools
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          command -v xvfb-run
+          command -v Xvfb
+          command -v xauth
+          cmp source-before/tools/ci/toolchain.json source-after/tools/ci/toolchain.json
+          python3 source-after/tools/ci/install_tools.py godot --native-only --output "$RUNNER_TEMP/native-cadence-tools"
+          mkdir -p "$RUNNER_TEMP/native-cadence-evidence"
+          cp "$RUNNER_TEMP/native-cadence-tools/godot-toolchain-receipt.json" "$RUNNER_TEMP/native-cadence-evidence/"
+      - name: Stage two disposable projects from committed bytes
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          probe=tools/diagnostics/native-cadence
+          python3 "$probe/stage.py" --repo source-before --commit "$BEFORE" --tree "$BEFORE_TREE" --output "$RUNNER_TEMP/staged-native-before"
+          python3 "$probe/stage.py" --repo source-after --commit "$AFTER" --tree "$AFTER_TREE" --output "$RUNNER_TEMP/staged-native-after"
+      - name: Run one matched 12-second-per-arm natural-cooking sample on one display
+        timeout-minutes: 9
+        env:
+          GODOT_BIN: ${{ runner.temp }}/native-cadence-tools/godot
+        run: |
+          set -euo pipefail
+          probe=tools/diagnostics/native-cadence
+          evidence="$RUNNER_TEMP/native-cadence-evidence"
+          xvfb-run -a -s "-screen 0 1600x1000x24" bash -euo pipefail -c '
+            probe="$1"; evidence="$2"
+            bash "$probe/run-native.sh" "$RUNNER_TEMP/staged-native-before" "$evidence/before" active-service | tee "$evidence/before-summary.json"
+            bash "$probe/run-native.sh" "$RUNNER_TEMP/staged-native-after" "$evidence/after" active-service | tee "$evidence/after-summary.json"
+            python3 "$probe/compare.py" "$evidence/before" "$evidence/after" | tee "$evidence/pair-summary.json"
+          ' bash "$probe" "$evidence"
+      - name: Preserve baseline, candidate and diagnostics (not profiles)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-native-cadence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/native-cadence-evidence/*.json
+            ${{ runner.temp }}/native-cadence-evidence/*/*.json
+            ${{ runner.temp }}/native-cadence-evidence/*/*.log
+            ${{ runner.temp }}/native-cadence-evidence/*/*.sha256
+            ${{ runner.temp }}/native-cadence-evidence/*/runtime-envelope.txt
+          if-no-files-found: warn
+          retention-days: 90
