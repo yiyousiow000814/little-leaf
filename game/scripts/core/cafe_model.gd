@@ -27,6 +27,7 @@ const LayoutHold=preload("res://scripts/persistence/cafe_layout_hold.gd")
 const OutsideQueue=preload("res://scripts/world/cafe_outside_queue.gd")
 const Parking=preload("res://scripts/world/cafe_parking.gd")
 const SaveContract=preload("res://scripts/persistence/cafe_save_contract.gd")
+const ArrivalBands=preload("res://scripts/gameplay/cafe_arrival_bands.gd")
 const Checkout=preload("res://scripts/gameplay/cafe_checkout.gd")
 const SAVE_SCHEMA = SaveContract.SCHEMA
 const SAVE_VERSION = SaveContract.VERSION
@@ -1083,11 +1084,15 @@ func _arrival_access(chair_id:int,start:Vector2,table_id:int,index:Dictionary)->
 		# Earlier start costs are no longer needed within this scan.
 		index.start=start
 		index.trees.clear()
+		index.erase("band_search")
 	var trees:Dictionary=index.trees
 	var chair_cell:=Vector2i(int(chair.x),int(chair.z))
 	var forward:=_chair_table_direction(chair_id,table_id)
 	var approaches:=_chair_egress_cells_in(chair_cell,forward,built_walls,index.reachable)
 	if approaches.is_empty():return {}
+	if index.entries.size()>=ArrivalBands.MIN_ENTRANCES:
+		if not index.has("band_search"):index.band_search=ArrivalBands.prepare(self,start,index.entries,index.solids)
+		if not index.band_search.is_empty():return ArrivalBands.access(self,index.band_search,index.solids,chair_cell,forward,approaches)
 	var best_rank:=4
 	var best_length:=INF
 	var best_entry:Dictionary={}
