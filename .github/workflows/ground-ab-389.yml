@@ -1,0 +1,56 @@
+name: Current ground-only culling mechanism A-B
+on:
+  push:
+    branches: [qa/ground-ab-389]
+permissions:
+  contents: read
+concurrency:
+  group: ground-ab-389
+  cancel-in-progress: false
+jobs:
+  only-candidate:
+    if: >-
+      github.repository == 'yiyousiow000814/little-leaf' && github.actor == 'yiyousiow000814' &&
+      github.run_attempt == '1' && github.ref == 'refs/heads/qa/ground-ab-389' &&
+      github.event_name == 'push' && !github.event.created && !github.event.deleted && !github.event.forced &&
+      github.event.before == '1556f2ad1e9985c723f7f3634a3f48535cc411a2'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      KIT: tools/diagnostics/ground-ab-389
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Read single diagnostic head and direct parent
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          sparse-checkout: tools/diagnostics/ground-ab-389
+          persist-credentials: false
+      - name: Gate source and diagnostic-only changes
+        timeout-minutes: 1
+        run: |
+          set -euo pipefail
+          python3 "$KIT/guard.py" fail "$RUNNER_TEMP/ll-ground-ab-389-public/summary.json" source_binding
+          python3 "$KIT/guard.py" event .
+      - name: Read the exact candidate, no original checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 1556f2ad1e9985c723f7f3634a3f48535cc411a2
+          path: product
+          fetch-depth: 1
+          sparse-checkout: |
+            game
+            tools/ci
+          persist-credentials: false
+      - name: Import, then one isolated GroundNode A-B
+        timeout-minutes: 10
+        run: bash "$KIT/run.sh"
+      - name: Publish only the bounded aggregate or safe failure stage
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ground-ab-389-summary-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ll-ground-ab-389-public/summary.json
+          if-no-files-found: warn
+          retention-days: 14
