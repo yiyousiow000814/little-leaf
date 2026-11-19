@@ -1,0 +1,27 @@
+{
+  "source": "1556f2ad1e9985c723f7f3634a3f48535cc411a2",
+  "tree": "f449331e7ae64da7f19fa62b3554062381cb887c",
+  "patch_sha256": "ed6c2b1affbfebf76df67c9548900be4ca37607738d9d95963d0517c0afa1512",
+  "files": {
+    "game/scripts/rendering/cafe_character_pick_geometry.gd": {
+      "before": "f09338d941fbf246c48d4fa1bbefab761c143a55c5f872751f5e35dc72bb633e",
+      "after": "4dee5fdaaf6145f02fc0154d5997b791441aa390d0bd548cec80b5fbfe286bf3"
+    },
+    "game/scripts/rendering/cafe_shape_2d.gd": {
+      "before": "59e0ceb4747d31eb37636495550b581e942874f4318c9f1cea900166c0a185df",
+      "after": "1a50c97cfe511b76ee9df4450670a63384064a1e3c32ea8db67d00be438967ed"
+    },
+    "game/scripts/rendering/illustrated_cafe.gd": {
+      "before": "b7cc3deeb173088f50076f1eecab52683258923b7c3e145d4122f48a7ca3a28a",
+      "after": "ab7f4942e446c1e0d4116635d8aa5329b2ae82ff5ec6bd0cc99db2c86ee1926b"
+    },
+    "game/scripts/rendering/illustrated_openings.gd": {
+      "before": "8e6f40c7bb868de97a309a50bc6ef06cd0202f54877132945e317c5e34e6ff2f",
+      "after": "068253f3f5ee43f419831697476f14221ffa61938e1c39b097095a85f84e3493"
+    },
+    "tests/building/test_centered_wall_visuals.gd": {
+      "before": "e385d72153532399c59c00a5a19c21567e104315bf0f138fafc2d751f10e9413",
+      "after": "6a1fca2393335349204f876014aae642fa5d33130a9c6277dd53e8a6399533de"
+    }
+  }
+}

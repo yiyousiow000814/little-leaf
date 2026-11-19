@@ -1,0 +1,15 @@
+config_version=5
+
+[application]
+config/name="Diagnostic Wall Canvas Counter"
+
+[display]
+window/size/viewport_width=1360
+window/size/viewport_height=880
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+anti_aliasing/quality/msaa_2d=0
+anti_aliasing/quality/screen_space_aa=0
