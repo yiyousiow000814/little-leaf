@@ -129,11 +129,11 @@ static func compatible_error(attachment:Dictionary,walls:Array,attachments:Array
 static func collinear(a:Dictionary,b:Dictionary)->bool:
 	return a.axis==b.axis and (is_equal_approx(a.a.y,b.a.y) if a.axis=="x" else is_equal_approx(a.a.x,b.a.x))
 static func axis_value(point:Vector2,axis:String)->float:return point.x if axis=="x" else point.y
-static func cuts(host:Dictionary,walls:Array,attachments:Array,doors_only=false)->Array[Dictionary]:
+static func cuts(host:Dictionary,walls:Array,attachments:Array,doors_only=false,resolved:Variant=null)->Array[Dictionary]:
 	var result:Array[Dictionary]=[];var origin=axis_value(host.a,host.axis);var length=host.a.distance_to(host.b)
-	for attachment in attachments:
+	for attachment in attachments if resolved==null else resolved:
 		if doors_only and attachment.kind!="door":continue
-		var opening=aperture(attachment,walls)
+		var opening=aperture(attachment,walls) if resolved==null else attachment
 		if opening.is_empty() or not collinear(host,opening.host):continue
 		var low=maxf(0.0,axis_value(opening.a,host.axis)-origin);var high=minf(length,axis_value(opening.b,host.axis)-origin)
 		if high>low+.00001:result.append({"from":low,"to":high,"bottom":opening.bottom,"top":opening.top,"opening":opening})
@@ -145,9 +145,9 @@ static func solid_segments(host:Dictionary,walls:Array,attachments:Array)->Array
 		cursor=maxf(cursor,float(cut.to))
 	if cursor<length-.00001:result.append({"a":host.a+direction*cursor,"b":host.b,"normal":host.normal,"host":host})
 	return result
-static func solid_panels(host:Dictionary,walls:Array,attachments:Array)->Array[Dictionary]:
+static func solid_panels(host:Dictionary,walls:Array,attachments:Array,resolved:Variant=null)->Array[Dictionary]:
 	var result:Array[Dictionary]=[];var cursor=0.0;var height=WALL_HEIGHT if host.height=="full" else 58.0;var length=host.a.distance_to(host.b)
-	for cut in cuts(host,walls,attachments):
+	for cut in cuts(host,walls,attachments,false,resolved):
 		if cut.from>cursor+.00001:result.append({"from":cursor,"to":cut.from,"bottom":0.0,"top":height})
 		if cut.bottom>0:result.append({"from":cut.from,"to":cut.to,"bottom":0.0,"top":minf(height,float(cut.bottom))})
 		if cut.top<height:result.append({"from":cut.from,"to":cut.to,"bottom":float(cut.top),"top":height})

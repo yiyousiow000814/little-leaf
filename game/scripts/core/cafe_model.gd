@@ -945,21 +945,19 @@ func boundary_has_wall(cell:Vector2i,outward:Vector2i)->bool:
 	return edge_blocked(cell,cell+outward)
 
 func boundary_entries() -> Array[Dictionary]:
-	## Only free, owned cells touching reachable public exterior qualify. Locked
-	## parcels are neither indoor shortcuts nor public approach space.
+	## Only the west roadside corridor is public. Because interior coordinates
+	## are nonnegative, x=0 and LEFT are the only possible threshold. Visiting
+	## these in increasing z preserves the original route tie order.
 	var entries: Array[Dictionary] = []
+	if width<=0:return entries
+	var occupied:=navigation_cells()
 	for z in range(depth):
-		for x in range(width):
-			var cell := Vector2i(x, z)
-			if not _walkable(cell):
-				continue
-			for direction in DIRECTIONS:
-				var outside: Vector2i = cell + direction
-				if not _public_exterior_cell(outside) or boundary_has_wall(cell, direction):
-					continue
-				entries.append({"cell": cell, "outside": outside, "direction": direction})
+		var cell:=Vector2i(0,z)
+		if not is_floor_owned(cell) or bool(occupied.get(cell,false)):continue
+		var outside:=cell+Vector2i.LEFT
+		if _public_exterior_cell(outside) and not boundary_has_wall(cell,Vector2i.LEFT):
+			entries.append({"cell":cell,"outside":outside,"direction":Vector2i.LEFT})
 	return entries
-
 
 func _public_exterior_cell(cell:Vector2i,ownership:Variant=null)->bool:
 	# The west roadside corridor is the only public cafe approach. Buying a
@@ -2141,10 +2139,7 @@ func _built_edge_blocked(a:Vector2i,b:Vector2i,walls:Array,openings=null)->bool:
 
 func edge_blocked(a:Vector2i,b:Vector2i)->bool:
 	if _wall_index_revision!=revision:
-		_wall_index.clear()
-		for wall in built_walls:
-			var sides=WallGeometry.adjacent_cells(wall)
-			if _built_edge_blocked(sides[0],sides[1],built_walls):_wall_index[WallGeometry.key_of(wall)]=true
+		_wall_index=WallReachability.blocked_grid_edges(built_walls,wall_attachments)
 		_wall_index_revision=revision
 	return _wall_index.has(WallGeometry.edge_between(a,b))
 
@@ -2214,9 +2209,7 @@ func _furniture_actor_component(start:Vector2i,layout:Array,walls=null,openings=
 	if start.x<1 or blocked.has(start) or not is_floor_owned(start):return {}
 	var wall_edges:Dictionary={}
 	if walls!=null:
-		for wall in walls:
-			var sides=WallGeometry.adjacent_cells(wall)
-			if _built_edge_blocked(sides[0],sides[1],walls,openings):wall_edges[WallGeometry.key_of(wall)]=true
+		wall_edges=WallReachability.blocked_grid_edges(walls,wall_attachments if openings==null else openings)
 	var reached:Dictionary={start:true}
 	var queue:Array[Vector2i]=[start];var cursor:=0
 	while cursor<queue.size():

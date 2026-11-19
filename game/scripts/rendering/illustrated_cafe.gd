@@ -91,6 +91,7 @@ const DiningStyles=preload("res://scripts/gameplay/cafe_dining_sets.gd")
 const DiningArt=preload("res://scripts/rendering/dining_style_art.gd")
 var dining_art=DiningArt.new()
 const OpeningArt=preload("res://scripts/rendering/illustrated_openings.gd")
+const WallQueries=preload("res://scripts/rendering/illustrated_wall_queries.gd")
 const OpeningGeometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 var render_wall_attachments:Array=[]
 const WallArt=preload("res://scripts/rendering/illustrated_walls.gd")
@@ -1114,10 +1115,8 @@ func _draw():
 	var preparing = use_retained_presentation and game.cafe_intro!=null and game.cafe_intro.preparing
 	_warmup_view=Rect2(Vector2(0,-size.y*1.35),Vector2(size.x,size.y*2.35)) if stable_admission or preparing else Rect2()
 	render_wall_attachments=game.build_tools.get_render_attachments() if game.build_tools!=null and game.build_tools.has_method("get_render_attachments") else game.model.wall_attachments
-	var openings=[]
-	for attachment in render_wall_attachments if show_objects else []:
-		var opening=OpeningGeometry.aperture(attachment,game.model.built_walls)
-		if not opening.is_empty():opening["preview"]=bool(attachment.get("preview",false));openings.append(opening)
+	var wall_queries=WallQueries.new(game.model.built_walls,render_wall_attachments) if show_objects else null
+	var openings:Array=wall_queries.apertures if wall_queries!=null else []
 	update_projection()
 	# Resolve input picking before switching to draw-local coordinates. A
 	# projection refresh during drawing would apply the retained camera pan twice.
@@ -1278,7 +1277,7 @@ func _draw():
 			var tint=Color.WHITE
 			if is_preview:
 				tint=Color("eeb9a1") if not game.build_tools.preview_valid else (Color("efd095") if game.build_tools.preview_warning!="" else Color("c6e1ae"))
-			_draw_wall_slice(e,.68 if is_preview else 1.0,tint);continue
+			_draw_wall_slice(e,.68 if is_preview else 1.0,tint,wall_queries);continue
 		if e.type in ["item","chair_back","beverage_foreground","stove_foreground"]:
 			var d=e.entry
 			var meal_offset:Vector2=e.get("meal_offset",Vector2.ZERO)
@@ -1428,13 +1427,13 @@ func _draw():
 	canvas_stream.finish()
 	character_pick_geometry.drawing(self)
 	playtest_draw_ms=(Time.get_ticks_usec()-playtest_started)/1000.0
-func _draw_wall_slice(piece:Dictionary,alpha:float,tint:Color):
+func _draw_wall_slice(piece:Dictionary,alpha:float,tint:Color,wall_queries=null):
 	# Keep each depth slice in its original painter slot. Reuse the existing
 	# native draw-list owner instead of rebuilding unchanged wall polygons.
 	# Each draw's existing preparation owns the exact geometry dependency
 	# values, including neighboring end/corner cuts and draft openings. Keep
 	# neither whole-model copies nor a persistent layout cache in every slice.
-	var preparation=OpeningArt.built_preparation(self,piece,render_wall_attachments)
+	var preparation=OpeningArt.built_preparation(self,piece,render_wall_attachments,wall_queries)
 	var shape=["wall-slice",piece.wall_t0,piece.wall_t1,piece.wall_end,
 		preparation,alpha,tint,origin]
 	# The retained callback owns derived geometry only, never model/draft arrays.

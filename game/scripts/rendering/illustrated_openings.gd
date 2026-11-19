@@ -107,16 +107,17 @@ static func built_depth_entries(wall:Dictionary)->Array[Dictionary]:
 	for piece in pieces:piece["wall_preparation"]=preparation
 	return pieces
 
-static func built_preparation(view,piece:Dictionary,attachments:Array)->Dictionary:
+static func built_preparation(view,piece:Dictionary,attachments:Array,queries=null)->Dictionary:
 	var preparation:Dictionary=piece.get("wall_preparation",{})
 	if preparation.is_empty():
 		var host=Geometry.wall_host(piece.entry)
 		var walls:Array=view.game.model.built_walls
 		preparation["host"]=host
-		preparation["panels"]=Geometry.solid_panels(host,walls,attachments)
-		preparation["cut_start"]=corner_cut(host,walls,false)
-		preparation["cut_end"]=corner_cut(host,walls,true)
-		preparation["end_bottom"]=visible_end_bottom(host,walls)
+		preparation["panels"]=Geometry.solid_panels(host,walls,attachments,queries.apertures_for(host) if queries!=null else null)
+		preparation["cut_start"]=corner_cut(host,queries.walls_at(host.a) if queries!=null else walls,false)
+		var end_walls:Array=queries.walls_at(host.b) if queries!=null else walls
+		preparation["cut_end"]=corner_cut(host,end_walls,true)
+		preparation["end_bottom"]=visible_end_bottom(host,end_walls)
 	return preparation
 
 static func draw_built_piece(view,piece:Dictionary,attachments:Array,alpha=1.0,tint=Color.WHITE):
