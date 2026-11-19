@@ -142,6 +142,124 @@ class PlayProvisionTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Unexpected"):
                 play_provision.verify_simulation(changes, ["one"])
 
+    def test_restored_package_revalidates_digest_and_metadata_before_install(self):
+        name = "tesseract-ocr"
+        package = b"verified package"
+        spec = dict(self.lock[name], sha256=hashlib.sha256(package).hexdigest())
+        with TemporaryDirectory() as tmp:
+            bundle, dest = Path(tmp) / "bundle", Path(tmp) / "dest"
+            bundle.mkdir()
+            dest.mkdir()
+            item = bundle / Path(spec["file"]).name
+            item.write_bytes(package)
+
+            def inspect(*args, **kwargs):
+                self.assertEqual(args[0], "dpkg-deb")
+                fields = {"Package": name, "Version": spec["version"], "Architecture": "amd64"}
+                return subprocess.CompletedProcess(args, 0, fields[args[-1]])
+
+            with patch.object(play_provision, "run", side_effect=inspect) as run:
+                output = play_provision.fetch_package(name, spec, dest, bundle=bundle)
+                self.assertEqual(output.read_bytes(), package)
+                self.assertEqual(run.call_count, 3)
+                item.write_bytes(b"corruption")
+                with self.assertRaisesRegex(ValueError, "checksum"):
+                    play_provision.fetch_package(name, spec, dest, bundle=bundle)
+                self.assertEqual(run.call_count, 3)  # No network fallback on corrupt bytes.
+                if os.name == "posix":
+                    item.unlink()
+                    item.symlink_to(output)
+                    with self.assertRaisesRegex(ValueError, "regular bundle file"):
+                        play_provision.fetch_package(name, spec, dest, bundle=bundle)
+                    self.assertEqual(run.call_count, 3)
+
+    def test_missing_bundle_package_uses_existing_bounded_cold_fetch(self):
+        name = "tesseract-ocr"
+        package = b"verified cold bytes"
+        spec = dict(self.lock[name], sha256=hashlib.sha256(package).hexdigest())
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            def download(pkg, url, dest, deadline):
+                self.assertEqual((pkg, url, deadline), (name, play_provision.ORIGIN + spec["file"], 123.0))
+                dest.write_bytes(package)
+
+            fields = {"Package": name, "Version": spec["version"], "Architecture": "all"}
+            with patch.object(play_provision, "download_pinned_package", side_effect=download) as fetch, patch.object(
+                play_provision, "run", side_effect=lambda *args, **kw: subprocess.CompletedProcess(args, 0, fields[args[-1]])
+            ):
+                received = play_provision.fetch_package(name, spec, root, 123.0, root / "missing")
+            self.assertEqual(received.read_bytes(), package)
+            fetch.assert_called_once()
+
+    def test_prefetch_only_publishes_complete_verified_candidates(self):
+        with TemporaryDirectory() as tmp:
+            bundle = Path(tmp) / "bundle"
+            lock = {"verified": {}, "stalled": {}, "empty": {}, "http_error": {}}
+
+            def fetch(name, spec, stage, deadline):
+                f = stage / (name + ".deb")
+                f.write_bytes(b"complete" if name == "verified" else b"partial")
+                if name == "stalled":
+                    raise TimeoutError
+                if name == "empty":
+                    raise subprocess.CalledProcessError(52, ("curl", "same-origin"))
+                if name == "http_error":
+                    raise subprocess.CalledProcessError(22, ("curl", "same-origin"))
+                return f
+
+            with patch.object(play_provision, "fetch_package", side_effect=fetch), patch.object(
+                play_provision, "run"
+            ) as run:
+                play_provision.prefetch(lock, bundle)
+                run.assert_not_called()  # No package installer in preflight.
+            self.assertEqual([p.name for p in bundle.iterdir()], ["verified.deb"])
+            self.assertEqual((bundle / "verified.deb").read_bytes(), b"complete")
+            with patch.object(play_provision, "fetch_package", side_effect=ValueError("checksum")):
+                with self.assertRaisesRegex(ValueError, "checksum"):
+                    play_provision.prefetch({"corrupt": {}}, Path(tmp) / "bad-bundle")
+
+            # Digest or dpkg metadata errors still fail closed, not a missing-file fallback.
+            fault = subprocess.CalledProcessError(2, ("dpkg-deb", "bad-header"))
+            with patch.object(play_provision, "fetch_package", side_effect=fault):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    play_provision.prefetch({"unreadable": {}}, Path(tmp) / "bad-metadata")
+
+    def test_prefetch_prioritizes_the_four_observed_transport_blockers(self):
+        with TemporaryDirectory() as tmp, patch.object(play_provision, "fetch_package") as fetch, patch.object(
+            play_provision.concurrent.futures, "ThreadPoolExecutor"
+        ) as executor:
+            names = []
+            executor.return_value.__enter__.return_value.map.side_effect = lambda callback, order: names.extend(order) or []
+            play_provision.prefetch(self.lock, Path(tmp) / "bundle")
+            self.assertEqual(names[:4], ["fonts-wqy-zenhei", "fonts-freefont-ttf", "fonts-unifont", "tesseract-ocr-eng"])
+            self.assertEqual(set(names), set(self.lock))
+            fetch.assert_not_called()
+
+    def test_bundle_receipt_is_exact_attempt_only_and_never_relaxes_validation(self):
+        jobs = yaml.safe_load((ROOT / ".github/workflows/build-web.yml").read_text())["jobs"]
+        preflight, build = jobs["preflight"], jobs["build"]
+        self.assertEqual(preflight["if"], "needs.guard.outputs.scope == 'full' && needs.guard.outputs.ordinary_pr == 'true'")
+        produced = next(step for step in preflight["steps"] if step.get("id") == "browser_packages")
+        self.assertEqual(produced["with"]["name"], "little-leaf-pinned-chromium-${{ github.sha }}-${{ github.run_attempt }}")
+        self.assertEqual(preflight["outputs"]["browser_packages_id"], "${{ steps.browser_packages.outcome == 'success' && steps.browser_packages.outputs.artifact-id || '' }}")
+        self.assertEqual(build["outputs"]["browser_packages_id"], "${{ needs.preflight.outputs.browser_packages_id }}")
+        self.assertEqual(build["outputs"]["browser_packages_binding"], "${{ needs.preflight.outputs.binding }}")
+        for name, route in (("play", "PLAY_LOCKED_PROVISION"), ("browser", "PR_LOCKED_CHROMIUM_PROVISION"),
+                            ("compatibility", "PR_LOCKED_CHROMIUM_PROVISION")):
+            with self.subTest(job=name):
+                steps = jobs[name]["steps"]
+                restore = next(s for s in steps if s.get("name", "").startswith("Restore exact-attempt"))
+                install = next(s for s in steps if "play_provision.py candidate" in s.get("run", ""))
+                self.assertLess(steps.index(restore), steps.index(install))
+                self.assertIn(f"env.{route} == 'true'", restore["if"])
+                self.assertIn("format('{0}:{1}:{2}', github.sha, github.run_id, github.run_attempt)", restore["if"])
+                self.assertEqual(restore["with"]["artifact-ids"], "${{ needs.build.outputs.browser_packages_id }}")
+                self.assertEqual(restore["with"]["digest-mismatch"], "error")
+                self.assertNotIn("continue-on-error", restore)
+                self.assertNotIn("continue-on-error", install)
+                self.assertIn('"$RUNNER_TEMP/pinned-chromium-packages"', install["run"])
+
     def test_play_independent_but_mandatory_on_both_qualification_paths(self):
         workflow = (ROOT / ".github/workflows/build-web.yml").read_text()
         jobs = yaml.safe_load(workflow)["jobs"]
@@ -166,7 +284,8 @@ class PlayProvisionTests(unittest.TestCase):
         checked = next(step for step in steps if step.get("name", "").startswith("Install only missing"))
         self.assertEqual(legacy["if"], "env.PLAY_LOCKED_PROVISION != 'true'")
         self.assertEqual(checked["if"], "env.PLAY_LOCKED_PROVISION == 'true'")
-        download = next(step for step in steps if "download-artifact@" in step.get("uses", ""))
+        download = next(step for step in steps if "download-artifact@" in step.get("uses", "") and
+                        step.get("with", {}).get("artifact-ids", "").endswith("outputs.inputs_id }}"))
         self.assertEqual(download["with"]["artifact-ids"], "${{ needs.build.outputs.inputs_id }}")
         self.assertEqual(download["with"]["digest-mismatch"], "error")
         real = next(step for step in steps if step.get("name", "").startswith("Verify fresh tutorial"))

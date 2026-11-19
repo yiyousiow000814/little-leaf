@@ -323,7 +323,28 @@ class WorkflowInfrastructureTests(unittest.TestCase):
         self.assertIn('needs: [guard, preflight, engine, historical, build, crazygames, play, browser, compatibility, firebase]', workflow)
         self.assertIn('"$BUILD" "$PLAY" "$BROWSER" "$COMPATIBILITY";', workflow)
         self.assertIn('test "$result" = success || exit 1', workflow)
-        self.assertNotIn('continue-on-error:', workflow)
+        # Only publishing optional locked bytes can tolerate an upload failure.
+        import yaml
+
+        def assert_optional_upload_only(source):
+            jobs = yaml.safe_load(source)["jobs"]
+            self.assertEqual(source.count("continue-on-error:"), 1)
+            optional = [(job, step.get("id"), step.get("uses"), step["continue-on-error"])
+                        for job, value in jobs.items() for step in value["steps"] if "continue-on-error" in step]
+            self.assertEqual(optional, [("preflight", "browser_packages",
+                "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", True)])
+
+        assert_optional_upload_only(workflow)
+        # Moving the sole exception to the gate must fail even with only one occurrence.
+        gate_tamper = workflow.replace("        continue-on-error: true\n", "", 1).replace(
+            "  gate:\n", "  gate:\n    continue-on-error: ${{ true }}\n", 1)
+        with self.assertRaises(AssertionError):
+            assert_optional_upload_only(gate_tamper)
+        producer = workflow.index("        id: browser_packages\n")
+        pin = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+        source = workflow[:producer] + workflow[producer:].replace(pin, "actions/upload-artifact@v7", 1)
+        with self.assertRaises(AssertionError):
+            assert_optional_upload_only(source)
 
 if __name__ == '__main__':
     unittest.main()
