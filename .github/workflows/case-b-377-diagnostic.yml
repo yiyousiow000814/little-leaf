@@ -1,0 +1,128 @@
+name: Disposable exact #377 Case B replay
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths: ['.github/workflows/case-b-377-diagnostic.yml', 'tools/diagnostics/case-b-377/**']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: case-b-377-observation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  exact-replay:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'qa/case-b-377-diagnostic'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      ORIGINAL_RUN: '44474276265'
+      CURRENT: d484fb22623039c7078a9cce1c06bc3084c9f146
+      CURRENT_TREE: b7efe2a2f8558860f8a9750cdecdf2eb49f7e0e6
+      HISTORICAL: 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
+      HISTORICAL_TREE: 090eba5053b0f891d78d6f0c60b0317325f4f354
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          sparse-checkout: tools/diagnostics/case-b-377
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.CURRENT }}
+          path: source-current
+          persist-credentials: false
+          sparse-checkout: |
+            game
+            platform/web
+            tests
+            tools
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.HISTORICAL }}
+          path: source-historical
+          persist-credentials: false
+      - name: Verify exact source trees, original caller, producer jobs and artifact digests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          test "$(git -C source-current rev-parse HEAD)" = "$CURRENT"
+          test "$(git -C source-current rev-parse HEAD^{tree})" = "$CURRENT_TREE"
+          test "$(git -C source-current cat-file -p HEAD | grep -c '^parent ')" = 2
+          test "$(git -C source-current cat-file -p HEAD | sed -n 's/^parent //p' | sed -n '1p')" = 8c415d94fdb86e68dd0ce90d3482f9e668e8805d
+          test "$(git -C source-current cat-file -p HEAD | sed -n 's/^parent //p' | sed -n '2p')" = f586b7905c3a50bacd4ee82964955d67d6888699
+          test "$(git -C source-historical rev-parse HEAD)" = "$HISTORICAL"
+          test "$(git -C source-historical rev-parse HEAD^{tree})" = "$HISTORICAL_TREE"
+          mkdir -p "$RUNNER_TEMP/case-b-output"
+          python3 tools/diagnostics/case-b-377/verify_inputs.py remote | tee "$RUNNER_TEMP/case-b-output/producer-bindings.json"
+      - name: Download exact current diagnostic inputs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.ORIGINAL_RUN }}
+          artifact-ids: '14505643540'
+          path: ${{ runner.temp }}/case-b-current
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Download exact historical diagnostic inputs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.ORIGINAL_RUN }}
+          artifact-ids: '14505502441'
+          path: ${{ runner.temp }}/case-b-historical
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Download original Case B receipt for its preflight inputs only
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.ORIGINAL_RUN }}
+          artifact-ids: '14505827632'
+          path: ${{ runner.temp }}/case-b-preflight
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Bind sibling manifests, native layout and source-bound producer receipts
+        run: |
+          set -euo pipefail
+          python3 tools/diagnostics/case-b-377/verify_inputs.py local "$RUNNER_TEMP" | tee "$RUNNER_TEMP/case-b-output/input-bindings.json"
+      - name: Reuse #377 locked Ubuntu and pinned Chrome provisioning
+        working-directory: source-current
+        timeout-minutes: 4
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/case-b-driver" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/case-b-output/package-transaction.json"
+          python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/case-b-chrome"
+      - name: Verify exact browser, sandboxed headed Xvfb and OCR
+        working-directory: source-current
+        timeout-minutes: 2
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/case-b-driver/node_modules/playwright
+        run: |
+          set -euo pipefail
+          sudo dpkg -i "$CHROME_DEB"
+          python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
+          bash tools/ci/verify_locked_chromium.sh "$RUNNER_TEMP/case-b-output"
+          node tests/rendering/wall_compatibility_ocr_test.js --ocr-fixtures > "$RUNNER_TEMP/case-b-output/ocr-fixture.log"
+      - name: Replay only strict Case B in a sandboxed synthetic profile
+        timeout-minutes: 5
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/case-b-driver/node_modules/playwright
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          set -euo pipefail
+          xvfb-run -a node tools/diagnostics/case-b-377/run-exact-case-b.cjs \
+            --repo "$PWD/source-current" --case already_open_old --old-source "$PWD/source-historical" \
+            --old-web "$RUNNER_TEMP/case-b-historical/old-web-build/web" --new-web "$RUNNER_TEMP/case-b-current/web-build/web" \
+            --layout-dir "$RUNNER_TEMP/case-b-preflight/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/case-b-output"
+      - name: Retain diagnostic JSON only, even when exact assertion fails
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: synthetic-case-b-replay-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/case-b-output/*.json
+          if-no-files-found: warn
+          retention-days: 3
