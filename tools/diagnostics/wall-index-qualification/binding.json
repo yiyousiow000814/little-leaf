@@ -1,0 +1,34 @@
+{
+  "control": "2e3c7f6be9a633fff8e05450033ccdb3a2959c5f",
+  "control_tree": "3f76c412ecd12e4782b53ce037be378b019d7270",
+  "candidate": "a01104edc9eafc7edbe4705ff2c85a8c242353d2",
+  "candidate_tree": "dd1a6146cac410a0ef989398e00e125f4db22922",
+  "reviewed_paths": {
+    "docs/development/scaling-hotpaths/README.md": "5e66191646bd2ac6007fcdd44118cae9be75f2d4d6d9a222d1365014ba6b5542",
+    "docs/development/scaling-hotpaths/scaling-hotpaths.mmd": "f70243f262a6caf7d21763328bb9bb1f034234e295f76e636fa730086dc5867f",
+    "docs/development/scaling-hotpaths/scaling-ledger.xlsx": "a9ee872146551f61f9cfaf0d8c99ff58be28f3af6e501d4ce50af3aa7f6b2848",
+    "game/scripts/core/cafe_model.gd": "f7b9be9b54385a81c340675161ab7db3ffdeed5e0810803c545ac0e1ee09df9c",
+    "game/scripts/gameplay/cafe_dining_sets.gd": "300fe1979fd31f3700dbb02441cd0c96ba17406f4388755ef5e8bccf395a3dd3",
+    "game/scripts/gameplay/cafe_wall_openings.gd": "3bb835e16cbce15dd0e51e8716c6896bc6fbf7407d5296fe4fc673d88a0de933",
+    "game/scripts/rendering/illustrated_cafe.gd": "6c53121163021b0dcef679bee61ae6e608da1af551a588d2632dac5f796325cb",
+    "game/scripts/rendering/illustrated_openings.gd": "8e6f40c7bb868de97a309a50bc6ef06cd0202f54877132945e317c5e34e6ff2f",
+    "game/scripts/rendering/illustrated_wall_queries.gd": "356fef3f88e7ca586c6bd73f64e55c4c453fd3bd411a09bf497cf0eed6c09bec",
+    "game/scripts/rendering/illustrated_wall_queries.gd.uid": "1bd542dbd85e1f2f756ec1a11b0dce9ee35395fceb1b5cc8269f71c5e26a2a6c",
+    "tests/building/test_centered_wall_visuals.gd": "e385d72153532399c59c00a5a19c21567e104315bf0f138fafc2d751f10e9413",
+    "tests/building/test_departing_route_edit.gd": "61a4b288b94ab279ab5563153f82a503e8ecb12ec77795f338ecbd3da9149c4a",
+    "tests/building/test_economy_revision.gd": "142fc58630e206a15be021c87e70a49bdc460ae723e0a6dfeb1a53bfdb227d8f",
+    "tests/rendering/test_performance_shell_cache.gd": "def1fa7875b60332f73202bebf7d5d6d8fbd7f5c398ef7900d52c0a373ca2ab0"
+  },
+  "closure_delta": {
+    "changed": [
+      "scripts/gameplay/cafe_dining_sets.gd",
+      "scripts/gameplay/cafe_wall_openings.gd",
+      "scripts/rendering/illustrated_cafe.gd",
+      "scripts/rendering/illustrated_openings.gd"
+    ],
+    "added": [
+      "scripts/rendering/illustrated_wall_queries.gd"
+    ],
+    "removed": []
+  }
+}
