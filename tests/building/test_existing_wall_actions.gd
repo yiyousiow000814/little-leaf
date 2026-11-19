@@ -184,6 +184,8 @@ func run():
  check_installed_support_index(model)
  check_direct_edge_snapshot(game.model)
  check_doorway_retention()
+ check_editor_warning_layout_index()
+ check_editor_aperture_dining_guard()
  check_blocked_edge_index(model)
  game._cancel_selection();await settle();await click(aim(2.5))
  check(ui.selected_wall=="x:2:0","click existing wall selects exact one-tile host")
@@ -215,3 +217,76 @@ func run():
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null
  for tween in get_processed_tweens():tween.kill()
  game.queue_free();await process_frame;quit(0 if failures.is_empty() else 1)
+
+func old_warning_rows(model,walls:Array)->Dictionary:
+ var warnings={}
+ var reachable:Dictionary=model._wall_reachable(walls,model.items,model.owned_parcels)
+ for item in model.items:
+  var cell=Vector2i(int(item.x),int(item.z));var kind=str(item.kind)
+  if kind in ["table","bin"]:
+   var usable=false
+   var side_to_guest=model._table_guest_direction_in(item,model.items) if kind=="table" else Vector2i.ZERO
+   var directions=[Vector2i.LEFT,Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN] if kind=="table" else model.DIRECTIONS
+   for direction in directions:
+    var side=cell+direction
+    if direction!=side_to_guest and model._table_side_open_in(side,model.items) and not model._built_edge_blocked(cell,side,walls) and reachable.has(side):
+     usable=true;break
+   if not usable:
+    if kind=="table":warnings[str(item.id)+":front"]="Table service sides blocked: staff will wait until you move the wall"
+    else:warnings[str(item.id)+":sides"]="Bin sides blocked: staff will wait until you clear an adjacent side"
+  elif kind in ["stove","beverage","sink","counter"]:
+   var front=model.workface_cell(item)
+   if model._built_edge_blocked(cell,front,walls) or not reachable.has(front):warnings[str(item.id)+":front"]="%s front blocked: staff will wait until you move the wall"%kind.capitalize()
+   if kind=="counter":
+    var rear=cell*2-front
+    if model._built_edge_blocked(cell,rear,walls) or not reachable.has(rear):warnings[str(item.id)+":rear"]="Pass counter back blocked: chef will wait until you move the wall"
+ return warnings
+
+func check_editor_warning_layout_index():
+ var model=game.model.get_script().new()
+ model.items.assign([
+  {"id":1,"kind":"table","x":4,"z":4},{"id":2,"kind":"bench","x":5,"z":4},
+  {"id":3,"kind":"chair","x":3,"z":4},{"id":4,"kind":"chair","x":4,"z":3},
+  {"id":5,"kind":"plant","x":7,"z":7},{"id":6,"kind":"bin","x":6,"z":4},
+  {"id":7,"kind":"counter","x":6,"z":5},{"id":8,"kind":"rug","x":4,"z":5},
+  {"id":9,"kind":"stove","x":1,"z":1},{"id":10,"kind":"sink","x":7,"z":4},
+ ])
+ var table=model.items[0];var center=Vector2i(4,4)
+ model.dining_sets.assign([{"table_id":1,"seat_id":4}])
+ model.customers.assign([{"table_id":1,"chair_id":5},{"table_id":1,"chair_id":3},{"table_id":1,"chair_id":2}])
+ for state in range(4):
+  var layout:Dictionary=model._wall_warning_layout()
+  var old_direction=model._table_guest_direction_in(table,model.items)
+  check(model._wall_warning_guest_direction(table,center,layout)==old_direction,"table warning keeps guest then linked then item-order precedence %s"%state)
+  for edge in [["x",4,5],["z",6,4],["x",6,6],["x",1,2]]:
+   var proposed:Array=model.built_walls.duplicate()
+   proposed.append(Walls.installed("wall:preview",Walls.make(edge[0],edge[1],edge[2]),0,0))
+   var before=old_warning_rows(model,model.built_walls)
+   var after=old_warning_rows(model,proposed)
+   check(JSON.stringify(model._wall_operational_warnings(proposed,layout),"",false)==JSON.stringify(after,"",false),"exact warning order for table, bin and equipment")
+   var expected=""
+   for key in after:
+    if not before.has(key):expected=after[key];break
+   check(model.wall_placement_warning(edge[0],edge[1],edge[2])==expected,"real preview picks the same first newly introduced warning")
+  if state==0:model.customers.clear()
+  elif state==1:model.dining_sets.clear()
+  elif state==2:model.items.append({"id":5,"kind":"chair","x":4,"z":5});model.customers.assign([{"table_id":1,"chair_id":5}])
+ check(model._wall_warning_layout().duplicate_ids,"ambiguous editor fixture retains legacy exact chair path")
+
+func check_editor_aperture_dining_guard():
+ var model=game.model.get_script().new()
+ model.items.assign([{"id":1,"kind":"table","x":4,"z":4},{"id":2,"kind":"chair","x":4,"z":5},
+  {"id":3,"kind":"table","x":7,"z":4},{"id":4,"kind":"bench","x":7,"z":5}])
+ model.dining_sets.assign([{"table_id":1,"seat_id":2},{"table_id":3,"seat_id":4}])
+ model.built_walls.append(Walls.installed("wall:500",Walls.make("x",4,5),0,0))
+ model.built_walls.append(Walls.installed("wall:501",Walls.make("x",7,5),0,0))
+ var door=opening_validation_input(500,["wall:500"],.5,1.0,"door")
+ door.paid_cost=0;model.wall_attachments.append(door)
+ var before=JSON.stringify([model.wall_attachments,model.built_walls,model.dining_sets,model.items])
+ check(not model.can_remove_wall_attachment(500) and model.last_error=="A wall cannot split a table set","live door removal cannot split a newly blocked table pair")
+ check(not model.can_move_wall_attachment(500,"wall:501",.5) and model.last_error=="A wall cannot split a table set","door move reports first newly blocked table even if opening another pair")
+ check(JSON.stringify([model.wall_attachments,model.built_walls,model.dining_sets,model.items])==before,"rejected previews never mutate openings or furniture")
+ model.dining_sets.reverse()
+ check(not model.can_remove_wall_attachment(500) and model.last_error=="A wall cannot split a table set","already blocked pair is ignored ahead of newly blocked pair")
+ model.dining_sets.pop_back()
+ check(model.can_remove_wall_attachment(500),"safe old-blocked pair allows door removal")

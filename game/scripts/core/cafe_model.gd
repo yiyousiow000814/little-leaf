@@ -2406,6 +2406,9 @@ func _wall_reachable(walls:Array,layout:Array,ownership:Array,openings=null,know
 	for item in layout:
 		if str(item.kind)!="rug":blocked[Vector2i(int(item.x),int(item.z))]=true
 	var keys:Dictionary=WallReachability.blocked_grid_edges(walls,wall_attachments if openings==null else openings) if known_keys==null else known_keys
+	return _wall_reachable_from_cells(blocked,ownership,keys)
+
+func _wall_reachable_from_cells(blocked:Dictionary,ownership:Array,keys:Dictionary)->Dictionary:
 	var reachable:Dictionary={}
 	var queue:Array[Vector2i]=[]
 	for z in range(MAX_DEPTH):
@@ -2692,38 +2695,77 @@ func _complete_legacy_starter_floor(finishes:Dictionary,data:Dictionary)->void:
 			var key=_floor_key(Vector2i(x,z))
 			if not finishes.has(key):finishes[key]={"style":"warm_oak","paid_cost":0}
 
-func _wall_operational_warnings(walls:Array) -> Dictionary:
+func _wall_warning_layout()->Dictionary:
+	var cells={};var by_id={};var tables={};var seats={};var duplicate_ids=false
+	for i in items.size():
+		var item:=items[i];var id=int(item.id);var cell=Vector2i(int(item.x),int(item.z))
+		if by_id.has(id):duplicate_ids=true
+		if not by_id.has(id):by_id[id]=cell
+		if str(item.kind)!="rug":cells[cell]=true
+		if str(item.kind)=="table":tables[id]=cell
+		if str(item.kind) in ["chair","bench"] and not seats.has(cell):seats[cell]=i
+	var live={};var linked={}
+	if not duplicate_ids:
+		for guest in customers:
+			var table_id=int(guest.table_id);var chair_id=int(guest.chair_id)
+			if live.has(table_id) or not tables.has(table_id) or not by_id.has(chair_id):continue
+			var delta:Vector2i=by_id[chair_id]-tables[table_id]
+			if absi(delta.x)+absi(delta.y)==1:live[table_id]=delta
+		for group in dining_sets:
+			for id in [int(group.table_id),int(group.seat_id)]:
+				if not linked.has(id):linked[id]=int(group.seat_id)
+	return {"cells":cells,"by_id":by_id,"seats":seats,"live":live,"linked":linked,"duplicate_ids":duplicate_ids}
+
+func _wall_warning_guest_direction(table:Dictionary,cell:Vector2i,layout:Dictionary)->Vector2i:
+	# Legacy rows can have two items of one ID, with only the latter adjacent.
+	if layout.duplicate_ids:return _table_guest_direction_in(table,items)
+	var id=int(table.id)
+	if layout.live.has(id):return layout.live[id]
+	if layout.linked.has(id) and layout.by_id.has(layout.linked[id]):
+		var delta:Vector2i=layout.by_id[layout.linked[id]]-cell
+		if absi(delta.x)+absi(delta.y)==1:return delta
+	var best:=Vector2i.DOWN;var order:=items.size()
+	for direction in DIRECTIONS:
+		var rank:int=layout.seats.get(cell+direction,items.size())
+		if rank<order:best=direction;order=rank
+	return best
+
+func _wall_operational_warnings(walls:Array,layout:Dictionary={}) -> Dictionary:
 	var warnings:Dictionary={}
-	var reachable:=_wall_reachable(walls,items,owned_parcels)
+	if layout.is_empty():layout=_wall_warning_layout()
+	var keys:Variant=WallReachability.direct_edge_snapshot(walls,wall_attachments)
+	var reach_edges:Dictionary=WallReachability.blocked_grid_edges(walls,wall_attachments) if keys==null else keys
+	var reachable:=_wall_reachable_from_cells(layout.cells,owned_parcels,reach_edges)
 	for item in items:
 		var cell:=Vector2i(int(item.x),int(item.z))
 		if str(item.kind)=="table":
 			var usable=false
-			var guest_side=_table_guest_direction_in(item,items)
+			var guest_side=_wall_warning_guest_direction(item,cell,layout)
 			for direction in [Vector2i.LEFT,Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN]:
 				var side:Vector2i=cell+direction
-				if direction!=guest_side and _table_side_open_in(side,items) and not _built_edge_blocked(cell,side,walls) and reachable.has(side):usable=true;break
+				if direction!=guest_side and side.x>=1 and is_floor_owned(side) and not layout.cells.has(side) and not _built_edge_blocked(cell,side,walls,null,keys) and reachable.has(side):usable=true;break
 			if not usable:warnings[str(item.id)+":front"]="Table service sides blocked: staff will wait until you move the wall"
 		elif str(item.kind)=="bin":
 			var usable=false
 			for direction in DIRECTIONS:
 				var side:Vector2i=cell+direction
-				if _table_side_open_in(side,items) and not _built_edge_blocked(cell,side,walls) and reachable.has(side):usable=true;break
+				if side.x>=1 and is_floor_owned(side) and not layout.cells.has(side) and not _built_edge_blocked(cell,side,walls,null,keys) and reachable.has(side):usable=true;break
 			if not usable:warnings[str(item.id)+":sides"]="Bin sides blocked: staff will wait until you clear an adjacent side"
 		elif str(item.kind) in ["stove","beverage","sink","counter"]:
 			var front:=workface_cell(item)
-			if _built_edge_blocked(cell,front,walls) or not reachable.has(front):warnings[str(item.id)+":front"]="%s front blocked: staff will wait until you move the wall"%str(item.kind).capitalize()
+			if _built_edge_blocked(cell,front,walls,null,keys) or not reachable.has(front):warnings[str(item.id)+":front"]="%s front blocked: staff will wait until you move the wall"%str(item.kind).capitalize()
 			if str(item.kind)=="counter":
 				var rear:Vector2i=cell*2-front
-				if _built_edge_blocked(cell,rear,walls) or not reachable.has(rear):warnings[str(item.id)+":rear"]="Pass counter back blocked: chef will wait until you move the wall"
+				if _built_edge_blocked(cell,rear,walls,null,keys) or not reachable.has(rear):warnings[str(item.id)+":rear"]="Pass counter back blocked: chef will wait until you move the wall"
 	return warnings
 
 func wall_placement_warning(axis:String,x:int,z:int,height:String="full",material:String="sage_panels",_actor_positions:Array=[]) -> String:
 	var wall:=WallGeometry.make(axis,x,z,height,material);wall["id"]=_next_wall_id
 	if _wall_edge_error(wall,owned_parcels)!="":return ""
 	var proposed:Array=built_walls.duplicate();proposed.append(wall)
-	var before:=_wall_operational_warnings(built_walls)
-	var after:=_wall_operational_warnings(proposed)
+	var layout:=_wall_warning_layout()
+	var before:=_wall_operational_warnings(built_walls,layout)
+	var after:=_wall_operational_warnings(proposed,layout)
 	for key in after:
 		if not before.has(key):return str(after[key])
 	return ""
@@ -2933,11 +2975,21 @@ func _attachment_change_error(proposed:Array,actor_positions:Array)->String:
 	reason=_opening_body_error(built_walls,proposed,_wall_actor_list(actor_positions))
 	if reason!="":return reason
 	# A logical table/seat pair must remain physically mounted together.
+	if dining_sets.is_empty():return ""
+	var by_id:=FurnitureMotion.first_by_id(items)
+	var proposed_edges:Variant=WallReachability.direct_edge_snapshot(built_walls,proposed)
+	var current_edges:Variant=null
+	var checked_current:=false
 	for group in dining_sets:
-		var table=get_item(int(group.table_id));var seat=get_item(int(group.seat_id))
+		var table:Dictionary=by_id.get(int(group.table_id),{})
+		var seat:Dictionary=by_id.get(int(group.seat_id),{})
 		if table.is_empty() or seat.is_empty():continue
 		var a=Vector2i(int(table.x),int(table.z));var b=Vector2i(int(seat.x),int(seat.z))
-		if _built_edge_blocked(a,b,built_walls,proposed) and not _built_edge_blocked(a,b,built_walls):return "A wall cannot split a table set"
+		if not _built_edge_blocked(a,b,built_walls,proposed,proposed_edges):continue
+		if not checked_current:
+			current_edges=WallReachability.direct_edge_snapshot(built_walls,wall_attachments)
+			checked_current=true
+		if not _built_edge_blocked(a,b,built_walls,null,current_edges):return "A wall cannot split a table set"
 	return ""
 
 func _preserves_existing_doorways(proposed:Array)->bool:

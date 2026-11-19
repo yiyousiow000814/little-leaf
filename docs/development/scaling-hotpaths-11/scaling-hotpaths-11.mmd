@@ -1,0 +1,8 @@
+flowchart TD
+    B["Exact #389 base · 1556f2a"] --> P["Cold wall preview<br/>Share occupancy and chair snapshot"]
+    B --> D["Door move/removal guard<br/>First-record IDs and proposed edge snapshot"]
+    P --> W["Preserve warning priority and BFS<br/>45 pairs: 38.757 → 22.201 ms"]
+    D --> E["Only check current edges if proposed blocks a pair<br/>45 pairs: 6.964 → 1.030 ms"]
+    W --> Q["1,240 standard / 160 paired warning / 128 final focused<br/>Separate scopes; don't add"]
+    E --> Q
+    Q --> R["85-source atlas guard unchanged<br/>No Web/save or FPS claim"]
