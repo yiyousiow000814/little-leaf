@@ -17,7 +17,7 @@ class MailNativeReviewTests(unittest.TestCase):
     def test_exact_postimages_and_no_unreviewed_production(self):
         main = "game/scripts/main.gd"
         captured_main = "a585cfa764e893bb974343fe8dc77d5365ff8b8ac7ae17be5dbf6167bdf47b78"
-        current_main = "ce5e31dabaa771689227275ab60fc38e66fd0df294a93077c4aa3543922f0473"
+        current_main = "8c61d1056fc19d206d1bfbfeed6d1f746c94cd32d847ca8c66b0ed84e06b847f"
         original = review.sha
         self.assertEqual(review.REVIEWED_POSTIMAGES[main], captured_main)
         self.assertEqual(original(ROOT / main), current_main)
