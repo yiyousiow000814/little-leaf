@@ -1,0 +1,24 @@
+{
+  "control": "917f88309dbbbd77a2d2bbec55f55e43bce9d0e9",
+  "control_tree": "31d10683db3a484e7f9c36c7dee82f83f216d9f0",
+  "candidate": "29251c48c3a8e940bef4a8f600365833ac735dd4",
+  "candidate_tree": "60ea36b5aafe117a7ec0eaf336684a3f56b60dbb",
+  "reviewed_paths": {
+    "docs/development/scaling-hotpaths-2/README.md": "906afd9e25815262a1a5ad8d00d3b045022416d4c20873353a3ba7090ba4d94c",
+    "docs/development/scaling-hotpaths-2/scaling-hotpaths-2.mmd": "21fc0b2e843f04aac0b33f1db22872e18ff28cc0743da0d4104045d7b36c6e03",
+    "docs/development/scaling-hotpaths-2/scaling-ledger-2.xlsx": "06f2332ad8161cc564cbeab265b0e9cf9235bbe9a7da1295a899c181b36352cb",
+    "game/scripts/core/cafe_model.gd": "74e1744da65eeccc9377e761dce65fbca97400dff8b5f5db2a306e467a3f85e5",
+    "game/scripts/gameplay/cafe_checkout.gd": "96cf72dca41273feccfb1531136e863dc1851dad6ed02284885c59feb43ed448",
+    "game/scripts/main.gd": "ce5e31dabaa771689227275ab60fc38e66fd0df294a93077c4aa3543922f0473",
+    "game/scripts/rendering/illustrated_cafe.gd": "9f1a5bf162959679f19196e0e797870f4da6da86049c5f0f1dbb958e36edfb90",
+    "tests/building/test_economy_revision.gd": "85c2a327402942e355abf05949e31a4089b324d38f72c61f60e5e9fff14e956a",
+    "tests/rendering/test_performance_simulation_cache.gd": "e793a8c1bbdf7cb48cae7bc489aa5559a8442ee6a8446e958cbf105b024a85e0"
+  },
+  "closure_delta": {
+    "changed": [
+      "scripts/rendering/illustrated_cafe.gd"
+    ],
+    "added": [],
+    "removed": []
+  }
+}
