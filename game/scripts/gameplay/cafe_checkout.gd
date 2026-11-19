@@ -272,16 +272,17 @@ static func commit(m,id:int,ticket:int,register_id:int,token:int)->bool:
  m.last_event="Payment received · +%s coins"%m.Money.amount(m.MEAL_PAYMENT)
  m.meal_completed.emit(id,m.MEAL_PAYMENT)
  return true
-static func layout_error(m,layout:Array,walls:Array,ownership:Array,guests:Array,openings=null)->String:
+static func layout_error(m,layout:Array,walls:Array,ownership:Array,guests:Array,openings=null, shared_reach:Callable=Callable())->String:
  var by_id={}
  for item in layout:by_id[int(item.id)]=item
- var reachable=m._wall_reachable(walls,layout,ownership,openings)
+ var reachable:Variant=null
  for guest in guests:
   if str(guest.phase) in STAGES and not m._floor_owned_in(Vector2i(floori(float(guest.x)),floori(float(guest.z))),ownership):return "Unpaid checkout guest is outside owned floor"
   var cell=guest.get("checkout_cell",NONE)
   if cell==NONE:continue
   var item=by_id.get(int(guest.get("checkout_register_id",-1)),{})
   if item.is_empty():return "A checkout reservation has no register"
+  if reachable==null:reachable=shared_reach.call() if shared_reach.is_valid() else m._wall_reachable(walls,layout,ownership,openings)
   var center=Vector2i(int(item.x),int(item.z));var front=m.workface_cell(item);var back=rear(m,item)
   for face in [cell,front,back]:
    if not m._floor_owned_in(face,ownership) or not reachable.has(face):return "Keep active register and queue cells clear and reachable"

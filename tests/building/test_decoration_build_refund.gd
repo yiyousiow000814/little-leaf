@@ -14,6 +14,23 @@ func check(ok:bool,label:String):
 func fresh():
  var m=Model.new();Start.apply(m);m.coins=10000;return m
 func key(m)->String:return Walls.key_of(m.built_walls[-1])
+func check_moved_door_save():
+ var m=fresh()
+ check(m.place_wall_attachment("door","wall:3",.5),"initial paid door: "+m.last_error)
+ if m.wall_attachments.size()<2:return
+ var id=int(m.wall_attachments[-1].id)
+ check(m.save("user://door-initial.json"),"initial moved-door fixture save")
+ m.begin_decoration_session()
+ check(m.move_wall_attachment(id,"wall:4",.5),"draft door moved: "+m.last_error)
+ var draft=m.save_data()
+ check(not draft.is_empty() and draft.wall_attachments.back().wall_ids==["wall:4"] and m._decoration_baseline.wall_attachments.back().wall_ids==["wall:3"],"apply preflight uses moved door, not saved baseline")
+ check(m.save("user://door-paused.json"),"periodic save during decoration")
+ check(FileAccess.get_file_as_string("user://door-paused.json")==FileAccess.get_file_as_string("user://door-initial.json"),"periodic bytes remain last-applied")
+ m.finish_decoration_session()
+ check(m.save("user://door-applied.json"),"applied moved-door save")
+ var restored=Model.new()
+ check(restored.load_save("user://door-paused.json") and restored.get_wall_attachment(id).get("wall_ids",[])==["wall:3"],"reopen baseline shows old door")
+ check(restored.load_save("user://door-applied.json") and restored.get_wall_attachment(id).get("wall_ids",[])==["wall:4"],"reopen applied shows moved door")
 func _initialize():run.call_deferred()
 func run():
  if not "saveguard" in OS.get_user_data_dir():printerr("Use isolated headless profile");quit(2);return
@@ -90,6 +107,7 @@ func run():
  check(m.remove_wall(key(m),false) and m.remove_wall_attachment(opening_id,[],false) and m.coins==wallet and m.decoration_build_purchases.is_empty(),"no-refund removal consumes receipts")
  check(m.place_wall("x",8,6) and not m.decoration_build_purchases.is_empty(),"nonempty build receipt before reset")
  Start.apply(m);check(not m.decoration_session_active and m.decoration_build_purchases.is_empty(),"reset clears build receipts before ID reuse")
+ check_moved_door_save()
  # Actual context labels read authoritative refund quotes in headless UI.
  var game=TestMain.new();root.add_child(game);game.set_process(false);game.paused=true;await process_frame
  game._toggle_edit();game.model.coins=10000;check(game.model.place_wall("x",8,6),"context wall purchase")
