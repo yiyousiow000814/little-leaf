@@ -1,0 +1,114 @@
+diff --git a/game/scripts/rendering/cafe_character_pick_geometry.gd b/game/scripts/rendering/cafe_character_pick_geometry.gd
+index 03ac76d..8612dce 100644
+--- a/game/scripts/rendering/cafe_character_pick_geometry.gd
++++ b/game/scripts/rendering/cafe_character_pick_geometry.gd
+@@ -154,6 +154,15 @@ func command_hit(method:StringName,args:Array,point:Vector2,opacity:float,transf
+ 			var width=float(material.get_shader_parameter("stroke_width")) if method==&"retained_aa_mesh" and material is ShaderMaterial else .7
+ 			var geometry_scale=float(material.get_shader_parameter("geometry_scale")) if method==&"scaled_contours" and material is ShaderMaterial else 1.0
+ 			return _mesh_hit(args[0],point,opacity,minf(width*scale,1.0)/scale if method==&"retained_aa_mesh" else 1.0,geometry_scale)
++		&"wall_solid_quads":
++			# Keep the original polygon boundary check before triangle tolerance.
++			var vertices:PackedVector2Array=args[1];var colors:PackedColorArray=args[2]
++			for start in range(0,vertices.size(),4):
++				var quad:=vertices.slice(start,start+4)
++				if not Geometry2D.is_point_in_polygon(point,quad):continue
++				var hit=_triangles_hit(quad,colors.slice(start,start+4),Geometry2D.triangulate_polygon(quad),point,opacity)
++				if hit!=CLEAR:return hit
++			return CLEAR
+ 		&"ordered_triangles":return _triangles_hit(args[1],args[2],args[0],point,opacity)
+ 		&"draw_texture_rect_region":return _texture_hit(args,point,opacity,images)
+ 		&"draw_line",&"scalable_line":return _line_hit(args[0],args[1],args[2],args[3],point,opacity,transform)
+diff --git a/game/scripts/rendering/cafe_shape_2d.gd b/game/scripts/rendering/cafe_shape_2d.gd
+index 10b339e..ff56e8b 100644
+--- a/game/scripts/rendering/cafe_shape_2d.gd
++++ b/game/scripts/rendering/cafe_shape_2d.gd
+@@ -92,7 +92,7 @@ func _draw() -> void:
+ 		draw_polyline(draw_arguments[0], draw_arguments[1], draw_arguments[2], true)
+ 	elif draw_method == &"scalable_line":
+ 		draw_line(draw_arguments[0], draw_arguments[1], draw_arguments[2], draw_arguments[3], true)
+-	elif draw_method == &"ordered_triangles":
++	elif draw_method in [&"ordered_triangles", &"wall_solid_quads"]:
+ 		RenderingServer.canvas_item_add_triangle_array(
+ 			get_canvas_item(), draw_arguments[0], draw_arguments[1], draw_arguments[2]
+ 		)
+diff --git a/game/scripts/rendering/illustrated_cafe.gd b/game/scripts/rendering/illustrated_cafe.gd
+index 8a44063..91a13c4 100644
+--- a/game/scripts/rendering/illustrated_cafe.gd
++++ b/game/scripts/rendering/illustrated_cafe.gd
+@@ -1531,7 +1531,8 @@ func _paint_wall_slice(piece:Dictionary,alpha:float,tint:Color,draw_origin:Vecto
+ 	# transform moves to the retained parent; do not change float arithmetic.
+ 	var previous_origin=origin
+ 	origin=draw_origin
+-	OpeningArt.draw_built_piece(self,piece,[],alpha,tint)
++	if not OpeningArt.try_native_solid_slice(self,piece,alpha,tint):
++		OpeningArt.draw_built_piece(self,piece,[],alpha,tint)
+ 	origin=previous_origin
+ 
+ func _draw_legacy_pavement(ground_view: Rect2):
+diff --git a/game/scripts/rendering/illustrated_openings.gd b/game/scripts/rendering/illustrated_openings.gd
+index 884e38d..8ff55d0 100644
+--- a/game/scripts/rendering/illustrated_openings.gd
++++ b/game/scripts/rendering/illustrated_openings.gd
+@@ -120,6 +120,36 @@ static func built_preparation(view,piece:Dictionary,attachments:Array,queries=nu
+ 		preparation["end_bottom"]=visible_end_bottom(host,end_walls)
+ 	return preparation
+ 
++# During a retained solid slice repaint, collect the ORIGINAL painter's quads.
++# Drawing and hit testing share the same vertex/color streams; never cross a slice.
++class SolidSlice:
++	extends RefCounted
++	var source
++	var points:=PackedVector2Array()
++	var colors:=PackedColorArray()
++	var indices:=PackedInt32Array()
++	var valid:=true
++	func _init(view):source=view
++	func iso(x,z,h=0.0):return source.iso(x,z,h)
++	func art_draw_polygon(vertices:PackedVector2Array,tints:PackedColorArray,uvs:PackedVector2Array,texture:Texture2D):
++		if not valid:return
++		if texture!=null or not uvs.is_empty() or vertices.size()!=4 or tints.size()!=4:
++			valid=false;return
++		var triangles:=Geometry2D.triangulate_polygon(vertices)
++		if triangles.size()!=6:
++			valid=false;return
++		var offset:=points.size()
++		points.append_array(vertices);colors.append_array(tints)
++		for index in triangles:indices.append(offset+index)
++
++static func try_native_solid_slice(view,piece:Dictionary,alpha:float,tint:Color)->bool:
++	if view.native_draw_target==null or piece.wall_preparation.host.material!="original":return false
++	var run:=SolidSlice.new(view)
++	draw_built_piece(run,piece,[],alpha,tint)
++	if not run.valid or run.indices.is_empty():return false
++	view.native_draw_target.submit_shape(&"wall_solid_quads",[run.indices,run.points,run.colors],view.native_command_transform)
++	return true
++
+ static func draw_built_piece(view,piece:Dictionary,attachments:Array,alpha=1.0,tint=Color.WHITE):
+ 	var preparation=built_preparation(view,piece,attachments)
+ 	var host:Dictionary=preparation.host
+diff --git a/tests/building/test_centered_wall_visuals.gd b/tests/building/test_centered_wall_visuals.gd
+index 5170008..ece0007 100644
+--- a/tests/building/test_centered_wall_visuals.gd
++++ b/tests/building/test_centered_wall_visuals.gd
+@@ -144,10 +144,19 @@ func inspect_retained_slice():
+   var node=painter.native_object_nodes[0]
+   check(node.paint_revision>prior_revision,"Wall slice immediately invalidates for attachment, style, neighbor, movement, deletion, zoom, origin or draft tint")
+   prior_revision=node.paint_revision
+-  painter.filled=[];painter.paint_native_object(node,node.paint)
++  painter.filled=[];node.shape_cursor=0;painter.paint_native_object(node,node.paint)
+   var retained=painter.filled
+   painter.filled=[];Art.draw_built_piece(painter,Art.built_depth_entries(first)[3],painter.render_wall_attachments,alpha,tint)
+-  check(painter.filled==retained,"Retained wall callback preserves exact projected points, colors, UVs and texture")
++  if first.material=="original":
++   check(retained.is_empty() and node.shape_cursor==1 and node.shapes[0].draw_method==&"wall_solid_quads","One original wall slice emits exactly one native command")
++   var xy=PackedVector2Array();var colors=PackedColorArray();var ids=PackedInt32Array()
++   for q in painter.filled:
++    check(q.uvs.is_empty() and q.texture==null,"Only solid quads are packed")
++    for i in Geometry2D.triangulate_polygon(q.points):ids.append(xy.size()+i)
++    xy.append_array(q.points);colors.append_array(q.colors)
++   check(not xy.is_empty() and [ids,xy,colors]==node.shapes[0].draw_arguments,"Retained solid wall preserves every projected vertex, color, original triangle and painter order")
++  else:
++   check(painter.filled==retained,"Textured wall retains exact projected points, colors, UVs and texture")
+   check(before==[fixture.model.built_walls,painter.render_wall_attachments],"Retained wall never mutates model or draft inputs")
+   painter.canvas_stream.cursor=0;painter._draw_wall_slice(Art.built_depth_entries(first)[3],alpha,tint)
+   check(node.paint_revision==prior_revision,"Fresh per-draw preparation does not invalidate unchanged retained wall")

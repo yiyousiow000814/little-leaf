@@ -1,0 +1,33 @@
+{
+  "control": "bcf98740388339c8be25112d0cbc4b06dd0220a3",
+  "control_tree": "af80122978a453a01a13312a2c9512a4a818a3f7",
+  "candidate": "a06ad8262c03ef41413680108568c0d805eeed80",
+  "candidate_tree": "12bcc8de40a3418bdd30aba7821ae34a6924265a",
+  "reviewed_paths": {
+    "game/scripts/rendering/cafe_character_pick_geometry.gd": "4dee5fdaaf6145f02fc0154d5997b791441aa390d0bd548cec80b5fbfe286bf3",
+    "game/scripts/rendering/cafe_shape_2d.gd": "1a50c97cfe511b76ee9df4450670a63384064a1e3c32ea8db67d00be438967ed",
+    "game/scripts/rendering/illustrated_cafe.gd": "ab7f4942e446c1e0d4116635d8aa5329b2ae82ff5ec6bd0cc99db2c86ee1926b",
+    "game/scripts/rendering/illustrated_openings.gd": "068253f3f5ee43f419831697476f14221ffa61938e1c39b097095a85f84e3493",
+    "tests/building/test_centered_wall_visuals.gd": "6a1fca2393335349204f876014aae642fa5d33130a9c6277dd53e8a6399533de"
+  },
+  "relative_closure_delta": {
+    "changed": [
+      "scripts/rendering/cafe_character_pick_geometry.gd",
+      "scripts/rendering/cafe_shape_2d.gd",
+      "scripts/rendering/illustrated_cafe.gd",
+      "scripts/rendering/illustrated_openings.gd"
+    ],
+    "added": [],
+    "removed": []
+  },
+  "closure_delta": {
+    "changed": [
+      "scripts/rendering/cafe_character_pick_geometry.gd",
+      "scripts/rendering/cafe_shape_2d.gd",
+      "scripts/rendering/illustrated_cafe.gd",
+      "scripts/rendering/illustrated_openings.gd"
+    ],
+    "added": [],
+    "removed": []
+  }
+}

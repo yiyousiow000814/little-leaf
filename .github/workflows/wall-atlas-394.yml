@@ -1,0 +1,55 @@
+name: Exact wall #394 original-three atlas qualification
+on:
+  push:
+    branches: [qa/wall-atlas-394]
+permissions:
+  contents: read
+concurrency:
+  group: wall-atlas-394
+  cancel-in-progress: false
+jobs:
+  atlas:
+    if: >-
+      github.repository == 'yiyousiow000814/little-leaf' && github.actor == 'yiyousiow000814' &&
+      github.run_attempt == '1' && github.ref == 'refs/heads/qa/wall-atlas-394' &&
+      github.event_name == 'push' && !github.event.created && !github.event.deleted && !github.event.forced &&
+      github.event.before == 'bcf98740388339c8be25112d0cbc4b06dd0220a3'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      KIT: tools/diagnostics/wall-atlas-394
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Read exact one-shot diagnostic payload
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+          sparse-checkout: tools/diagnostics/wall-atlas-394
+      - name: Bind diagnostic event and exact paths
+        run: python3 -B "$KIT/gate.py" event .
+      - name: Read the immutable wall candidate parent
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: bcf98740388339c8be25112d0cbc4b06dd0220a3
+          fetch-depth: 1
+          persist-credentials: false
+          path: candidate
+          sparse-checkout: |
+            game
+            platform/web
+            tests/diagnostics
+            tests/building
+            tools
+      - name: Qualify only the original three native atlases
+        timeout-minutes: 10
+        run: bash "$KIT/run.sh"
+      - name: Publish only the validated digest receipt
+        if: success()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: wall-atlas-394-summary-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wall-atlas-394-public/summary.json
+          if-no-files-found: error
+          retention-days: 14

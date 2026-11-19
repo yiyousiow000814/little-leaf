@@ -1,0 +1,6 @@
+tree 12bcc8de40a3418bdd30aba7821ae34a6924265a
+parent bcf98740388339c8be25112d0cbc4b06dd0220a3
+author Wall QA local <offline@example.invalid> 1795081818 +0800
+committer Wall QA local <offline@example.invalid> 1795081818 +0800
+
+perf: consolidate independently sorted original-wall commands (local trial)
