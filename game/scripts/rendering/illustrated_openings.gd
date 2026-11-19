@@ -120,6 +120,36 @@ static func built_preparation(view,piece:Dictionary,attachments:Array,queries=nu
 		preparation["end_bottom"]=visible_end_bottom(host,end_walls)
 	return preparation
 
+# During a retained solid slice repaint, collect the ORIGINAL painter's quads.
+# Drawing and hit testing share the same vertex/color streams; never cross a slice.
+class SolidSlice:
+	extends RefCounted
+	var source
+	var points:=PackedVector2Array()
+	var colors:=PackedColorArray()
+	var indices:=PackedInt32Array()
+	var valid:=true
+	func _init(view):source=view
+	func iso(x,z,h=0.0):return source.iso(x,z,h)
+	func art_draw_polygon(vertices:PackedVector2Array,tints:PackedColorArray,uvs:PackedVector2Array,texture:Texture2D):
+		if not valid:return
+		if texture!=null or not uvs.is_empty() or vertices.size()!=4 or tints.size()!=4:
+			valid=false;return
+		var triangles:=Geometry2D.triangulate_polygon(vertices)
+		if triangles.size()!=6:
+			valid=false;return
+		var offset:=points.size()
+		points.append_array(vertices);colors.append_array(tints)
+		for index in triangles:indices.append(offset+index)
+
+static func try_native_solid_slice(view,piece:Dictionary,alpha:float,tint:Color)->bool:
+	if view.native_draw_target==null or piece.wall_preparation.host.material!="original":return false
+	var run:=SolidSlice.new(view)
+	draw_built_piece(run,piece,[],alpha,tint)
+	if not run.valid or run.indices.is_empty():return false
+	view.native_draw_target.submit_shape(&"wall_solid_quads",[run.indices,run.points,run.colors],view.native_command_transform)
+	return true
+
 static func draw_built_piece(view,piece:Dictionary,attachments:Array,alpha=1.0,tint=Color.WHITE):
 	var preparation=built_preparation(view,piece,attachments)
 	var host:Dictionary=preparation.host

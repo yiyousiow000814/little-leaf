@@ -1531,7 +1531,8 @@ func _paint_wall_slice(piece:Dictionary,alpha:float,tint:Color,draw_origin:Vecto
 	# transform moves to the retained parent; do not change float arithmetic.
 	var previous_origin=origin
 	origin=draw_origin
-	OpeningArt.draw_built_piece(self,piece,[],alpha,tint)
+	if not OpeningArt.try_native_solid_slice(self,piece,alpha,tint):
+		OpeningArt.draw_built_piece(self,piece,[],alpha,tint)
 	origin=previous_origin
 
 func _draw_legacy_pavement(ground_view: Rect2):

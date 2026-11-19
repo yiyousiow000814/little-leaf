@@ -144,10 +144,19 @@ func inspect_retained_slice():
   var node=painter.native_object_nodes[0]
   check(node.paint_revision>prior_revision,"Wall slice immediately invalidates for attachment, style, neighbor, movement, deletion, zoom, origin or draft tint")
   prior_revision=node.paint_revision
-  painter.filled=[];painter.paint_native_object(node,node.paint)
+  painter.filled=[];node.shape_cursor=0;painter.paint_native_object(node,node.paint)
   var retained=painter.filled
   painter.filled=[];Art.draw_built_piece(painter,Art.built_depth_entries(first)[3],painter.render_wall_attachments,alpha,tint)
-  check(painter.filled==retained,"Retained wall callback preserves exact projected points, colors, UVs and texture")
+  if first.material=="original":
+   check(retained.is_empty() and node.shape_cursor==1 and node.shapes[0].draw_method==&"wall_solid_quads","One original wall slice emits exactly one native command")
+   var xy=PackedVector2Array();var colors=PackedColorArray();var ids=PackedInt32Array()
+   for q in painter.filled:
+    check(q.uvs.is_empty() and q.texture==null,"Only solid quads are packed")
+    for i in Geometry2D.triangulate_polygon(q.points):ids.append(xy.size()+i)
+    xy.append_array(q.points);colors.append_array(q.colors)
+   check(not xy.is_empty() and [ids,xy,colors]==node.shapes[0].draw_arguments,"Retained solid wall preserves every projected vertex, color, original triangle and painter order")
+  else:
+   check(painter.filled==retained,"Textured wall retains exact projected points, colors, UVs and texture")
   check(before==[fixture.model.built_walls,painter.render_wall_attachments],"Retained wall never mutates model or draft inputs")
   painter.canvas_stream.cursor=0;painter._draw_wall_slice(Art.built_depth_entries(first)[3],alpha,tint)
   check(node.paint_revision==prior_revision,"Fresh per-draw preparation does not invalidate unchanged retained wall")

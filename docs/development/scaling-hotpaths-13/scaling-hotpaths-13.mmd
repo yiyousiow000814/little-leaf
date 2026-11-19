@@ -1,0 +1,11 @@
+flowchart TD
+    B["Exact #389 native wall candidate<br/>Hosted v2 · 44498943952"] --> P["Same original painter · slice-local command grouping"]
+    P --> G["Admitted native material<br/>Do not cross slice or actor order"]
+    P --> F["Unsupported textured/custom path<br/>Retain original painter"]
+    G --> V["Eight 1360 × 880 RGBA pairs equal<br/>Seven 84 packed; one 80 packed + 4 original"]
+    F --> V
+    V --> C["Isolated stock Godot: 330 → 84 draws<br/>660 primitives on each arm"]
+    C --> R["#394: exact five-path rebase, no runtime path overlap<br/>Inherited #389 wall pairs; not a new native capture"]
+    R --> A["Separate exact atlas run 44501632272<br/>Nine encoded PNGs and RGBA equal · 85 inputs / four changed"]
+    A --> M["Local adoption: atlas manifest provenance + test-only Storage guard<br/>521 tests passed; preflight only"]
+    M --> X["No Web/save, FPS, merge or release proof"]
