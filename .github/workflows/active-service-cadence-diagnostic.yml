@@ -25,8 +25,11 @@ jobs:
       CANDIDATE_TREE: 3f76c412ecd12e4782b53ce037be378b019d7270
       BASE_RUN: '44460244371'
       CANDIDATE_RUN: '44460495543'
+      BASE_ARCHIVE: '14500550300'
+      BASE_DIGEST: 'sha256:68aa95681a896a9b19290485d2cb65892ddf237c885970454166ea3d92fbffd9'
+      CANDIDATE_ARCHIVE: '14500560232'
+      CANDIDATE_DIGEST: 'sha256:460ee73816865a74c73047a1b9d01c9c7bb6b90491da0db5a1b7999f9a1575b1'
       PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
-      PLAYWRIGHT_MODULE: ${{ runner.temp }}/cadence-driver/node_modules/playwright
     steps:
       - name: Check out diagnostic files from trusted same-repository PR
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -56,8 +59,8 @@ jobs:
           cmp source-base/tools/ci/toolchain.json source-candidate/tools/ci/toolchain.json
           mkdir -p "$RUNNER_TEMP/cadence-results"
           node tools/diagnostics/active-service/active-service.cjs --self-test | tee "$RUNNER_TEMP/cadence-results/harness-self-test.txt"
-      - name: Verify selected CI run identities and wait for exact archives
-        timeout-minutes: 5
+      - name: Verify exact source archive IDs, digests and producer builds
+        timeout-minutes: 2
         env:
           GH_TOKEN: ${{ github.token }}
         working-directory: tools/diagnostics/active-service
@@ -67,7 +70,8 @@ jobs:
         with:
           github-token: ${{ github.token }}
           run-id: ${{ env.BASE_RUN }}
-          name: little-leaf-ci-inputs-${{ env.BASE_COMMIT }}-1
+          artifact-ids: ${{ env.BASE_ARCHIVE }}
+          merge-multiple: true
           path: ${{ runner.temp }}/cadence-artifact-base
           digest-mismatch: error
       - name: Reuse verified CI inputs for exact candidate CI merge only
@@ -75,7 +79,8 @@ jobs:
         with:
           github-token: ${{ github.token }}
           run-id: ${{ env.CANDIDATE_RUN }}
-          name: little-leaf-ci-inputs-${{ env.CANDIDATE_COMMIT }}-1
+          artifact-ids: ${{ env.CANDIDATE_ARCHIVE }}
+          merge-multiple: true
           path: ${{ runner.temp }}/cadence-artifact-candidate
           digest-mismatch: error
       - name: Install official pinned browser and missing signed packages
@@ -87,6 +92,8 @@ jobs:
           python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/cadence-results/package-transaction.json"
           python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/cadence-chrome"
       - name: Activate exact Chrome and check headed sandbox and OCR
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/cadence-driver/node_modules/playwright
         working-directory: source-candidate
         timeout-minutes: 2
         run: |
@@ -95,6 +102,8 @@ jobs:
           python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
           bash tools/ci/verify_locked_chromium.sh "$RUNNER_TEMP/cadence-results"
       - name: Measure same-runner A-B-B-A active-service cadence
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/cadence-driver/node_modules/playwright
         timeout-minutes: 18
         run: xvfb-run -a -s "-screen 0 1600x1000x24" bash tools/diagnostics/active-service/run-probe.sh
       - name: Retain diagnostic receipts only
