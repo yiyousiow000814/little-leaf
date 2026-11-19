@@ -1,0 +1,124 @@
+name: Exact Mail and Storage UI successor #394
+on:
+  push:
+    branches: [qa/ui-successor-394]
+permissions:
+  contents: read
+concurrency:
+  group: exact-ui-successor-394
+  cancel-in-progress: false
+jobs:
+  paired-native:
+    if: >-
+      github.repository == 'yiyousiow000814/little-leaf' && github.actor == 'yiyousiow000814' &&
+      github.run_attempt == '1' && github.ref == 'refs/heads/qa/ui-successor-394' &&
+      github.event_name == 'push' && !github.event.created && !github.event.deleted && !github.event.forced &&
+      github.event.before == 'bcf98740388339c8be25112d0cbc4b06dd0220a3'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      KIT: tools/diagnostics/ui-successor-394
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Check out exact one-shot QA commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 3
+          persist-credentials: false
+          sparse-checkout: |
+            tools
+      - name: Verify diagnostic ancestry, paths, and adapter bytes
+        run: |
+          set -euo pipefail
+          python3 -B - <<'PY'
+          import hashlib, os, subprocess
+          from pathlib import Path
+          def git(*args): return subprocess.check_output(["git",*args],text=True).strip()
+          real="bcf98740388339c8be25112d0cbc4b06dd0220a3"
+          control="0f04d4c196b48b7f6f41462801477a3accbbf510"
+          assert git("rev-parse","HEAD")==os.environ["GITHUB_SHA"]
+          assert git("rev-parse","HEAD^")==real and git("rev-parse","HEAD^^")==control
+          kit=Path("tools/diagnostics/ui-successor-394")
+          pins={
+            "review_supplement.py":"0b25af730a5705da5dd691346785443a259fffa39dadd43d92fed42158b598b2",
+            "png_rgba.py":"ec00e80bd86785cad4065a397707297856e93959a616977d76ecdd01acf76923",
+            "test_review_supplement.py":"39228a6b003d49be5ae364c6fc9f1f839702eef16ccb71f848b1544f569d91ae",
+          }
+          allowed={".github/workflows/ui-successor-394.yml",*(str(kit/x) for x in pins)}
+          assert set(git("diff","--name-only",real,"HEAD").splitlines())==allowed
+          assert all(hashlib.sha256((kit/f).read_bytes()).hexdigest()==h for f,h in pins.items())
+          assert not git("status","--porcelain","--untracked-files=no")
+          PY
+          (cd "$KIT"; python3 -B -m unittest -q test_review_supplement.py)
+      - name: Provision native software display and pinned engine
+        run: |
+          set -euo pipefail
+          P="$RUNNER_TEMP/ui-successor-private"
+          mkdir -m 700 "$P"
+          sudo apt-get update >"$P/setup.log" 2>&1
+          sudo apt-get install -y --no-install-recommends xvfb xauth mesa-utils libgl1-mesa-dri libglx-mesa0 >>"$P/setup.log" 2>&1
+          python3 tools/ci/install_tools.py godot --native-only --output "$P/engine" >>"$P/setup.log" 2>&1
+          printf '%s  %s\n' f64d4ed19fc9df9440321653fcc80df8c6e365ba7b6de0a29e2cfa9fa71bfeb3 "$P/engine/godot" | sha256sum -c -
+          dpkg-query -W xvfb xauth libgl1-mesa-dri libglx-mesa0 >"$P/versions.txt"
+      - name: Pair exact source archives with no normal profiles
+        run: |
+          set -euo pipefail
+          P="$RUNNER_TEMP/ui-successor-private"
+          # Keep all transient capture/import logs and files private to this runner.
+          python3 -B "$KIT/review_supplement.py" --repo "$PWD" --out "$P/binding" --engine "$P/engine/godot" --bind-only >"$P/binding.log" 2>&1
+          xvfb-run -a -s '-screen 0 1600x1000x24 -nolisten tcp' python3 -B "$KIT/review_supplement.py" \
+            --repo "$PWD" --out "$P/capture" --engine "$P/engine/godot" >"$P/capture.log" 2>&1
+      - name: Emit only bounded verification digests
+        run: |
+          set -euo pipefail
+          python3 -B - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])
+          p=root/"ui-successor-private"
+          target=root/"ui-successor-public"
+          bound=json.loads((p/"binding/summary.json").read_text())
+          capture=json.loads((p/"capture/summary.json").read_text())
+          assert bound["status"]=="inputs_bound_only_no_capture"
+          assert capture["status"]=="exact_decoded_rgba_equal_not_user_acceptance"
+          assert bound["main_sha256"]==capture["main_sha256"] and bound["fixture_sha256"]==capture["fixture_sha256"]
+          assert capture["synthetic_only"] and not capture["player_save_used"] and not capture["atlas_regenerated"]
+          assert not capture["historical_acceptance_changed"]
+          output={k:capture[k] for k in ["base","head","trees","main_sha256","fixture_sha256","engine_sha256",
+            "adapter_sha256","decoder_sha256","historical_scope","status","compared_count",
+            "synthetic_only","player_save_used","atlas_regenerated","historical_acceptance_changed"]}
+          output["qa_sha"]=os.environ["GITHUB_SHA"]
+          output["assertions"]={}
+          output["versions_sha256"]=hashlib.sha256((p/"versions.txt").read_bytes()).hexdigest()
+          output["inputs"]={}
+          output["frames"]={}
+          expect=["e04a85078ce561fc56f0167c29440f43c53586ae799476dd198e3b9624beec30",
+                  "02051755ab162ed7f3b24edb8f3a9d42185769f5dfa350c1798b830ef16276d7"]
+          for i,rev in enumerate([capture["base"],capture["head"]]):
+            before=bound["sources"][rev]; result=capture["sources"][rev]
+            assert before["archive_sha256"]==result["archive_sha256"] and before["atlas"]==result["atlas"]
+            staged=before["sparse_project_stage"]
+            assert staged=={"file_count":991,"file_sha256_map_digest":expect[i]}
+            assert result["staged_files"]==991
+            output["inputs"][rev]={"archive_sha256":before["archive_sha256"],"staged":staged,
+              "atlas_sources":len(result["atlas"]["sources"]),"atlas_manifest_sha256":result["atlas"]["manifest_sha256"]}
+            output["assertions"][rev]={k:v["checks"] for k,v in result["native_assertions"].items()}
+            frames=result["frame_results"]
+            assert 3==len(frames["mail-composer"]) and 2==len(frames["parking-boundary"])
+            assert 4<=len(frames["storage-panel-supplement"])<=24
+            output["frames"][rev]=frames
+          payload=(json.dumps(output,sort_keys=True,indent=2)+"\n").encode()
+          assert len(payload)<32768
+          target.mkdir()
+          (target/"summary.json").write_bytes(payload)
+          print("Validated bounded summary sha256:",hashlib.sha256(payload).hexdigest())
+          PY
+      - name: Retain digest summary only
+        if: success()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ui-successor-394-digests-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ui-successor-public/summary.json
+          if-no-files-found: error
+          retention-days: 14
