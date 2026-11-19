@@ -17,6 +17,8 @@ ARCHIVE_URI = "https://archive.ubuntu.com/ubuntu"
 SECURITY_URI = "https://security.ubuntu.com/ubuntu"
 
 APT_CAPTURE_GRACE_SECONDS = 8
+REFRESH_BUDGET_SECONDS = 75
+FIRST_REFRESH_SECONDS = 50
 FETCH_BUDGET_SECONDS = 100
 FIRST_FETCH_SECONDS = 65
 
@@ -103,6 +105,25 @@ def root_apt(conf, max_seconds, exe, *args):
             "/usr/bin/env", f"APT_CONFIG={conf}", "LC_ALL=C", "DEBIAN_FRONTEND=noninteractive",
             exe, *args)
 
+def refresh_webkit_indexes(apt_phase):
+    # Reuse the same isolated signed configuration. A successful full update
+    # is required before the solver can inspect any lists.
+    deadline = time.monotonic() + REFRESH_BUDGET_SECONDS
+    try:
+        apt_phase("webkit-apt-refresh", FIRST_REFRESH_SECONDS, "update")
+    except subprocess.CalledProcessError as error:
+        # GNU timeout only; normal APT errors (including signature/hash
+        # rejection), capture timeouts and hard kills never retry.
+        if error.returncode != 124:
+            raise
+        remaining = int(deadline - time.monotonic()) - APT_CAPTURE_GRACE_SECONDS
+        if remaining <= 0:
+            raise
+        print("Retrying timed-out WebKit index refresh once with the same signed APT configuration",
+              file=sys.stderr)
+        apt_phase("webkit-apt-refresh-retry", remaining, "update")
+
+
 def fetch_webkit_packages(apt_phase, install, names):
     # Keep the same private signed indexes and APT archive/partial cache. APT
     # checks all required bytes against those indexes before the offline install.
@@ -162,7 +183,7 @@ def main(core, out):
     ):
         raise ValueError("Unexpected effective APT sources, trust, or hooks")
     (out/"apt-official-sources.txt").write_text((root/"ubuntu.sources").read_text())
-    apt_phase("webkit-apt-refresh", 55, "update")
+    refresh_webkit_indexes(apt_phase)
     install = ("install", "--no-remove", "--no-install-recommends")
     selected = operations(apt_phase("webkit-apt-solver", 15, "-s", *install, *names))
     (out/"webkit-transaction.json").write_text(json.dumps({

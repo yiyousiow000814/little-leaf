@@ -63,6 +63,7 @@ class BrowserProvisionExtensionTests(unittest.TestCase):
             self.assertNotIn("continue-on-error", step)
             self.assertNotIn("install --with-deps", step["run"])
         self.assertIn("recovery_webkit_provision.py", deps["run"])
+        self.assertEqual(deps["timeout-minutes"], 5)
         self.assertIn("install webkit", binary["run"])
         self.assertIn("webkit-2359/pw_run.sh", binary["run"])
         self.assertIn("ffmpeg-1011", binary["run"])
@@ -112,6 +113,44 @@ class BrowserProvisionExtensionTests(unittest.TestCase):
         for bad in (line + " [broken]", line + "\n" + line, line + "\nRemv other [1]", "Purg other [1]"):
             with self.assertRaises(ValueError):
                 provision.operations(bad)
+
+    def test_webkit_refresh_only_retries_timeout_and_preserves_budget(self):
+        from subprocess import CalledProcessError, TimeoutExpired
+        from unittest.mock import Mock, call, patch
+        from tools.ci import recovery_webkit_provision as provision
+
+        cmd = ("apt-get", "update")
+        expired = CalledProcessError(124, cmd)
+        with patch.object(provision.time, "monotonic", return_value=200):
+            phase = Mock()
+            provision.refresh_webkit_indexes(phase)
+            phase.assert_called_once_with("webkit-apt-refresh", 50, "update")
+
+        # Simulate the first attempt also consuming its five-second kill grace.
+        with patch.object(provision.time, "monotonic", side_effect=[200, 255]):
+            phase = Mock(side_effect=[expired, None])
+            provision.refresh_webkit_indexes(phase)
+        self.assertEqual(phase.call_args_list, [call("webkit-apt-refresh", 50, "update"),
+                                               call("webkit-apt-refresh-retry", 12, "update")])
+        self.assertEqual(55 + 12 + provision.APT_CAPTURE_GRACE_SECONDS,
+                         provision.REFRESH_BUDGET_SECONDS)
+
+        for failure in (CalledProcessError(100, cmd, stderr="GPG signature invalid"),
+                        CalledProcessError(100, cmd, stderr="Hash Sum mismatch"),
+                        CalledProcessError(137, cmd), TimeoutExpired(cmd, 58)):
+            with self.subTest(failure=failure), patch.object(provision.time, "monotonic", return_value=200):
+                phase = Mock(side_effect=failure)
+                with self.assertRaises(type(failure)) as caught:
+                    provision.refresh_webkit_indexes(phase)
+                self.assertIs(caught.exception, failure)
+                phase.assert_called_once()
+
+        for now, count in ((255, 2), (267, 1)):
+            with self.subTest(now=now), patch.object(provision.time, "monotonic", side_effect=[200, now]):
+                phase = Mock(side_effect=expired)
+                with self.assertRaises(CalledProcessError):
+                    provision.refresh_webkit_indexes(phase)
+                self.assertEqual(phase.call_count, count)
 
     def test_webkit_download_retries_only_timeout_with_same_command_in_budget(self):
         from subprocess import CalledProcessError, TimeoutExpired
