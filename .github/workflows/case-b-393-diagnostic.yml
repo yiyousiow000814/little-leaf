@@ -1,0 +1,154 @@
+name: Disposable exact #393 Case B observer v2
+on:
+  push:
+    branches: [qa/case-b-393-observe-v2-once]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: case-b-393-observe-v2-once
+  cancel-in-progress: false
+jobs:
+  exact-replay:
+    if: >-
+      github.repository == 'yiyousiow000814/little-leaf' && github.actor == 'yiyousiow000814' &&
+      github.run_attempt == '1' && github.ref == 'refs/heads/qa/case-b-393-observe-v2-once' &&
+      github.event_name == 'push' && !github.event.created && !github.event.deleted && !github.event.forced &&
+      github.event.before == '94f694d94f64364ff8f05a2385c3bf108f539cbe'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    env:
+      ORIGINAL_RUN: '44490633657'
+      CURRENT: 8f38cd8b46345603d41f4fe2199904e26dad4a52
+      CURRENT_TREE: f0f25cd657a5cad740f4177a3908e7b81b426d91
+      HISTORICAL: 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
+      HISTORICAL_TREE: 090eba5053b0f891d78d6f0c60b0317325f4f354
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+          sparse-checkout: tools/diagnostics/case-b-393
+      - name: Guard direct product parent and QA-only inputs
+        run: |
+          set -eu
+          test "$(git log -1 --format=%P)" = 94f694d94f64364ff8f05a2385c3bf108f539cbe
+          test "$(git diff --name-only HEAD^ HEAD | wc -l)" -eq 5
+          test "$(git diff --name-only HEAD^ HEAD | grep -Ec '^(\.github/workflows/case-b-393-diagnostic\.yml|tools/diagnostics/case-b-393/(run-exact-case-b\.cjs|verify_inputs\.py|wall_compatibility_browser\.diagnostic\.js|sanitize\.py))$')" -eq 5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.CURRENT }}
+          path: source-current
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /game/
+            /platform/web/
+            /tests/
+            /tools/
+            /.github/workflows/build-web.yml
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.HISTORICAL }}
+          path: source-historical
+          persist-credentials: false
+      - name: Verify exact source trees, original caller, producer jobs and artifact digests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          test "$(git -C source-current rev-parse HEAD)" = "$CURRENT"
+          test "$(git -C source-current rev-parse HEAD^{tree})" = "$CURRENT_TREE"
+          test "$(git -C source-current cat-file -p HEAD | grep -c '^parent ')" = 2
+          test "$(git -C source-current cat-file -p HEAD | sed -n 's/^parent //p' | sed -n '1p')" = 8c415d94fdb86e68dd0ce90d3482f9e668e8805d
+          test "$(git -C source-current cat-file -p HEAD | sed -n 's/^parent //p' | sed -n '2p')" = 94f694d94f64364ff8f05a2385c3bf108f539cbe
+          test "$(git -C source-historical rev-parse HEAD)" = "$HISTORICAL"
+          test "$(git -C source-historical rev-parse HEAD^{tree})" = "$HISTORICAL_TREE"
+          mkdir -p "$RUNNER_TEMP/case-b-output"
+          python3 tools/diagnostics/case-b-393/verify_inputs.py remote | tee "$RUNNER_TEMP/case-b-output/producer-bindings.json"
+      - name: Download exact current diagnostic inputs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.ORIGINAL_RUN }}
+          artifact-ids: '14513166331'
+          path: ${{ runner.temp }}/case-b-current
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Download exact historical diagnostic inputs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.ORIGINAL_RUN }}
+          artifact-ids: '14512109708'
+          path: ${{ runner.temp }}/case-b-historical
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Download original Case B receipt for its preflight inputs only
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.ORIGINAL_RUN }}
+          artifact-ids: '14512418475'
+          path: ${{ runner.temp }}/case-b-preflight
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Restore only the original run attempt locked Chromium packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.ORIGINAL_RUN }}
+          artifact-ids: '14512263968'
+          path: ${{ runner.temp }}/case-b-packages
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Bind sibling manifests, native layout and source-bound producer receipts
+        run: |
+          set -euo pipefail
+          python3 tools/diagnostics/case-b-393/verify_inputs.py local "$RUNNER_TEMP" | tee "$RUNNER_TEMP/case-b-output/input-bindings.json"
+          python3 tools/diagnostics/case-b-393/verify_inputs.py checkout "$PWD/source-current" "$PWD/source-historical" "$RUNNER_TEMP"
+      - name: Reuse #393 locked Ubuntu and pinned Chrome provisioning
+        working-directory: source-current
+        timeout-minutes: 4
+        run: |
+          set -euo pipefail
+          python3 ../tools/diagnostics/case-b-393/verify_inputs.py bundle "$RUNNER_TEMP/case-b-packages" "$PWD"
+          npm install --prefix "$RUNNER_TEMP/case-b-driver" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/case-b-output/package-transaction.json" "$RUNNER_TEMP/case-b-packages"
+          python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/case-b-chrome"
+      - name: Verify exact browser, sandboxed headed Xvfb and OCR
+        working-directory: source-current
+        timeout-minutes: 2
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/case-b-driver/node_modules/playwright
+        run: |
+          set -euo pipefail
+          sudo dpkg -i "$CHROME_DEB"
+          python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
+          bash tools/ci/verify_locked_chromium.sh "$RUNNER_TEMP/case-b-output"
+          node tests/rendering/wall_compatibility_ocr_test.js --ocr-fixtures > "$RUNNER_TEMP/case-b-output/ocr-fixture.log"
+      - name: Replay only strict Case B in a sandboxed synthetic profile
+        timeout-minutes: 5
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/case-b-driver/node_modules/playwright
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          set -euo pipefail
+          xvfb-run -a node tools/diagnostics/case-b-393/run-exact-case-b.cjs \
+            --repo "$PWD/source-current" --case already_open_old --old-source "$PWD/source-historical" \
+            --old-web "$RUNNER_TEMP/case-b-historical/old-web-build/web" --new-web "$RUNNER_TEMP/case-b-current/web-build/web" \
+            --layout-dir "$RUNNER_TEMP/case-b-preflight/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/case-b-output" > "$RUNNER_TEMP/case-b-output/private-browser.log" 2>&1
+      - name: Produce bounded observer summary only
+        if: always()
+        run: |
+          python3 tools/diagnostics/case-b-393/sanitize.py "$RUNNER_TEMP/case-b-output" "$RUNNER_TEMP/case-b-public/summary.json"
+      - name: Publish only the bounded summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: synthetic-case-b-replay-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/case-b-public/summary.json
+          if-no-files-found: warn
+          retention-days: 3
