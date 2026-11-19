@@ -1,0 +1,13 @@
+{
+  "commit": "ce1435afb2329a6c1d2d77a8a19923dfd96bd205",
+  "tree": "03632a0d56e4294f5664859656c8809541766d1b",
+  "archive_sha256": "5a236669cca594a1437b289f4b4b8a933a204ddab064844485d2868ce8ee1406",
+  "reviewed_game_files": {
+    "game/data/prebaked_atlas_manifest.json": "ed101c2b61ceab0b2b9fc94461afb96918fde93a726a1f9ad74854b7b508151e",
+    "game/scripts/core/cafe_model.gd": "14ed712d28bc5ea67dfcb5fbac6e7e1c05da29e0910ded22ad52d8764a9837b5",
+    "game/scripts/rendering/cafe_character_pick_geometry.gd": "4dee5fdaaf6145f02fc0154d5997b791441aa390d0bd548cec80b5fbfe286bf3",
+    "game/scripts/rendering/cafe_shape_2d.gd": "1a50c97cfe511b76ee9df4450670a63384064a1e3c32ea8db67d00be438967ed",
+    "game/scripts/rendering/illustrated_cafe.gd": "ab7f4942e446c1e0d4116635d8aa5329b2ae82ff5ec6bd0cc99db2c86ee1926b",
+    "game/scripts/rendering/illustrated_openings.gd": "068253f3f5ee43f419831697476f14221ffa61938e1c39b097095a85f84e3493"
+  }
+}

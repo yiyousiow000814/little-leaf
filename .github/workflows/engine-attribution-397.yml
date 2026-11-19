@@ -1,0 +1,58 @@
+name: Native engine attribution, exact #397 diagnostic only
+on:
+  push:
+    branches: [qa/engine-attribution-397]
+permissions:
+  contents: read
+concurrency:
+  group: engine-attribution-397
+  cancel-in-progress: false
+jobs:
+  only-candidate:
+    if: >-
+      github.repository == 'yiyousiow000814/little-leaf' && github.actor == 'yiyousiow000814' &&
+      github.run_attempt == '1' && github.ref == 'refs/heads/qa/engine-attribution-397' &&
+      github.event_name == 'push' && !github.event.created && !github.event.deleted && !github.event.forced &&
+      github.event.before == 'ce1435afb2329a6c1d2d77a8a19923dfd96bd205'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      KIT: tools/diagnostics/engine-attribution-397
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Read exact diagnostic ref and its single parent
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          sparse-checkout: tools/diagnostics/engine-attribution-397
+          persist-credentials: false
+      - name: Verify scope before setup
+        run: |
+          set -euo pipefail
+          python3 -B "$KIT/guard.py" summary "$RUNNER_TEMP/ll397-engine-full-v1-public/summary.json" not_qualified source_guard
+          python3 -B "$KIT/guard.py" event .
+      - name: Read exactly the current game and native installer locks
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ce1435afb2329a6c1d2d77a8a19923dfd96bd205
+          path: product
+          fetch-depth: 1
+          sparse-checkout: |
+            game
+            tools/ci
+          persist-credentials: false
+      - name: Build in private, qualify and attribute if it matches
+        timeout-minutes: 87
+        run: bash "$KIT/run.sh"
+      - name: Discard disposable private job tree
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/ll397-engine-full-v1-private"
+      - name: Upload bounded summary or allowed failure stage
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: engine-attribution-397-summary-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ll397-engine-full-v1-public/summary.json
+          if-no-files-found: warn
+          retention-days: 14
