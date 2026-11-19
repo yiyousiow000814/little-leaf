@@ -2,9 +2,9 @@ extends SceneTree
 const Model=preload("res://scripts/core/cafe_model.gd")
 class ScanSpy extends "res://scripts/core/cafe_model.gd":
 	var legacy_lookups:=0
-	func _built_edge_blocked(a:Vector2i,b:Vector2i,walls:Array,openings=null)->bool:
-		legacy_lookups+=1
-		return super._built_edge_blocked(a,b,walls,openings)
+	func _built_edge_blocked(a:Vector2i,b:Vector2i,walls:Array,openings=null,keys=null)->bool:
+		if keys==null:legacy_lookups+=1
+		return super._built_edge_blocked(a,b,walls,openings,keys)
 var checks=0
 var failures=[]
 func check(value:bool,message:String):

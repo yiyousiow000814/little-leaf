@@ -1,5 +1,5 @@
 flowchart TD
-    BASE["#376 · 08833ed"] --> SIM["Gameplay / save"] & DRAW["Sink renderer"]
+    BASE["#376 control · 08833ed<br/>#378 candidate · d4fb134"] --> SIM["Gameplay / save"] & DRAW["Sink renderer"]
     SIM --> RES["Sink reservation membership<br/>2,146 → 66 row visits + 32 keyed probes"]
     SIM --> SAVE["Save transport membership<br/>528 → 32 row visits"]
     DRAW --> GROUP["One grouping by sink<br/>18,432 → 192 dish rows + per-sink sort"]
@@ -8,4 +8,5 @@ flowchart TD
     GROUP --> B
     B --> F["Local combined focused gate: 88,621 assertions · 8 suites passed"]
     E --> F
-    F --> Q["Open: real sink pixels, canonical atlas, ordinary Web/save,<br/>larger scene and integrated FPS"]
+    F --> H["Hosted #379: 34 X11 RGBA pairs independently equal<br/>3 canonical atlases · 9 matching PNGs<br/>Sheets and waiter drop visually inspected"]
+    H --> Q["Open: ordinary Web/save, larger scene and integrated FPS"]

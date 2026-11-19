@@ -173,8 +173,9 @@ class StorageNativeReviewTests(unittest.TestCase):
         # PR352 independently repeats original-three qualification for standby retention.
         # PR371 independently requalifies the original atlases and changes only
         # scoped producer metadata. Independently qualified PR373 advances one
-        # atlas producer and the current Main postimage. None of these is evidence from the old
-        # Storage capture. Other pins stay.
+        # atlas producer and the current Main postimage. Independently qualified
+        # PR378 advances three sink producers. None of these is evidence from
+        # the old Storage capture. Other pins stay.
         for name, captured_sha in review.REVIEWED_POSTIMAGES.items():
             expected = captured_sha
             if name == "game/scripts/ui/cafe_shop_ui.gd":
@@ -185,14 +186,14 @@ class StorageNativeReviewTests(unittest.TestCase):
                 expected = "ce5e31dabaa771689227275ab60fc38e66fd0df294a93077c4aa3543922f0473"
             if name == "game/data/prebaked_atlas_manifest.json":
                 self.assertEqual(captured_sha, "81724088c204877ce1f31d2620f8cd9db27aabffca12f2bc3d74d813c526b283")
-                expected = "9fb67ddd0509386234815272cbfc1e197be3cb722181cb1cd3d28f33fe2f8369"
+                expected = "4fb76f2a2d4bc23e5a212fe8d1015dad17ba8221eb4376097c4d8cfb3f242ae4"
             self.assertEqual(review.file_sha(ROOT / name), expected, name)
 
     def test_post_capture_exceptions_accept_only_exact_qualified_postimages(self):
         expected = dict(review.REVIEWED_POSTIMAGES)
         expected["game/scripts/ui/cafe_shop_ui.gd"] = "5854f2deabb6d99781847c33497a3eb66fb0a1a99f40f755b2b51820a15e12e3"
         expected["game/scripts/main.gd"] = "ce5e31dabaa771689227275ab60fc38e66fd0df294a93077c4aa3543922f0473"
-        expected["game/data/prebaked_atlas_manifest.json"] = "9fb67ddd0509386234815272cbfc1e197be3cb722181cb1cd3d28f33fe2f8369"
+        expected["game/data/prebaked_atlas_manifest.json"] = "4fb76f2a2d4bc23e5a212fe8d1015dad17ba8221eb4376097c4d8cfb3f242ae4"
         def current(path):
             return expected[path.relative_to(ROOT).as_posix()]
         with patch.object(review, "file_sha", side_effect=current):
@@ -225,8 +226,44 @@ class StorageNativeReviewTests(unittest.TestCase):
         self.assertIn("37d9904f066b111c8b7ece5b53f2339459760f52f1a04378f11ede1362fd28e2", current)
         self.assertIn("6117588144ac91122aadd90d6651fff158b07dd1647f6ba3b9ef992fff1dabde", current)
         self.assertEqual(manifest["source_sha256"]["scripts/rendering/cafe_native_draw_node.gd"], "485c298089fb735ccad3e99af0980b19eb4d44b5e434b1f1dc2c1a7c6baa60a3")
-        previous = self.check_service_lookup_manifest(manifest)
+        previous = self.check_service_lookup_manifest(self.check_indexed_sink_manifest(manifest))
         self.assertEqual(self.check_scaling_manifest(previous)["scripts/rendering/illustrated_cafe.gd"], "11ff59969cf60918b5e2b48c1df7f436b76d48ee9798530d82d8caa7d178023e")
+
+    def check_indexed_sink_manifest(self, manifest):
+        prior, separator, current = manifest["provenance"].partition(" PR378 indexed sink qualification ")
+        self.assertTrue(separator)
+        self.assertEqual(review.digest(prior.encode()), "c9cc47138a0bda4d3efe7fc09075241a866074cd8b8097b6aa4ce69d35b23c21")
+        self.assertIn("https://github.com/yiyousiow000814/little-leaf/actions/runs/44475039228", current)
+        self.assertIn("d4fb134fde0dce38527b0cf83cf4388974c293da / tree 3c5a582f8e0e5e86832c4e0acb6b1e5c130f24d9", current)
+        self.assertIn("fe82884184892e06cb793192295828e069f308059178feed15240f7271d320ff", current)
+        closure = "8cec2b771aeae3e3019a8381434ce011c692df6a2a9e01feb9fda19ee4efe352"
+        self.assertIn(closure, current)
+        digest = lambda value: review.digest(json.dumps(value, sort_keys=True, separators=(",", ":")).encode())
+        sources = dict(manifest["source_sha256"])
+        self.assertEqual(len(sources), 84)
+        self.assertEqual(digest(sources), closure)
+        self.assertEqual(digest(manifest["atlases"]), "6a5dd21da0a1a548f8489624abaf0d2cc738634c4605abd0de48219aa9db5714")
+        transitions = {
+            "scripts/gameplay/cafe_dishwashing.gd": (
+                "b11e60709bf0ab3935029b55046e03416560e2ff736dbd138056027c1ac5f23a",
+                "cb25c060b424ba6decf7aa457f4ca9e0dad4375a808111a775bb7811ca18e769"),
+            "scripts/rendering/cafe_sink_wash_art.gd": (
+                "295a503c4f8b7341155d9108e2056c6aaefaab76bde255210a2c58252f256b28",
+                "d92f06eef5a8d6aeb9376dfd0ded365d3450746e4140d8d5037a6344c829b416"),
+            "scripts/rendering/illustrated_cafe.gd": (
+                "543564c57d1dbdff604941f1f3938877789d2d7366877bd185eeb206bc2966f2",
+                "9f1a5bf162959679f19196e0e797870f4da6da86049c5f0f1dbb958e36edfb90"),
+        }
+        # Reverse only the individually qualified rows. The historical check
+        # below still validates the complete prior closure and receipts.
+        for key, (qualified, old) in transitions.items():
+            self.assertEqual(sources[key], qualified)
+            sources[key] = old
+        previous = {**manifest, "provenance": prior, "source_sha256": sources}
+        self.assertEqual(digest(sources), "722eabf4511fec4021832c036bdefd4c919ed3c71c2f6627ccd04a1ac1aff7bd")
+        self.assertEqual(review.digest((json.dumps(previous, indent=2, ensure_ascii=False) + "\n").encode()),
+                         "9fb67ddd0509386234815272cbfc1e197be3cb722181cb1cd3d28f33fe2f8369")
+        return previous
 
     def check_service_lookup_manifest(self, manifest):
         prior, separator, current = manifest["provenance"].partition("; PR373 service lookup qualification ")
