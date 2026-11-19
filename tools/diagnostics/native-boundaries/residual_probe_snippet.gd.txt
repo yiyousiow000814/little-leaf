@@ -1,0 +1,71 @@
+
+# Current-only 4.6.3 native residual probe. No rendering synchronization
+# calls or viewport timestamp queries; record only clock samples/signals.
+const BOUNDARY_STRIDE := 12
+const BOUNDARY_ZONES := ["prior_post_to_process", "process_to_pre_draw", "pre_to_post_draw"]
+var _b_rows := PackedInt64Array()
+var _b_known := PackedInt64Array()
+var _b_stamps := PackedInt64Array()
+var _b_zone := 0
+var _b_fault := 0
+var _b_tids := PackedInt32Array()
+
+func _boundary_setup() -> void:
+	if not ClassDB.class_exists(&"FrameClock"):
+		push_error("FrameClock extension missing; no residual measurement")
+		get_tree().quit(11)
+		return
+	_b_tids.resize(3)
+	_b_rows.resize(LIMIT * BOUNDARY_STRIDE)
+	_b_known.resize(3)
+	_b_stamps.resize(9)
+	get_tree().process_frame.connect(_boundary_process)
+	RenderingServer.frame_pre_draw.connect(_boundary_pre_draw)
+
+func _boundary_process() -> void:
+	if _running:
+		if _b_zone != 0:
+			_b_fault += 1
+		_boundary_sample(0)
+		_b_zone = 1
+
+func _boundary_pre_draw() -> void:
+	if _running:
+		if _b_zone != 1 and _count != 0:
+			_b_fault += 1
+		_boundary_sample(1)
+		_b_zone = 2
+
+func _boundary_sample(slot: int) -> void:
+	if _b_tids[slot] == 0:
+		_b_tids[slot] = ClassDB.class_call_static(&"FrameClock", &"tid")
+	var i := slot * 3
+	_b_stamps[i] = Time.get_ticks_usec()
+	_b_stamps[i + 1] = ClassDB.class_call_static(&"FrameClock", &"cpu_ns")
+	_b_stamps[i + 2] = ClassDB.class_call_static(&"FrameClock", &"process_cpu_ns")
+
+func _boundary_add_scope(own_us: int) -> void:
+	_b_known[_b_zone] += own_us
+
+func _boundary_post(index: int) -> void:
+	if _b_zone != 2:
+		_b_fault += 1
+	_boundary_sample(2)
+	var i := index * BOUNDARY_STRIDE
+	for k in 9:
+		_b_rows[i + k] = _b_stamps[k]
+	for k in 3:
+		_b_rows[i + 9 + k] = _b_known[k]
+		_b_known[k] = 0
+	_b_zone = 0
+
+func _boundary_result() -> Dictionary:
+	return {"zones": BOUNDARY_ZONES,
+		"row_schema": ["process_wall_us", "process_thread_cpu_ns", "process_all_thread_cpu_ns",
+			"pre_wall_us", "pre_thread_cpu_ns", "pre_all_thread_cpu_ns",
+			"post_wall_us", "post_thread_cpu_ns", "post_all_thread_cpu_ns",
+			"scoped_post_to_process_us", "scoped_process_to_pre_us", "scoped_pre_to_post_us"],
+		"rows": Array(_b_rows.slice(0, _count * BOUNDARY_STRIDE)),
+		"cols": BOUNDARY_STRIDE, "faults": _b_fault,
+		"thread_id_matches_pid": _b_tids.count(OS.get_process_id()) == 3,
+		"measurement": "Native Linux CLOCK_THREAD_CPUTIME_ID and CLOCK_PROCESS_CPUTIME_ID; no GPU timestamps"}
