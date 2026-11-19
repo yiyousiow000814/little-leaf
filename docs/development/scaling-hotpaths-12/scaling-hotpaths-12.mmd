@@ -1,0 +1,9 @@
+flowchart TD
+    B["Exact #392 base · 0f04d4c"] --> O["First order attempt unchanged"]
+    O -->|Blocked| I["Build transient occupancy, seating and live guest lookup"]
+    I -->|Usable| R["Retry in original guest order; preserve rear checks and claims"]
+    I -->|Invalid or duplicate ID| F["Use original lookup"]
+    R --> M["25 diners / 50 items<br/>175 → 4 full occupancy calls<br/>6,277 → 4,436 μs local method median"]
+    F --> Q["3,217 assertions · 6 suites<br/>80 separate diagnostic checks"]
+    M --> Q
+    Q --> X["Topology fingerprints separate<br/>No Web/save or FPS claim"]

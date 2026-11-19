@@ -1497,33 +1497,51 @@ func table_service_direction(table_id: int) -> Vector2i:
 	return _table_service_direction_in(table, items)
 
 
-func table_service_cells(table:Dictionary,layout:Array[Dictionary]=items)->Array:
+func order_assignment_layout()->Dictionary:
+	var context:=_wall_warning_layout()
+	if context.duplicate_ids:return {}
+	var active={}
+	for guest in customers:
+		var id=int(guest.get("id",-1))
+		if id<1 or active.has(id):return {}
+		active[id]=guest
+	context["active"]=active
+	return context
+
+func table_service_cells(table:Dictionary,layout:Array[Dictionary]=items,query:Dictionary={})->Array:
 	# Presentation offsets remain stable; routing independently chooses the
 	# closest reachable unoccupied face, never the customer's seated side.
 	var result=[]
 	var center=Vector2i(int(table.x),int(table.z))
-	var guest_side=_table_guest_direction_in(table,layout)
+	var guest_side=_table_guest_direction_in(table,layout) if query.is_empty() else _wall_warning_guest_direction(table,center,query)
 	for direction in [Vector2i.LEFT,Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN]:
 		if direction==guest_side:continue
 		var cell=center+direction
-		if _table_side_open_in(cell,layout) and not edge_blocked(center,cell):result.append(cell)
+		if _table_side_open_for_query(cell,layout,query) and not edge_blocked(center,cell):result.append(cell)
 	return result
 
-func order_rear_cell(table:Dictionary,guest:Dictionary)->Vector2i:
+func _table_side_open_for_query(cell:Vector2i,layout:Array[Dictionary],query:Dictionary)->bool:
+	if query.is_empty():return _table_side_open_in(cell,layout)
+	return cell.x>=1 and is_floor_owned(cell) and not query.cells.has(cell)
+
+func order_rear_cell(table:Dictionary,guest:Dictionary,query:Dictionary={})->Vector2i:
 	# Conversation may reach the seated diner from one cell behind their actual
 	# chair. This does not add a physical serving/wiping face or a walking edge.
 	var invalid=Vector2i(-1,-1)
 	if table.is_empty() or str(table.get("kind",""))!="table" or int(guest.get("table_id",-1))!=int(table.id):return invalid
-	if not customers.any(func(active):return is_same(active,guest)):return invalid
+	if query.is_empty():
+		if not customers.any(func(active):return is_same(active,guest)):return invalid
+	elif not is_same(query.active.get(int(guest.get("id",-1))),guest):return invalid
 	if str(guest.get("phase",""))!="ordering" or not bool(guest.get("seated",false)) or bool(guest.get("withdrawn",false)) or bool(guest.get("meal_abandoned",false)) or not guest.get("mobility",{}).is_empty():return invalid
-	var chair=get_item(int(guest.get("chair_id",-1)))
+	var chair_id=int(guest.get("chair_id",-1))
+	var chair:Dictionary=get_item(chair_id) if query.is_empty() else query.records.get(chair_id,{})
 	if chair.is_empty() or str(chair.kind) not in ["chair","bench"]:return invalid
 	var center=Vector2i(int(table.x),int(table.z))
 	var seat=Vector2i(int(chair.x),int(chair.z))
 	var offset=seat-center
 	if absi(offset.x)+absi(offset.y)!=1:return invalid
 	var rear=seat+offset
-	if not _table_side_open_in(rear,items) or edge_blocked(center,seat) or edge_blocked(seat,rear):return invalid
+	if not _table_side_open_for_query(rear,items,query) or edge_blocked(center,seat) or edge_blocked(seat,rear):return invalid
 	return rear
 
 func _table_guest_direction_in(table: Dictionary, layout: Array[Dictionary]) -> Vector2i:
@@ -2696,11 +2714,11 @@ func _complete_legacy_starter_floor(finishes:Dictionary,data:Dictionary)->void:
 			if not finishes.has(key):finishes[key]={"style":"warm_oak","paid_cost":0}
 
 func _wall_warning_layout()->Dictionary:
-	var cells={};var by_id={};var tables={};var seats={};var duplicate_ids=false
+	var cells={};var by_id={};var records={};var tables={};var seats={};var duplicate_ids=false
 	for i in items.size():
 		var item:=items[i];var id=int(item.id);var cell=Vector2i(int(item.x),int(item.z))
 		if by_id.has(id):duplicate_ids=true
-		if not by_id.has(id):by_id[id]=cell
+		if not by_id.has(id):by_id[id]=cell;records[id]=item
 		if str(item.kind)!="rug":cells[cell]=true
 		if str(item.kind)=="table":tables[id]=cell
 		if str(item.kind) in ["chair","bench"] and not seats.has(cell):seats[cell]=i
@@ -2714,7 +2732,7 @@ func _wall_warning_layout()->Dictionary:
 		for group in dining_sets:
 			for id in [int(group.table_id),int(group.seat_id)]:
 				if not linked.has(id):linked[id]=int(group.seat_id)
-	return {"cells":cells,"by_id":by_id,"seats":seats,"live":live,"linked":linked,"duplicate_ids":duplicate_ids}
+	return {"cells":cells,"by_id":by_id,"records":records,"seats":seats,"live":live,"linked":linked,"duplicate_ids":duplicate_ids}
 
 func _wall_warning_guest_direction(table:Dictionary,cell:Vector2i,layout:Dictionary)->Vector2i:
 	# Legacy rows can have two items of one ID, with only the latter adjacent.

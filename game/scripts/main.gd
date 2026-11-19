@@ -1055,12 +1055,12 @@ func _work_route_length(staff:Dictionary,staff_index:int,from:Vector2i,cell:Vect
 		staff.work_route_lengths[cell]=route.size() if not route.is_empty() or from==cell else -1
 	return int(staff.work_route_lengths[cell])
 
-func _table_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed:Array,order_guest:Dictionary={},frame_claims:Dictionary={})->Vector2i:
+func _table_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed:Array,order_guest:Dictionary={},frame_claims:Dictionary={},order_layout:Dictionary={})->Vector2i:
 	var prospective={}
 	if not order_guest.is_empty() and staff.job_kind=="":prospective={"role":staff.role,"job_kind":"order","job_step":0,"job_guest_id":int(order_guest.id),"job_token":int(service_guests[int(order_guest.id)].token)}
 	var intent=_work_intent(staff,item,Vector2i(-1,-1),prospective)
-	var cells=model.table_service_cells(item)
-	var rear=model.order_rear_cell(item,order_guest) if not order_guest.is_empty() else Vector2i(-1,-1)
+	var cells=model.table_service_cells(item,model.items,order_layout)
+	var rear=model.order_rear_cell(item,order_guest,order_layout) if not order_guest.is_empty() else Vector2i(-1,-1)
 	if rear!=Vector2i(-1,-1):cells.append(rear)
 	var pinned:Vector2i=staff.get("table_face_cell",Vector2i(-1,-1))
 	var staff_index=staff_states.find(staff)
@@ -1553,11 +1553,19 @@ func _reserve_pass(staff: Dictionary):
 	staff.blocked_reason="Pass counter full · waiting for the waiter" if full else ("Pass counter blocked · clear its back and front in Decorate" if any_counter else "Add a pass counter in Decorate")
 	staff.blocked_guest_id=int(staff.job_guest_id)
 
-func _mark_blocked_job(staff: Dictionary, guest: Dictionary, kind: String):
+func _mark_blocked_job(staff: Dictionary, guest: Dictionary, kind: String, order_layout:Dictionary={}):
 	staff.blocked_guest_id=int(guest.id);staff.blocked_target_id=-1
 	var station_kind={"cook":"stove","brew":"beverage","cleanup":"sink","deliver_meal":"counter","deliver_drink":"beverage","order":"table","take_payment":"register"}[kind]
 	var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
 	var has_usable=false
+	if kind=="order" and not order_layout.is_empty():
+		var table:Dictionary=order_layout.records.get(int(guest.table_id),{})
+		if not table.is_empty() and str(table.kind)=="table":
+			staff.blocked_target_id=int(table.id)
+			for side in model.table_service_cells(table,model.items,order_layout):
+				if not _static_service_path(from,side).is_empty():has_usable=true;break
+		staff.blocked_reason="Waiting for a free table" if has_usable else "Table service side blocked · make space beside the diner in Decorate"
+		return
 	for item in model.items:
 		if str(item.kind)!=station_kind or (station_kind=="table" and int(item.id)!=int(guest.table_id)): continue
 		staff.blocked_target_id=int(item.id)
@@ -1592,6 +1600,8 @@ func _assign_service_job(staff: Dictionary, index: int):
 		var station_blocked_known=false
 		var station_candidate={}
 		var station_face=Vector2i(-1,-1)
+		var order_layout:Dictionary={}
+		var order_retried:=false
 		var candidates:Array=model.customers
 		if kind=="take_payment":
 			# Only the authoritative FIFO head can pass checkout_ready.
@@ -1623,7 +1633,7 @@ func _assign_service_job(staff: Dictionary, index: int):
 				_prepare_cleanup_step(staff,index);return
 			var station={}
 			if kind=="take_payment":station=model.get_item(int(guest.checkout_register_id))
-			elif kind=="order": station=model.get_item(int(guest.table_id))
+			elif kind=="order": station=model.get_item(int(guest.table_id)) if order_layout.is_empty() else order_layout.records.get(int(guest.table_id),{})
 			elif kind=="deliver_meal": station=model.get_item(int(record.meal_pass_id))
 			elif kind=="deliver_drink": station=model.get_item(int(record.drink_station_id))
 			else:
@@ -1634,11 +1644,16 @@ func _assign_service_job(staff: Dictionary, index: int):
 				station=station_candidate
 			var service_cell:Vector2i
 			if station_checked:service_cell=station_face
-			elif kind=="order" and not station.is_empty():service_cell=_table_service_destination(staff,station,from,[],guest)
+			elif kind=="order" and not station.is_empty():service_cell=_table_service_destination(staff,station,from,[],guest,{},order_layout)
 			else:service_cell=_service_cell(station,from,[],str(staff.role))
 			if service_cell==Vector2i(-1,-1):
 				if not station_checked or not station_blocked_known:
-					_mark_blocked_job(staff,guest,kind)
+					if kind=="order" and not order_retried:
+						# Nothing here changes placement/custody; the first successful
+						# order returns immediately and the next worker scans live state.
+						order_layout=model.order_assignment_layout()
+						order_retried=true
+					_mark_blocked_job(staff,guest,kind,order_layout)
 					if station_checked:station_blocked_known=true
 				else:
 					# Preserve the final eligible diner's diagnostic identity.
