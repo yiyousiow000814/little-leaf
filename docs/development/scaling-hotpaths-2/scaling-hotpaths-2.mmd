@@ -1,0 +1,20 @@
+flowchart TB
+  base["Second batch based on #371 at c352e66"]
+  base --> r["Transient guest and item render lookups"]
+  base --> c["Per-tick service capacity counts"]
+  base --> q["FIFO cashier and checkout candidate indexes"]
+  base --> s["Per-assignment staff station snapshot"]
+  r --> three["Renderer + capacity + cashier: 10,947 assertions in nine headless suites"]
+  c --> three
+  q --> three
+  three --> four["Four-change local pass: 10,955 assertions in nine headless suites"]
+  s --> four
+  four --> visual["Repeat native pixel pairs and canonical atlas checks for new renderer"]
+  four --> web["Ordinary exact-head CI and live Web/save compatibility pending"]
+  visual --> candidate["Larger scene and integrated FPS pending; use sealed #368 baseline"]
+  web --> candidate
+  base --> open["Other quadratic paths and slow-frame attribution remain open"]
+  classDef checked fill:#E7F3EE,stroke:#398170,color:#153B33;
+  classDef openState fill:#FDF1DB,stroke:#AD731B,color:#452B0B;
+  class three,four checked;
+  class visual,web,candidate,open openState;

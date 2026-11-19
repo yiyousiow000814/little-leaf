@@ -1136,10 +1136,23 @@ func tick(delta: float) -> void:
 		remaining -= step
 
 
+func _tick_service_capacity()->Vector3i:
+	var result:=Vector3i.ZERO
+	for item in items:
+		match item.kind:
+			"stove":result.x+=1
+			"beverage":result.y+=1
+			"sink":result.z+=1
+	return result
+
 func _tick_step(delta: float) -> void:
 	Checkout.advance(self,delta)
 	_choose_walker()
-	var cook_slots := mini(cooks, count_kind("stove"))
+	var capacity := _tick_service_capacity()
+	# Cooking slot count is pinned at step start, just as before. Drink/sink
+	# qualifications and stove speed can reopen after a synchronous listener.
+	var cook_slots := mini(cooks, capacity.x)
+	var stove_speed := -1.0
 	var occupied_cooks := 0
 	var occupied_sinks := 0
 	var departing: Array[Dictionary] = []
@@ -1159,15 +1172,17 @@ func _tick_step(delta: float) -> void:
 			continue
 		if phase in ["checkout_wait","paying"]:continue
 		var speed: float = 1.0
+		if capacity.x<0 and phase in ["cleaning","drinking"]:capacity=_tick_service_capacity()
 		if phase == "cooking":
 			if occupied_cooks >= cook_slots:
 				continue
 			occupied_cooks += 1
-			speed = _best_stove_speed()
-		elif phase == "drinking" and count_kind("beverage") == 0:
+			if stove_speed<0.0:stove_speed=_best_stove_speed()
+			speed=stove_speed
+		elif phase == "drinking" and capacity.y == 0:
 			continue
 		elif phase == "cleaning":
-			if occupied_sinks >= count_kind("sink"):
+			if occupied_sinks >= capacity.z:
 				continue
 			occupied_sinks += 1
 		customer.elapsed = float(customer.elapsed) + delta * speed
@@ -1184,6 +1199,8 @@ func _tick_step(delta: float) -> void:
 			customer["paid"] = true
 			last_event = "Meal enjoyed · +%s coins" % Money.amount(MEAL_PAYMENT)
 			meal_completed.emit(int(customer.id), MEAL_PAYMENT)
+			# A listener may directly replace items without bumping revision.
+			capacity=Vector3i(-1,-1,-1);stove_speed=-1.0
 			_begin_departure(customer)
 			continue
 		if phase == "cleaning":
