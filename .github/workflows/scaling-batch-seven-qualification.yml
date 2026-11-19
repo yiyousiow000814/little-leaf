@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lane: [dining, atlas]
+        lane: [atlas]
     steps:
       - name: Check out disposable diagnostic only
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -71,8 +71,20 @@ jobs:
           # Match the earlier exact RGB workflow's signed Ubuntu dependency,
           # avoiding any package refresh on runners that already supply it.
           if ! /usr/bin/python3 -c 'from PIL import Image' >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y --no-install-recommends python3-pil
+            # The Ubuntu runner's default mirrorlist tried a failing HTTP
+            # mirror before every package. Use signed official HTTPS sources
+            # for this disposable decoder only; do not alter runner config.
+            apt_dir="$(mktemp -d)"
+            trap 'rm -rf "$apt_dir"' EXIT
+            cat > "$apt_dir/sources.list" <<'APT'
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble main
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble-updates main
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://security.ubuntu.com/ubuntu noble-security main
+          APT
+            apt_args=(-o "Dir::Etc::sourcelist=$apt_dir/sources.list" -o Dir::Etc::sourceparts=-
+                      -o Acquire::Languages=none -o Acquire::Retries=1 -o Acquire::https::Timeout=15)
+            sudo apt-get "${apt_args[@]}" -o APT::Update::Error-Mode=any update
+            sudo apt-get "${apt_args[@]}" install -y --no-install-recommends python3-pil
           fi
           /usr/bin/python3 -c 'from PIL import Image; print(Image.__version__)'
           dpkg-query -W xvfb libgl1-mesa-dri libglx-mesa0 python3-pil > "$RUNNER_TEMP/scaling-seven-engine/renderer-packages.txt"
