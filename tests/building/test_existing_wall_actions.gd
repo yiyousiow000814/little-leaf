@@ -116,6 +116,48 @@ func check_direct_edge_snapshot(model):
  var fractional=walls.duplicate(true);fractional[0].x=.25
  check(WallReachability.direct_edge_snapshot(fractional,openings)==null,"Noncanonical candidate coordinates retain original direct resolver")
 
+func doorway_row(supports:Array,offset,width,kind:String="door")->Dictionary:
+ return {"wall_ids":supports,"offset":offset,"width":width,"kind":kind}
+
+func check_doorway_retention():
+ var model=preload("res://scripts/core/cafe_model.gd").new()
+ var first=doorway_row(["wall:1","wall:2"],-0.0,.75)
+ var second=doorway_row(["wall:3"],.5,.5)
+ model.wall_attachments.assign([first,second])
+ var exact=doorway_row(["wall:1","wall:2"],0,.75)
+ var larger=doorway_row(["wall:1","wall:2"],0,1.0)
+ var smaller=doorway_row(["wall:1","wall:2"],0,.74)
+ var reordered_support=doorway_row(["wall:2","wall:1"],0,1.0)
+ var close_offset=doorway_row(["wall:1","wall:2"],.00000001,1.0)
+ var legacy=doorway_row(["wall:1","wall:2"],"0",1.0)
+ var window=doorway_row(["wall:1","wall:2"],0,1.0,"window")
+ var nonfinite=doorway_row(["wall:1","wall:2"],0,INF)
+ var cases=[
+  [[second,exact],true], [[larger,second,smaller,exact],true], [[second,smaller],false],
+  [[reordered_support,second],false], [[close_offset,second],false], [[second,window],false],
+  [[second,legacy],true], [[second,nonfinite],true], [[],false]]
+ for fixture in cases:
+  var rows:Array=fixture[0];var required:bool=fixture[1]
+  check(model._preserves_existing_doorways(rows)==required and model._preserves_existing_doorways_direct(rows)==required,
+        "Indexed and direct doorway retention agree for ordered supports, finite exact offsets, widths and legacy values")
+ model.wall_attachments.assign([window])
+ check(model._preserves_existing_doorways([]),"No prior doors keeps the no-obstruction shortcut")
+ model.wall_attachments.clear();model.built_walls.clear();model.items.clear()
+ model.owned_parcels.assign(model.PARCEL_IDS);model.coins=1000
+ for z in range(1,11):
+  for x in range(1,17):
+   var id:="wall:%d"%(model.built_walls.size()+10)
+   model.built_walls.append(Walls.installed(id,Walls.make("x",x,z),0,0))
+   var door=doorway_row([id],.5,1.0)
+   door.id=model.built_walls.size()+10;door.paid_cost=0
+   model.wall_attachments.append(door)
+ var host_id="wall:1000"
+ model.built_walls.append(Walls.installed(host_id,Walls.make("x",1,11),0,0))
+ model._next_attachment_id=999
+ check(model._attachment_layout_error(model.built_walls,model.wall_attachments)=="","160-door workload has valid non-overlapping hosted apertures")
+ check(model.place_wall_attachment("window",host_id,.5) and model.wall_attachments.size()==161 and model.coins==970,
+       "Real placement keeps all 160 prior doorway supports and charges for one new window")
+
 func _initialize():run.call_deferred()
 func settle():
  game._update_ui();game.illustration.queue_redraw()
@@ -141,6 +183,7 @@ func run():
  var ui=game.compact_ui;var model=game.model;var tool=game.build_tools
  check_installed_support_index(model)
  check_direct_edge_snapshot(game.model)
+ check_doorway_retention()
  check_blocked_edge_index(model)
  game._cancel_selection();await settle();await click(aim(2.5))
  check(ui.selected_wall=="x:2:0","click existing wall selects exact one-tile host")

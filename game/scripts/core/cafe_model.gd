@@ -2941,6 +2941,40 @@ func _attachment_change_error(proposed:Array,actor_positions:Array)->String:
 	return ""
 
 func _preserves_existing_doorways(proposed:Array)->bool:
+	if not wall_attachments.any(func(row):return row.kind=="door"):return true
+	var by_support:Dictionary={}
+	for candidate in proposed:
+		if candidate.kind!="door":continue
+		var key=_doorway_support_key(candidate)
+		if key==null:return _preserves_existing_doorways_direct(proposed)
+		if not by_support.has(key):by_support[key]={}
+		var offset:=float(candidate.offset)
+		if offset==0.0:offset=0.0 # Treat -0.0 and +0.0 as the original equality did.
+		var widths:Dictionary=by_support[key]
+		var width:=float(candidate.width)
+		if not widths.has(offset) or width>float(widths[offset]):widths[offset]=width
+	for existing in wall_attachments:
+		if existing.kind!="door":continue
+		var key=_doorway_support_key(existing)
+		if key==null:return _preserves_existing_doorways_direct(proposed)
+		var offset:=float(existing.offset)
+		if offset==0.0:offset=0.0
+		var widths:Dictionary=by_support.get(key,{})
+		if not widths.has(offset) or float(widths[offset])<float(existing.width):return false
+	return true
+
+static func _doorway_support_key(row:Dictionary)->Variant:
+	var ids=row.get("wall_ids")
+	var offset=row.get("offset")
+	var width=row.get("width")
+	if not ids is Array or ids.size()>18 or not (offset is int or offset is float) or not (width is int or width is float):return null
+	if not is_finite(float(offset)) or not is_finite(float(width)):return null
+	for id in ids:
+		if not id is String:return null
+	# Structured encoding keeps support order and avoids ambiguous separators.
+	return JSON.stringify(ids)
+
+func _preserves_existing_doorways_direct(proposed:Array)->bool:
 	for existing in wall_attachments:
 		if existing.kind!="door":continue
 		var retained=false
