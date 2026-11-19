@@ -1,0 +1,91 @@
+name: Frozen baseline — one native candidate
+on:
+  pull_request:
+    branches: [main]
+    types: [opened]
+    paths:
+      - .github/workflows/frozen-native-once.yml
+      - tools/diagnostics/frozen-native-once/**
+permissions:
+  contents: read
+concurrency:
+  group: frozen-native-integrated-once
+  cancel-in-progress: false
+jobs:
+  candidate-only:
+    if: >-
+      github.repository == 'yiyousiow000814/little-leaf' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'qa/frozen-native-integrated-once' &&
+      github.event.pull_request.user.login == 'yiyousiow000814' &&
+      github.event.pull_request.draft && github.run_attempt == '1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      KIT: tools/diagnostics/frozen-native-once
+      DIAGNOSTIC_SHA: ${{ github.event.pull_request.head.sha }}
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Fetch only the diagnostic head and its immediate parent
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          sparse-checkout: tools/diagnostics/frozen-native-once
+          persist-credentials: false
+      - name: Verify immutable control and host before touching the game
+        timeout-minutes: 1
+        id: bound
+        run: |
+          set -euo pipefail
+          e="$RUNNER_TEMP/frozen-native-evidence"
+          mkdir "$e" "$RUNNER_TEMP/frozen-native-tmp"
+          python3 "$KIT/control.py" event --repo .
+          cp "$KIT/binding.json" "$e/binding.json"
+          bash "$KIT/host-envelope.sh" "$e/host.txt"
+          python3 "$KIT/audit.py" --archive "$KIT/frozen.zip" --helpers "$KIT/upstream" --host-envelope "$e/host.txt" > "$e/frozen-verification.json"
+          command -v xvfb-run && command -v Xvfb && command -v xauth
+      - name: Checkout only the bound product (never the original)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ steps.bound.outputs.commit }}
+          path: product
+          fetch-depth: 1
+          sparse-checkout: |
+            game
+            tools/ci
+          persist-credentials: false
+      - name: Stage committed product and pin native engine
+        timeout-minutes: 3
+        env:
+          COMMIT: ${{ steps.bound.outputs.commit }}
+          TREE: ${{ steps.bound.outputs.tree }}
+        run: |
+          set -euo pipefail
+          e="$RUNNER_TEMP/frozen-native-evidence"
+          t="$RUNNER_TEMP/frozen-native-tmp"
+          python3 "$KIT/upstream/stage.py" --repo product --commit "$COMMIT" --tree "$TREE" --output "$t/staged"
+          python3 "$KIT/control.py" stage --repo product --stage "$t/staged"
+          cp "$t/staged/diagnostic-source.json" "$e/staged-source.json"
+          python3 product/tools/ci/install_tools.py godot --native-only --output "$t/tools"
+          printf 'f64d4ed19fc9df9440321653fcc80df8c6e365ba7b6de0a29e2cfa9fa71bfeb3  %s\n' "$t/tools/godot" | sha256sum -c -
+          cp "$t/tools/godot-toolchain-receipt.json" "$e/engine-toolchain.json"
+      - name: Match blank display, then measure the candidate once
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          export GODOT_BIN="$RUNNER_TEMP/frozen-native-tmp/tools/godot"
+          xvfb-run -a -s "-screen 0 1600x1000x24" bash "$KIT/on-display.sh"
+      - name: Archive only explicit benchmark receipts, never profiles, raw logs or binaries
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: frozen-native-only-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/frozen-native-evidence/binding.json
+            ${{ runner.temp }}/frozen-native-evidence/frozen-verification.json
+            ${{ runner.temp }}/frozen-native-evidence/staged-source.json
+            ${{ runner.temp }}/frozen-native-evidence/sample-started.txt
+            ${{ runner.temp }}/frozen-native-evidence/comparison.json
+          if-no-files-found: warn
+          retention-days: 90

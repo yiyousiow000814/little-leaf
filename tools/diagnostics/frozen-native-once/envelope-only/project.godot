@@ -1,0 +1,9 @@
+config_version=5
+[application]
+config/name="Little Leaf Envelope Check Only"
+run/max_fps=60
+[display]
+window/size/viewport_width=1360
+window/size/viewport_height=880
+[rendering]
+renderer/rendering_method="gl_compatibility"
