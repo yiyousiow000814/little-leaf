@@ -1,6 +1,7 @@
 extends SceneTree
 const Fixture=preload("res://tests/fixtures/role_fixture.gd")
 const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
+const Dishwashing=preload("res://scripts/gameplay/cafe_dishwashing.gd")
 var game
 var checks=0
 var failures=[]
@@ -47,6 +48,8 @@ func roundtrip(label:String):
  for i in before.staff.size():
   check(game.staff_states[i].pos==before.staff[i].pos,label+" staff position retained "+str(i))
 func run():
+ check_reservation_index()
+ check_transport_index()
  root.size=Vector2i(1360,880)
  game=Fixture.new();root.add_child(game);await process_frame
  game.set_process(false);game.illustration.set_process(false)
@@ -404,3 +407,87 @@ func front_dropoff_cases():
  game._clear_service_job(c.cleaner);c.cleaner.pos=Vector2(2.5,3.5)
  check(game.dishwashing.drop_destination(c.waiter,c.basin,Vector2i(6,6))==front,"legacy cleaner drop still reaches a free front")
  c.waiter.role="waiter"
+
+class DishScanModel extends RefCounted:
+ var items:Array=[]
+ func get_item(id:int)->Dictionary:
+  for item in items:
+   if int(item.id)==id:return item
+  return {}
+class DishScanGame extends RefCounted:
+ var model:=DishScanModel.new()
+ var service_guests={}
+ func _static_service_path(from:Vector2i,to:Vector2i)->Array:return [from,to]
+class DishScan extends "res://scripts/gameplay/cafe_dishwashing.gd":
+ var indexed_rows:=0
+ var visits:Array=[]
+ var shared_record:Dictionary={}
+ var block_current_front:=false
+ func _reservation_loads(except_record:Dictionary)->Dictionary:
+  indexed_rows+=dishes.size()+game.service_guests.size()
+  return super._reservation_loads(except_record)
+ func drop_destination(_staff:Dictionary,sink:Dictionary,_from:Vector2i,_claimed=[],reserving=false,_front_claims:Dictionary={})->Vector2i:
+  visits.append([int(sink.id),int(shared_record.dish_sink_id),reserving])
+  if block_current_front and int(sink.id)==1 and not reserving:return Vector2i(-1,-1)
+  return Vector2i(1,1)
+
+func check_reservation_index():
+ var host=DishScanGame.new()
+ var washer=DishScan.new(host)
+ var staff={"pos":Vector2(.5,.5),"job_kind":"cleanup","job_step":1,"station_id":1,"job_elapsed":.4}
+ var current={"plate_owner":"staff","dish_sink_id":1}
+ washer.shared_record=current
+ for size in [8,16,32]:
+  host.model.items.clear();host.service_guests.clear();washer.dishes.clear()
+  current.dish_sink_id=-1
+  host.service_guests[0]=current;host.service_guests[-1]=current
+  for id in range(1,size+1):
+   host.model.items.append({"id":id,"kind":"sink"})
+   host.service_guests[id]={"dish_sink_id":id}
+   washer.dishes[id]={"sink_id":id}
+  washer.visits.clear();washer.indexed_rows=0
+  var chosen=washer.reserve(current,staff)
+  check(chosen.id==1 and washer.visits.size()==size,"equal queue load and distance preserve first sink order, %s sinks"%size)
+  check(washer.indexed_rows==2*size+2,"one shared sink load scan, %s sinks"%size)
+  check(washer.visits.all(func(visit):return visit[1]==-1),"old reservation is released before candidate scan")
+ # Current at capacity minus its aliases remains valid. A value-equal but
+ # different record still occupies its own slot.
+ host.service_guests.clear();washer.dishes.clear()
+ current.dish_sink_id=1
+ host.service_guests[0]=current;host.service_guests[1]=current
+ host.service_guests[2]=current.duplicate(true)
+ for i in 4:washer.dishes[i]={"sink_id":1}
+ check(washer.reserve(current,staff).id==1,"current selected sink excludes exact aliases only and retains fifth competing load")
+ washer.dishes[4]={"sink_id":1}
+ washer.visits.clear()
+ check(washer.reserve(current,staff).id==2 and staff.job_elapsed==0.0,"six competing loads force fallback to next sink and reset moved contact")
+ check(washer.visits.all(func(visit):return visit[1]==-1),"full prior sink releases capacity before fallback")
+ # A temporarily front-blocked active reservation can switch to a truly
+ # available alternate while retaining own reservation until it succeeds.
+ current.dish_sink_id=1;washer.dishes.clear();washer.block_current_front=true;washer.visits.clear()
+ check(washer.reserve(current,staff).id==2 and washer.visits.all(func(visit):return visit[1]==1),"alternate retains valid old reservation until handoff")
+ # A stale reservation is removed from the global total before cap check.
+ current.dish_sink_id=999
+ washer.block_current_front=false
+ for i in range(Dishwashing.MAX_DISHES-1):washer.dishes[i]={"sink_id":1}
+ check(washer.reserve(current,staff).is_empty() and current.dish_sink_id==-1,"global cap includes all other reservations after stale release")
+ host.service_guests.erase(2)
+ current.dish_sink_id=999
+ check(washer.reserve(current,staff).id==2,"own aliased stale reservation never counts toward global capacity")
+
+func check_transport_index():
+ var codec=Codec.new()
+ for size in [8,16,32]:
+  var staff:Array=[];var records={};var sinks={}
+  var data={"format":Dishwashing.FORMAT,"next_id":1,"completed":0,"dishes":[]}
+  for guest_id in range(1,size+1):
+   staff.append({"job_kind":"cleanup","job_guest_id":guest_id,"job_token":guest_id,"job_step":guest_id%2,"station_id":guest_id})
+   sinks[guest_id]={"kind":"sink"}
+   records[guest_id]={"guest_id":guest_id,"dish_sink_id":guest_id,"plate_owner":"staff"}
+  check(Dishwashing.validate_snapshot(data,staff,records,sinks,codec).ok,"transport index accepts valid step 0 and 1 reservations, %s workers"%size)
+  staff[-1].job_step=2
+  check(Dishwashing.validate_snapshot(data,staff,records,sinks,codec).error=="Dish reservation has no transporting worker","wrong worker stage cannot transport")
+  records[size].dish_sink_id=size+1000
+  check(Dishwashing.validate_snapshot(data,staff,records,sinks,codec).error=="Dish reservation has no valid sink or payload","invalid sink error precedes missing transporter")
+  staff[-1].job_guest_id="bad"
+  check(Dishwashing.validate_snapshot(data,staff,records,sinks,codec).error=="Invalid dishwashing staff identity","invalid worker identity retains earlier validation priority")

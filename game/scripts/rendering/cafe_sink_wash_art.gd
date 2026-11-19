@@ -42,17 +42,17 @@ static func drop_pose(near:Vector2,far:Vector2,center:Vector2,phase:float)->Dict
 static func actual_surface(at:Vector2,height:float,rotation:int)->Vector2:
  var q=at.rotated(posmod(rotation,4)*PI/2)
  return Vector2((q.x-q.y)*34,(q.x+q.y)*17-height)
-static func state(game,sink_id:int)->Dictionary:
+static func state(game,sink_id:int,sink_row=null,workers=null,dish_count:int=-1)->Dictionary:
  if game==null or not "dishwashing" in game or not "staff_states" in game:return {}
- var sink=game.model.get_item(sink_id)
+ var sink=game.model.get_item(sink_id) if sink_row==null else sink_row
  if sink.is_empty():return {}
  var face=game.model.cell_center(game.model.workface_cell(sink))
- for worker in game.staff_states:
+ for worker in game.staff_states if workers==null else workers:
   if worker.get("role")!="cleaner" or worker.get("job_kind")!="wash" or int(worker.get("station_id",-1))!=sink_id or worker.get("art_action")!="washing" or (worker.pos as Vector2).distance_to(face)>.04:continue
   var dish=game.dishwashing.entry(worker)
   if dish.is_empty():continue
   var seconds=clampf(float(worker.job_elapsed),0,20)
-  return {"seconds":seconds,"count":game.dishwashing.count_at(sink_id),"rotation":int(sink.rot),"water":not bool(game.get("paused")) and not bool(game.get("editing")) and seconds>0 and seconds<20,"worker":worker}
+  return {"seconds":seconds,"count":game.dishwashing.count_at(sink_id) if dish_count<0 else dish_count,"rotation":int(sink.rot),"water":not bool(game.get("paused")) and not bool(game.get("editing")) and seconds>0 and seconds<20,"worker":worker}
  return {}
 static func basis(rotation:int,tilt:float)->Transform2D:
  var axes=[]
