@@ -146,6 +146,7 @@ func _initialize():
  arrival_shared_search()
  arrival_held_seat()
  legacy_departure_distances()
+ authored_dense_arrival()
  for x in [-.5,-.00000665,-.0000001,0.0,.0000001,.2]:
   var m=fresh(x);var before=state(m);var id=int(m.items[-1].id);var g=m.customers[0].duplicate(true)
   var plan=Motion.plan(m,id,2,0,0)
@@ -348,3 +349,50 @@ func legacy_departure_distances():
   print("LEGACY_DEPARTURE_WORK ",size," ",before," ",after)
   check(current==expected and not current.is_empty(),"scaled route, exact length, and exterior tail match, grid %s"%size)
   check(after<=4*size*size and after*2<before,"expanded cells independent of entry count, grid %s"%size)
+
+class DenseArrivalModel extends "res://scripts/core/cafe_model.gd":
+ var rejected_center:=Vector2.INF
+ var saw_rejection:=false
+ func segment_blocked(a:Vector2,b:Vector2)->bool:
+  if b==rejected_center:saw_rejection=true;return true
+  return super.segment_blocked(a,b)
+
+func authored_dense_arrival():
+ var m=DenseArrivalModel.new();Minimal.apply(m);m.coins=1000000
+ var first=m._seating_pairs()[0]
+ var west_order=[0,1,2,3,4,6,7,8]
+ for goal in [1,4,9,18]:
+  if goal<=9:
+   while m.boundary_entries().size()<goal:
+    var z=west_order.pop_front()
+    var host="wall:%s"%(Model.BASE_WIDTH+int(z)+1)
+    check(m.place_wall_attachment("door",host,.5),"authored new door through production API")
+  else:
+   for parcel in ["front_0","row2_0","row3_0"]:check(m.buy_parcel(parcel),"west footprint expanded through production API")
+  check(m.boundary_entries().size()==goal,"exact expected west thresholds")
+  for start in [Vector2(-2.76,82),Vector2(-2.76,-.26)]:
+   var index={}
+   var route=m._arrival_access(int(first.chair_id),start,int(first.table_id),index)
+   check(not route.is_empty() and route==legacy_arrival(m,int(first.chair_id),int(first.table_id),start),"exact authored route, hold and tie order at %s west thresholds"%goal)
+   check(index.has("band_search")== (goal>=9),"normal room never touches dense search")
+   if goal>=9:check(not index.band_search.is_empty() and index.trees.is_empty(),"dense canonical origins use only banded queue")
+ var uncommon=Vector2(-2.76,1.500000238418579);var index={}
+ check(m._arrival_access(int(first.chair_id),uncommon,int(first.table_id),index)==legacy_arrival(m,int(first.chair_id),int(first.table_id),uncommon),"unusual multi-band parent path remains exact")
+ check(index.band_search.is_empty() and not index.trees.is_empty(),"unusual source takes existing bounded fallback")
+ var saved="user://draft-dense-arrival.json"
+ check(m.save(saved),"real maximum-authored-entry layout saves")
+ var loaded=Model.new()
+ check(loaded.load_save(saved) and loaded.boundary_entries()==m.boundary_entries(),"all eighteen real thresholds roundtrip")
+ check(m.place("table_set",6,5,0),"place a separate real pair for rejected admission")
+ var pairs=m._seating_pairs()
+ if pairs.size()<2:return
+ var blocked=m.get_item(int(pairs[0].chair_id))
+ m.rejected_center=m.cell_center(Vector2i(int(blocked.x),int(blocked.z)))
+ var visitor={"id":42,"x":-1.6,"z":7.5,"origin_z":82.0}
+ m.outside_queue.append(visitor)
+ var chosen=pairs[1];var from=Vector2(-2.76,float(visitor.z))
+ var expected=legacy_arrival(m,int(chosen.chair_id),int(chosen.table_id),from)
+ var route:Array[Vector2]=[from];route.append_array(expected.route)
+ check(m._try_admit_queued_visitor(visitor) and m.saw_rejection,"actual queued admission skips the earlier rejected path")
+ if m.customers.is_empty():return
+ check(m.customers[0].id==42 and m.customers[0].chair_id==chosen.chair_id and m.customers[0].route==route,"the correct second seat keeps its exact route and queue identity")

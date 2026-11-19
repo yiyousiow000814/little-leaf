@@ -1067,6 +1067,7 @@ var _drawing_guest_rows:Variant=null
 var _drawing_chair_cells:Variant=null
 var _presentation_item_rows:Variant=null
 var _drawing_sink_rows:Variant=null
+var _drawing_dining_variants:Variant=null
 
 func _begin_drawing_lookups()->void:
 	var by_key:Dictionary={}
@@ -1085,6 +1086,32 @@ func _finish_drawing_lookups()->void:
 	_drawing_chair_cells=null
 	_presentation_item_rows=null
 	_drawing_sink_rows=null
+	_drawing_dining_variants=null
+
+# Called only for admitted furniture. Store immutable variant values, not groups.
+func _drawing_furniture_variant(entry:Dictionary)->String:
+	var explicit=str(entry.get("dining_variant",""))
+	if explicit!="":return explicit
+	if entry.kind not in ["table","chair","bench"]:return "oak_single"
+	var groups=game.model.dining_sets
+	var id=int(entry.id)
+	# The empty layout and one-set starter do not allocate an index.
+	if groups.is_empty():return "oak_single"
+	if groups.size()==1:
+		var only=groups[0]
+		return _group_art_variant(only) if int(only.table_id)==id or int(only.seat_id)==id else "oak_single"
+	if _drawing_dining_variants==null:
+		_drawing_dining_variants={}
+		for group in groups:
+			var table_id=int(group.table_id);var seat_id=int(group.seat_id)
+			var variant=_group_art_variant(group)
+			if not _drawing_dining_variants.has(table_id):_drawing_dining_variants[table_id]=variant
+			if not _drawing_dining_variants.has(seat_id):_drawing_dining_variants[seat_id]=variant
+	return _drawing_dining_variants.get(id,"oak_single")
+
+static func _group_art_variant(group:Dictionary)->String:
+	var variant=str(group.get("variant","oak_single"))
+	return "oak_single" if variant=="" else variant
 
 func _index_presentation_items(chair_cells:Variant=null)->Dictionary:
 	var by_id:Dictionary={}
@@ -1122,8 +1149,9 @@ func _draw_ground_rugs(render_items:Array):
 		if not _render_anchor_visible(anchor):continue
 		opacity=.63 if bool(entry.get("preview",false)) else 1.0
 		art_transform(anchor,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
-		var callback=_paint_furniture_body.bind("item",entry,int(entry.rot))
-		var appearance=["furniture","item",entry,int(entry.rot),_dining_style(int(entry.id),str(entry.get("dining_variant",""))),Vector2.ZERO]
+		var variant=_drawing_furniture_variant(entry)
+		var callback=_paint_furniture_body.bind("item",entry,int(entry.rot),variant)
+		var appearance=["furniture","item",entry,int(entry.rot),_dining_style(int(entry.id),variant),Vector2.ZERO]
 		if not retain_native_local_object(callback,appearance,_art_transform):callback.call()
 		art_transform(Vector2.ZERO)
 		opacity=1.0
@@ -1340,12 +1368,13 @@ func _draw():
 			art_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 			var static_body = (d.kind in ["table", "chair", "bench", "plant", "lamp", "bookshelf", "divider", "rug"] or (use_retained_register and d.kind=="register")) and e.type in ["item", "chair_back"]
 			if static_body:
-				var body = _paint_furniture_body.bind(e.type, d, int(e.get("rot", 0)))
-				var appearance = ["furniture", e.type, d, int(e.get("rot", 0)), _dining_style(int(d.id), str(d.get("dining_variant", ""))), _table_vase_point(int(d.id)) if d.kind=="table" else Vector2.ZERO]
+				var variant=_drawing_furniture_variant(d)
+				var body = _paint_furniture_body.bind(e.type, d, int(e.get("rot", 0)),variant)
+				var appearance = ["furniture", e.type, d, int(e.get("rot", 0)), _dining_style(int(d.id),variant), _table_vase_point(int(d.id)) if d.kind=="table" else Vector2.ZERO]
 				if d.kind=="register":appearance.append(CheckoutArt.register_visual_state(self,int(d.id)))
 				if not retain_native_local_object(body, appearance, _art_transform):body.call()
 			else:
-				_paint_furniture_body(e.type, d, int(e.get("rot", 0)))
+				_paint_furniture_body(e.type,d,int(e.get("rot",0)),str(d.get("dining_variant","")))
 			if d.kind=="table" and show_service: _meal(d.id)
 			if d.kind=="sink" and show_service: _sink_dishes(d.id)
 			if d.kind=="counter" and show_service: _station_payloads(d.id,d.kind,int(d.rot))
@@ -2593,15 +2622,15 @@ func paint_native_object(target: Node2D, callback: Callable) -> void:
 	opacity = saved_opacity
 	native_draw_target = null
 
-func _paint_furniture_body(part: String, d: Dictionary, rotation: int) -> void:
+func _paint_furniture_body(part:String,d:Dictionary,rotation:int,variant:String)->void:
 	if part=="beverage_foreground":furniture_art.draw_beverage_foreground(self,Vector2.ZERO,int(d.rot))
 	elif part=="stove_foreground":furniture_art.draw_stove_foreground(self,Vector2.ZERO,int(d.rot),int(d.id))
 	elif part=="chair_back":
 		if d.kind=="bench":furniture_art.draw_bench_part(self,Vector2.ZERO,rotation,true)
-		else:_chair(Vector2.ZERO,rotation,true,_dining_style(int(d.id),str(d.get("dining_variant",""))))
-	elif d.kind=="chair": _chair(Vector2.ZERO,_chair_rotation(d),false,_dining_style(int(d.id),str(d.get("dining_variant",""))))
+		else:_chair(Vector2.ZERO,rotation,true,_dining_style(int(d.id),variant))
+	elif d.kind=="chair": _chair(Vector2.ZERO,_chair_rotation(d),false,_dining_style(int(d.id),variant))
 	elif d.kind=="bench":furniture_art.draw_bench_part(self,Vector2.ZERO,_chair_rotation(d),false)
-	else: item(d.kind,Vector2.ZERO,int(d.rot),int(d.id),str(d.get("dining_variant","")))
+	else: item(d.kind,Vector2.ZERO,int(d.rot),int(d.id),variant)
 
 func _paint_character_body_part(part: String, species: int, cloth: String, staff: bool, back: bool, profile: bool) -> void:
 	var painter = DirectionalCharacter.new()
