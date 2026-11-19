@@ -113,6 +113,49 @@ class BrowserProvisionExtensionTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 provision.operations(bad)
 
+    def test_webkit_download_retries_only_timeout_with_same_command_in_budget(self):
+        from subprocess import CalledProcessError, TimeoutExpired
+        from unittest.mock import Mock, patch
+        from tools.ci import recovery_webkit_provision as provision
+
+        install = ("install", "--no-remove", "--no-install-recommends")
+        packages = ["libexample"]
+        command = (*install, "--download-only", "-y", *packages)
+        expired = CalledProcessError(124, command)
+
+        first_success = Mock()
+        with patch.object(provision.time, "monotonic", return_value=200):
+            provision.fetch_webkit_packages(first_success, install, packages)
+        first_success.assert_called_once_with("webkit-apt-fetch", 65, *command)
+
+        phase = Mock(side_effect=[expired, None])
+        with patch.object(provision.time, "monotonic", side_effect=[200, 265]):
+            provision.fetch_webkit_packages(phase, install, packages)
+        self.assertEqual(len(phase.call_args_list), 2)
+        self.assertEqual(phase.call_args_list[0].args, ("webkit-apt-fetch", 65, *command))
+        self.assertEqual(phase.call_args_list[1].args, ("webkit-apt-fetch-retry", 27, *command))
+        self.assertEqual(65 + 27 + provision.APT_CAPTURE_GRACE_SECONDS, provision.FETCH_BUDGET_SECONDS)
+
+        for failure in (CalledProcessError(100, command), CalledProcessError(137, command),
+                        TimeoutExpired(command, 73)):
+            with self.subTest(failure=failure), patch.object(provision.time, "monotonic", return_value=200):
+                phase = Mock(side_effect=failure)
+                with self.assertRaises(type(failure)):
+                    provision.fetch_webkit_packages(phase, install, packages)
+                phase.assert_called_once()
+
+        phase = Mock(side_effect=expired)
+        with patch.object(provision.time, "monotonic", side_effect=[200, 298]):
+            with self.assertRaises(CalledProcessError):
+                provision.fetch_webkit_packages(phase, install, packages)
+        phase.assert_called_once()
+
+        phase = Mock(side_effect=expired)
+        with patch.object(provision.time, "monotonic", side_effect=[200, 265]):
+            with self.assertRaises(CalledProcessError):
+                provision.fetch_webkit_packages(phase, install, packages)
+        self.assertEqual(phase.call_count, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

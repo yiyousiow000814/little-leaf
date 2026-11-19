@@ -1,0 +1,9 @@
+# CI #382: shared pinned Chromium package bundle
+
+Exact base: #382 `6096d578c30e08f57088bba6ca64d302e4a77645`. Local proposal patch SHA-256: `869c8bdd953ff330872ddf3ea43a8191dca5e0d26eb465cf6bda2a976bdc774a`. [Mermaid workflow](ci-chromium-bundle.mmd) · [Excel ledger](ci-chromium-bundle.xlsx) · [Prior critical-path record](../ci-377-critical-path/).
+
+For ordinary full PR CI, preflight fetches pinned Ubuntu Noble amd64 Chromium prerequisites while native tests run separately. It does not install packages. Only complete verified package files enter the optional one-day artifact. The workflow contract allowlists only that artifact upload to continue on error; required checks remain fail-closed. Downstream locked Chromium provisioning restores by artifact ID only on matching commit, run and attempt; archive digest mismatches are fatal. Present files must be regular files and pass pinned SHA-256 plus package name, version and architecture checks. Absent files use the existing bounded, pinned cold fetch; corrupt or invalid files are not treated as misses.
+
+Play and locked Chromium browser consumers keep their existing checks. WebKit signed APT transport, both compatibility/save cases, native test and export evidence, and the fail-closed Web quorum are not replaced or weakened. This is transport only, not a save revision fix or FPS change.
+
+Local evidence: 59 focused checks passed. Full local preflight passed 531 tests in 20.112 seconds, 23.87 seconds end to end; this supersedes the earlier workflow-contract failures and includes tamper tests for an altered upload action SHA and a gate-level continue-on-error expression. No build or release qualification ran. Hosted operation, artifact reuse, and any critical-path time savings are unverified. Validate those on a fresh ordinary full run before claiming improvement.

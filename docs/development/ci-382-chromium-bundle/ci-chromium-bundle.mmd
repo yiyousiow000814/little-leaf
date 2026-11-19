@@ -1,0 +1,14 @@
+flowchart LR
+    G["#382 ordinary full PR guard"] --> P["Preflight: pinned Chromium prefetch"]
+    G -.-> L["Local: 59 focused · 531 full preflight passed<br/>23.87 s local only; hosted unmeasured"]
+    G --> N["Native shard matrix unchanged"]
+    P --> A["Optional verified .deb artifact<br/>Only upload is allowlisted<br/>Exact commit/run/attempt"]
+    A --> V["Restore by artifact ID<br/>Archive digest and per-package checks"]
+    V -->|Present and valid| C["Existing locked Chromium bootstrap"]
+    V -->|Absent package| F["Existing bounded pinned cold fetch"]
+    V -->|Corrupt or invalid| X["Fail closed"]
+    F --> C
+    C --> W["Original Play and Chromium validations"]
+    N --> Q["Original required Web quorum unchanged"]
+    W --> Q
+    O["WebKit and both save compatibility cases unchanged"] --> Q
