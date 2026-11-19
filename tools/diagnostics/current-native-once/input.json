@@ -1,0 +1,10 @@
+{
+  "commit": "1556f2ad1e9985c723f7f3634a3f48535cc411a2",
+  "tree": "f449331e7ae64da7f19fa62b3554062381cb887c",
+  "archive_sha256": "959cb8b47173be82ea921d96144fb6cd91870adccac1191141ddd41ac1ed8229",
+  "reviewed_game_files": {
+    "game/scripts/gameplay/cafe_shell_segments.gd": "53774c985af3483abb55d50e2ba669d5be033c9909ee441e6390788eebffcae3",
+    "game/scripts/gameplay/cafe_building_edges.gd": "2bf92ab81829ed3956eb587b5462da20f65c75ff5deff392a2f963ff90b69d3c",
+    "game/data/prebaked_atlas_manifest.json": "a9a808ba773c0a204e5fb7f812bd2b4fb45428b0bdf14d009403a427c59703cb"
+  }
+}
