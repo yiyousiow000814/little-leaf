@@ -1,0 +1,79 @@
+
+# Current-only phase recorder. These fields are not part of the cadence probe.
+const PHASE_COUNT := 6
+const PHASE_NAMES := ["game_update_except_autosave", "autosave_except_save_data",
+	"save_data_preparation", "actor_draw_command_generation", "wall_preparation",
+	"other_main_cafe_draw_script"]
+const PHASE_DEPTH_LIMIT := 16
+var _phase_frame := PackedInt64Array()
+var _phase_calls := PackedInt32Array()
+var _phase_cost := PackedInt64Array()
+var _phase_seen := PackedInt32Array()
+var _phase_started := PackedInt64Array()
+var _phase_children := PackedInt64Array()
+var _phase_kind := PackedInt32Array()
+var _phase_depth := 0
+var _phase_faults := 0
+
+func _phase_setup() -> void:
+	_phase_frame.resize(PHASE_COUNT * LIMIT)
+	_phase_calls.resize(PHASE_COUNT * LIMIT)
+	_phase_cost.resize(PHASE_COUNT)
+	_phase_seen.resize(PHASE_COUNT)
+	_phase_started.resize(PHASE_DEPTH_LIMIT)
+	_phase_children.resize(PHASE_DEPTH_LIMIT)
+	_phase_kind.resize(PHASE_DEPTH_LIMIT)
+
+func _phase_reset() -> void:
+	_phase_cost.fill(0)
+	_phase_seen.fill(0)
+	_phase_depth = 0
+	_phase_faults = 0
+
+func phase_begin(kind: int) -> int:
+	if not _running:
+		return -1
+	if _phase_depth >= PHASE_DEPTH_LIMIT:
+		_phase_faults += 1
+		return -1
+	var token := _phase_depth
+	_phase_depth += 1
+	_phase_kind[token] = kind
+	_phase_children[token] = 0
+	_phase_started[token] = Time.get_ticks_usec()
+	return token
+
+func phase_end(token: int) -> void:
+	if token < 0:
+		return
+	var now := Time.get_ticks_usec()
+	if _phase_depth != token + 1:
+		_phase_faults += 1
+		return
+	_phase_depth -= 1
+	var elapsed := now - _phase_started[token]
+	var own := elapsed - _phase_children[token]
+	if own < 0:
+		_phase_faults += 1
+		return
+	var kind := _phase_kind[token]
+	_phase_cost[kind] += own
+	_phase_seen[kind] += 1
+	if token > 0:
+		_phase_children[token - 1] += elapsed
+
+func _phase_complete(index: int) -> void:
+	if _phase_depth != 0:
+		_phase_faults += 1
+	for p in PHASE_COUNT:
+		var offset := index * PHASE_COUNT + p
+		_phase_frame[offset] = _phase_cost[p]
+		_phase_calls[offset] = _phase_seen[p]
+		_phase_cost[p] = 0
+		_phase_seen[p] = 0
+
+func _phase_result(ended: int) -> Dictionary:
+	if _phase_depth != 0 or ended < _started:
+		_phase_faults += 1
+	return {"phase_names": PHASE_NAMES, "exclusive_us": Array(_phase_frame.slice(0, _count * PHASE_COUNT)),
+		"counts": Array(_phase_calls.slice(0, _count * PHASE_COUNT)), "accounting_faults": _phase_faults}
