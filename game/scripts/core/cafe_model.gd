@@ -683,13 +683,14 @@ func opening_readiness_error()->String:
 			if reachable.has(cell):return ""
 	return "Place a usable table set before opening"
 
-func _sale_reachable_in(layout: Array[Dictionary]) -> Dictionary:
+func _sale_reachable_in(layout: Array[Dictionary], query:Dictionary={}) -> Dictionary:
 	# Match the runtime's staff grid (x >= 1) and model wall-edge rules from
 	# the landing. Actor positions, reservations and current jobs are temporary.
-	var blocked: Dictionary = {}
-	for item in layout:
-		if str(item.kind) != "rug":
-			blocked[Vector2i(int(item.x), int(item.z))] = true
+	var blocked: Dictionary = query.get("cells",{})
+	if query.is_empty():
+		for item in layout:
+			if str(item.kind) != "rug":
+				blocked[Vector2i(int(item.x), int(item.z))] = true
 	if blocked.has(ENTRY_LANDING):
 		return {}
 	var reachable: Dictionary = {ENTRY_LANDING: true}
@@ -707,9 +708,9 @@ func _sale_reachable_in(layout: Array[Dictionary]) -> Dictionary:
 	return reachable
 
 
-func _sale_station_usable_in(item: Dictionary, layout: Array[Dictionary], reachable: Dictionary) -> bool:
+func _sale_station_usable_in(item: Dictionary, layout: Array[Dictionary], reachable: Dictionary, query:Dictionary={}) -> bool:
 	if str(item.kind)=="bin":
-		for cell in bin_service_cells(item,layout):
+		for cell in bin_service_cells(item,layout,query):
 			if reachable.has(cell):return true
 		return false
 	if not _workface_open_in(item, layout) or not reachable.has(workface_cell(item)):
@@ -1513,7 +1514,7 @@ func table_service_cells(table:Dictionary,layout:Array[Dictionary]=items,query:D
 	# closest reachable unoccupied face, never the customer's seated side.
 	var result=[]
 	var center=Vector2i(int(table.x),int(table.z))
-	var guest_side=_table_guest_direction_in(table,layout) if query.is_empty() else _wall_warning_guest_direction(table,center,query)
+	var guest_side=_table_guest_direction_in(table,layout) if query.is_empty() else _wall_warning_guest_direction(table,center,query,layout)
 	for direction in [Vector2i.LEFT,Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN]:
 		if direction==guest_side:continue
 		var cell=center+direction
@@ -1593,7 +1594,7 @@ func workface_cell(item: Dictionary) -> Vector2i:
 	var direction: Vector2i=[Vector2i.DOWN,Vector2i.LEFT,Vector2i.UP,Vector2i.RIGHT][posmod(int(item.get("rot",0)),4)]
 	return Vector2i(int(item.x),int(item.z))+direction
 
-func bin_service_cells(item: Dictionary, layout=null) -> Array[Vector2i]:
+func bin_service_cells(item: Dictionary, layout=null, query:Dictionary={}) -> Array[Vector2i]:
 	# Open-top bins have no working front. Use the same four cardinal floor
 	# cells at every rotation; walls, solid furniture and ownership still apply.
 	var result: Array[Vector2i]=[]
@@ -1603,47 +1604,60 @@ func bin_service_cells(item: Dictionary, layout=null) -> Array[Vector2i]:
 	if not is_floor_owned(base):return result
 	for direction in [Vector2i.DOWN,Vector2i.LEFT,Vector2i.UP,Vector2i.RIGHT]:
 		var cell:Vector2i=base+direction
-		if _table_side_open_in(cell,proposed) and not edge_blocked(base,cell):result.append(cell)
+		if _table_side_open_for_query(cell,proposed,query) and not edge_blocked(base,cell):result.append(cell)
 	return result
 
 func placement_warning(kind: String, x: int, z: int, ignore_id: int = -1, rot: int = 0) -> String:
 	if is_dining_product(kind) or not dining_set_for(ignore_id).is_empty():
 		var candidate=DiningSets.candidate(self,x,z,rot,ignore_id)
+		var query:=_wall_warning_layout(candidate.layout,true)
 		for item in candidate.layout:
 			if item.kind in ["stove","beverage","sink","counter","table","bin","register"]:
-				var warning=_operational_warning(item,candidate.layout)
+				var warning=_operational_warning(item,candidate.layout,query)
 				if warning!="":return warning
 		return ""
 	var proposed: Array[Dictionary]=[]
 	for item in items:
 		if int(item.id)!=ignore_id: proposed.append(item)
 	proposed.append({"id":ignore_id,"kind":kind,"x":x,"z":z,"rot":posmod(rot,4)})
+	# The preview receipt caches physical fit, not these live service warnings.
+	# Keep independent, invocation-local lookups for the proposed and live rows.
+	var query:=_wall_warning_layout(proposed,true)
+	var original:Dictionary={}
+	var original_ready:=false
 	for item in proposed:
 		if not str(item.kind) in ["stove","beverage","sink","counter","table","bin","register"]: continue
-		var warning=_operational_warning(item,proposed)
+		var warning=_operational_warning(item,proposed,query)
 		if warning=="": continue
-		var previous=get_item(int(item.id))
-		if int(item.id)==ignore_id or previous.is_empty() or _operational_warning(previous,items)=="": return warning
+		if int(item.id)==ignore_id:return warning
+		if not original_ready:
+			original=_wall_warning_layout(items,true)
+			original_ready=true
+		var previous:Dictionary=get_item(int(item.id)) if original.is_empty() else original.records.get(int(item.id),{})
+		if previous.is_empty() or _operational_warning(previous,items,original)=="":return warning
 	return ""
 
-func _operational_warning(item: Dictionary, layout: Array[Dictionary]) -> String:
+func _operational_warning(item: Dictionary, layout: Array[Dictionary], query:Dictionary={}) -> String:
 	if str(item.kind) == "table":
-		return "" if not table_service_cells(item,layout).is_empty() else "Table service sides blocked: clear a side beside the diner in Decorate"
+		return "" if not table_service_cells(item,layout,query).is_empty() else "Table service sides blocked: clear a side beside the diner in Decorate"
 	if str(item.kind)=="bin":
-		return "" if _sale_station_usable_in(item,layout,_sale_reachable_in(layout)) else "Bin sides blocked: clear any adjacent side in Decorate"
-	if not _workface_open_in(item,layout): return "%s front blocked: staff will wait until you make space in Decorate"%str(item.kind).capitalize()
+		var reachable:Dictionary
+		if query.is_empty():
+			reachable=_sale_reachable_in(layout)
+		else:
+			if not query.has("bin_reachable"):query.bin_reachable=_sale_reachable_in(layout,query)
+			reachable=query.bin_reachable
+		return "" if _sale_station_usable_in(item,layout,reachable,query) else "Bin sides blocked: clear any adjacent side in Decorate"
+	if not _workface_open_in(item,layout,query): return "%s front blocked: staff will wait until you make space in Decorate"%str(item.kind).capitalize()
 	if str(item.kind) in ["counter","register"]:
 		var reverse=item.duplicate();reverse.rot=posmod(int(item.get("rot",0))+2,4)
-		if not _workface_open_in(reverse,layout): return "Pass counter back blocked: chef needs a clear drop-off tile"
+		if not _workface_open_in(reverse,layout,query): return "Pass counter back blocked: chef needs a clear drop-off tile"
 	return ""
 
-func _workface_open_in(item: Dictionary, layout: Array[Dictionary]) -> bool:
+func _workface_open_in(item: Dictionary, layout: Array[Dictionary], query:Dictionary={}) -> bool:
 	var cell=workface_cell(item)
 	if edge_blocked(Vector2i(int(item.x),int(item.z)),cell):return false
-	if cell.x<1 or not is_floor_owned(cell): return false
-	for other in layout:
-		if int(other.x)==cell.x and int(other.z)==cell.y and str(other.kind)!="rug": return false
-	return true
+	return _table_side_open_for_query(cell,layout,query)
 
 func cell_center(cell: Vector2i) -> Vector2:
 	return Vector2(cell.x + 0.5, cell.y + 0.5)
@@ -2713,10 +2727,12 @@ func _complete_legacy_starter_floor(finishes:Dictionary,data:Dictionary)->void:
 			var key=_floor_key(Vector2i(x,z))
 			if not finishes.has(key):finishes[key]={"style":"warm_oak","paid_cost":0}
 
-func _wall_warning_layout()->Dictionary:
+func _wall_warning_layout(rows:Array[Dictionary]=items,preview:bool=false)->Dictionary:
 	var cells={};var by_id={};var records={};var tables={};var seats={};var duplicate_ids=false
-	for i in items.size():
-		var item:=items[i];var id=int(item.id);var cell=Vector2i(int(item.x),int(item.z))
+	for i in rows.size():
+		var item:=rows[i]
+		if preview and (not item.has("id") or not item.has("x") or not item.has("z") or not item.has("kind")):return {}
+		var id=int(item.id);var cell=Vector2i(int(item.x),int(item.z))
 		if by_id.has(id):duplicate_ids=true
 		if not by_id.has(id):by_id[id]=cell;records[id]=item
 		if str(item.kind)!="rug":cells[cell]=true
@@ -2725,26 +2741,28 @@ func _wall_warning_layout()->Dictionary:
 	var live={};var linked={}
 	if not duplicate_ids:
 		for guest in customers:
+			if preview and (not guest.has("table_id") or not guest.has("chair_id")):return {}
 			var table_id=int(guest.table_id);var chair_id=int(guest.chair_id)
 			if live.has(table_id) or not tables.has(table_id) or not by_id.has(chair_id):continue
 			var delta:Vector2i=by_id[chair_id]-tables[table_id]
 			if absi(delta.x)+absi(delta.y)==1:live[table_id]=delta
 		for group in dining_sets:
+			if preview and (not group.has("table_id") or not group.has("seat_id")):return {}
 			for id in [int(group.table_id),int(group.seat_id)]:
 				if not linked.has(id):linked[id]=int(group.seat_id)
 	return {"cells":cells,"by_id":by_id,"records":records,"seats":seats,"live":live,"linked":linked,"duplicate_ids":duplicate_ids}
 
-func _wall_warning_guest_direction(table:Dictionary,cell:Vector2i,layout:Dictionary)->Vector2i:
+func _wall_warning_guest_direction(table:Dictionary,cell:Vector2i,layout:Dictionary,rows:Array[Dictionary]=items)->Vector2i:
 	# Legacy rows can have two items of one ID, with only the latter adjacent.
-	if layout.duplicate_ids:return _table_guest_direction_in(table,items)
+	if layout.duplicate_ids:return _table_guest_direction_in(table,rows)
 	var id=int(table.id)
 	if layout.live.has(id):return layout.live[id]
 	if layout.linked.has(id) and layout.by_id.has(layout.linked[id]):
 		var delta:Vector2i=layout.by_id[layout.linked[id]]-cell
 		if absi(delta.x)+absi(delta.y)==1:return delta
-	var best:=Vector2i.DOWN;var order:=items.size()
+	var best:=Vector2i.DOWN;var order:=rows.size()
 	for direction in DIRECTIONS:
-		var rank:int=layout.seats.get(cell+direction,items.size())
+		var rank:int=layout.seats.get(cell+direction,rows.size())
 		if rank<order:best=direction;order=rank
 	return best
 
