@@ -1,0 +1,9 @@
+name: Qualify required Web jobs on isolated push (QA only)
+on:
+  push:
+    branches: [qa/ci-main-route-363]
+permissions:
+  contents: read
+jobs:
+  web:
+    uses: ./.github/workflows/build-web.yml
