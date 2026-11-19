@@ -1,0 +1,6 @@
+{
+  "accesskit": {"url":"https://github.com/godotengine/godot-accesskit-c-static/releases/download/0.21.2/accesskit-c-0.21.2.zip","bytes":95929259,"sha256":"02a08691b78fc6f8f88f6546e997b9f90b4ecbedf5ca5c621dbab144a4b18964","digest_basis":"publisher"},
+  "sdk": {"url":"https://github.com/godotengine/buildroot/releases/download/godot-2023.08.x-4/x86_64-godot-linux-gnu_sdk-buildroot.tar.bz2","bytes":123315531,"sha256":"b89f173b1f2f2f35f3090bc4efad732f1c0c1c1206e5480cfcb141977010bc94","digest_basis":"observed_official_origin"},
+  "source": {"url":"https://github.com/godotengine/godot-builds/releases/download/4.6.3-stable/godot-4.6.3-stable.tar.xz","bytes":44471880,"sha256":"2261028c0dfc10e0cf4800a5b2e5a57ea241f72965162327f5764d536a69a46a","digest_basis":"publisher"},
+  "scons": {"url":"https://files.pythonhosted.org/packages/ce/bf/931fb9fbb87234c32b8b1b1c15fba23472a10777c12043336675633809a7/scons-4.10.1-py3-none-any.whl","bytes":4136069,"sha256":"bd9d1c52f908d874eba92a8c0c0a8dcf2ed9f3b88ab956d0fce1da479c4e7126","digest_basis":"publisher"}
+}

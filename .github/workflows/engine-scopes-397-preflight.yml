@@ -1,0 +1,40 @@
+name: Engine scope five-object readiness, exact #397 only
+on:
+  push:
+    branches: [qa/engine-scopes-397-preflight]
+permissions:
+  contents: read
+concurrency:
+  group: engine-scopes-397-preflight
+  cancel-in-progress: false
+jobs:
+  build-only:
+    if: >-
+      github.repository == 'yiyousiow000814/little-leaf' && github.actor == 'yiyousiow000814' &&
+      github.run_attempt == '1' && github.ref == 'refs/heads/qa/engine-scopes-397-preflight' &&
+      github.event_name == 'push' && !github.event.created && !github.event.deleted && !github.event.forced &&
+      github.event.before == 'ce1435afb2329a6c1d2d77a8a19923dfd96bd205'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    env:
+      KIT: tools/diagnostics/engine-scopes-397-preflight
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Read single build-only candidate and parent
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          sparse-checkout: tools/diagnostics/engine-scopes-397-preflight
+          persist-credentials: false
+      - name: Validate and compile only five relocatable objects
+        timeout-minutes: 20
+        run: bash "$KIT/run.sh"
+      - name: Upload only bounded readiness summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: engine-scopes-397-preflight-summary-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ll397-engine-partial-public/summary.json
+          if-no-files-found: warn
+          retention-days: 7
