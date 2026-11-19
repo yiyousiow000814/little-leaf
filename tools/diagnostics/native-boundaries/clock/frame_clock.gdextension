@@ -1,0 +1,6 @@
+[configuration]
+entry_symbol="frame_clock_init"
+compatibility_minimum="4.6"
+reloadable=false
+[libraries]
+linux.x86_64="res://libframe_clock.so"
