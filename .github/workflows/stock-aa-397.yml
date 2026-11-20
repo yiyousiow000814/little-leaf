@@ -1,0 +1,71 @@
+name: Stock Godot A/A workload preflight, exact #397
+on:
+  push:
+    branches: [qa/stock-aa-397]
+permissions:
+  contents: read
+concurrency:
+  group: stock-aa-397
+  cancel-in-progress: false
+jobs:
+  only-candidate:
+    if: >-
+      github.repository == 'yiyousiow000814/little-leaf' && github.actor == 'yiyousiow000814' &&
+      github.run_attempt == '1' && github.ref == 'refs/heads/qa/stock-aa-397' &&
+      github.event_name == 'push' && !github.event.created && !github.event.deleted && !github.event.forced &&
+      github.event.before == 'ce1435afb2329a6c1d2d77a8a19923dfd96bd205'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      KIT: tools/diagnostics/stock-aa-397
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Read exact diagnostic ref and its single parent
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          sparse-checkout: tools/diagnostics/stock-aa-397
+          persist-credentials: false
+      - name: Check exact #397 parent and seven-file QA packet before setup
+        run: |
+          set -euo pipefail
+          python3 -B "$KIT/stock_preflight.py" fail source_binding "$RUNNER_TEMP/ll397-stock-aa-public/summary.json"
+          test "$(git rev-parse HEAD^)" = ce1435afb2329a6c1d2d77a8a19923dfd96bd205
+          test "$(git rev-parse 'HEAD^^{tree}')" = 03632a0d56e4294f5664859656c8809541766d1b
+          test "$(git rev-list --parents -n1 HEAD | wc -w)" = 2
+          diff -u <(git diff --name-status --no-renames HEAD^ HEAD | LC_ALL=C sort) <(
+            printf 'A\t%s\n' '.github/workflows/stock-aa-397.yml' "$KIT/guard.py" "$KIT/qualify.py" "$KIT/recovery-stage.sha256" "$KIT/stock_measure.sh" "$KIT/stock_preflight.py" "$KIT/stock_run.sh" | LC_ALL=C sort
+          )
+      - name: Read exactly the current game and native installer locks
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ce1435afb2329a6c1d2d77a8a19923dfd96bd205
+          path: product
+          fetch-depth: 1
+          sparse-checkout: |
+            game
+            tools/ci
+          persist-credentials: false
+      - name: Read unchanged diagnostic stage inputs by exact recovery commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 792f2db289cf62d76541c98e395ee002ae3f7654
+          path: recovery-input
+          fetch-depth: 1
+          sparse-checkout: tools/diagnostics/engine-attribution-397
+          persist-credentials: false
+      - name: Two official stock active sessions, one five-minute budget
+        timeout-minutes: 6
+        run: timeout --kill-after=5s 300s bash "$KIT/stock_run.sh" product recovery-input
+      - name: Discard disposable private job tree
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/ll397-stock-aa-private"
+      - name: Upload bounded summary or allowed failure stage
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: stock-aa-397-summary-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ll397-stock-aa-public/summary.json
+          if-no-files-found: warn
+          retention-days: 14
