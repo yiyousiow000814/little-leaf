@@ -188,6 +188,23 @@ async function settleInput(page, ms, afterMouse = false) {
   assert(Math.abs(after - before - delta) <= 1 && after <= CASE_B_MAX_VIRTUAL_MS,
     'Case B clock advanced exactly the requested UI settling time');
 }
+async function settleCaseBTrayOpening(page) {
+  assert(stoppedClockPages.has(page), 'Case B tray opening requires controlled game time');
+  // The Tables label can be visible while the complete tray still refuses
+  // pointer input. Its opening tween restores it only after 0.20s game time.
+  // At scale .1 give 2.5s virtual time, in the same bounded RAF quanta as OCR.
+  let remaining = 2500;
+  while (remaining > 0) {
+    const step = Math.min(remaining, 400);
+    await phaseOn(page, 'tray opening: settle before category input (' + step + ' ms virtual)',
+      13000, () => settleInput(page, step));
+    remaining -= step;
+  }
+}
+async function clickCaseBWallStep(page, click, name, delay) {
+  await click(page, 'new', name, delay);
+  if (name === 'decorate') await settleCaseBTrayOpening(page);
+}
 async function resumeCaseBClock(page) {
   await phaseOn(page, 'clock: resume before lifecycle', 8000, () => page.clock.resume());
   stoppedClockPages.delete(page);
@@ -511,7 +528,7 @@ async function main() {
         report.case_b_clock = {virtual_ms_at_freeze: await newPage.evaluate(() => performance.now()),
           virtual_ms_limit: CASE_B_MAX_VIRTUAL_MS, scale: .1};
         await selectWallReplacement(
-          (name, delay) => click(newPage, 'new', name, delay),
+          (name, delay) => clickCaseBWallStep(newPage, click, name, delay),
           (name, region, phrases, retryTarget) => screenUiText(newPage, name, region, phrases, retryTarget),
           Object.hasOwn(layouts.new.points, 'build_next'));
         const captureConfirmFailure = async (evidence, screenshotName) => {
@@ -616,4 +633,4 @@ async function main() {
   }
 }
 if (require.main === module) main().catch(error => {console.error(error); process.exitCode = 1;});
-module.exports = {observeOwnedTestPage, readSnapshot, freezeCaseBClock, settleInput, resumeCaseBClock, createPhaseRunner};
+module.exports = {observeOwnedTestPage, readSnapshot, freezeCaseBClock, settleInput, resumeCaseBClock, createPhaseRunner, clickCaseBWallStep};

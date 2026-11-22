@@ -3,12 +3,13 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path');
 const cp = require('node:child_process'), zlib = require('node:zlib');
-const {hash, requireWallBackText, requireVisibleText, verifyLayout} = require('./wall_compatibility_helpers');
+const {hash, requireWallBackText, requireVisibleText, verifyLayout, selectWallReplacement} = require('./wall_compatibility_helpers');
 const root = path.resolve(__dirname, '../..'), folder = path.join(__dirname, '../fixtures/wall-ocr');
 let checks = 0;
 function check(label, fn) {fn(); checks++; console.log('PASS ' + label);}
 const layoutSource = fs.readFileSync(path.join(__dirname, '../fixtures/wall_compatibility_layout.gd'), 'utf8');
 const shopSource = fs.readFileSync(path.join(root, 'game/scripts/ui/cafe_shop_ui.gd'), 'utf8');
+const compactSource = fs.readFileSync(path.join(root, 'game/scripts/ui/cafe_compact_ui.gd'), 'utf8');
 const browserSource = fs.readFileSync(path.join(__dirname, 'wall_compatibility_browser.js'), 'utf8');
 const workflow = fs.readFileSync(path.join(root, '.github/workflows/build-web.yml'), 'utf8');
 const literalSize = shopSource.match(/_put\(tiles_back,Rect2\(category_margin,header_y,(\d+),(\d+)\)\)/);
@@ -263,7 +264,13 @@ async function verifyConfirmFailureEvidence() {
   }
 }
 async function verifyClockWindow() {
-  const {freezeCaseBClock, settleInput, resumeCaseBClock} = require('./wall_compatibility_browser');
+  const {freezeCaseBClock, settleInput, resumeCaseBClock, clickCaseBWallStep} = require('./wall_compatibility_browser');
+  const trayOpenSource = compactSource.split('func set_tray_open(opened:bool):')[1].split('func _set_tray_reveal')[0];
+  check('rendered Tables label is not permission to click while the tray opens', () => {
+    assert.match(trayOpenSource, /mouse_behavior_recursive=Control.MOUSE_BEHAVIOR_DISABLED[\s\S]*?\.20\*absf\(target-tray_reveal\)[\s\S]*?tween_callback[\s\S]*?mouse_behavior_recursive=Control.MOUSE_BEHAVIOR_INHERITED if opened/);
+    assert.match(browserSource, /await click\(page, 'new', name, delay\);\s*if \(name === 'decorate'\) await settleCaseBTrayOpening\(page\);/);
+    assert.match(browserSource, /await selectWallReplacement\(\s*\(name, delay\) => clickCaseBWallStep\(newPage, click, name, delay\),/);
+  });
   let elapsed = 1300, paused = false, fixed = false;
   const newWall = 1767225600000, oldWall = newWall + 1200;
   const wallTimes = [newWall, oldWall], transitions = [], advances = [], realWaits = [];
@@ -296,7 +303,18 @@ async function verifyClockWindow() {
   };
   await settleInput(page, 9);
   await freezeCaseBClock(page);
-  await settleInput(page, 0, true);
+  const routeInputs = [], routeOcr = [];
+  const routeStart = elapsed;
+  const emit = async (target, label, name, delay) => {
+    assert.equal(target, page);
+    assert.equal(label, 'new');
+    routeInputs.push(name);
+    if (name === 'decorate') await settleInput(page, delay, true);
+    if (name === 'build_next') assert(elapsed - routeStart >= 2500, 'Arrow input must be after the full opening window');
+  };
+  await selectWallReplacement(
+    (name, delay) => clickCaseBWallStep(page, emit, name, delay),
+    async (name, _region, phrases) => {routeOcr.push([name, phrases]);}, true);
   await settleInput(page, 400);
   await settleInput(page, 250, true);
   elapsed = 39900;
@@ -305,10 +323,13 @@ async function verifyClockWindow() {
   await settleInput(page, 11);
   check('Case B bounds simulation on real input only and restores lifecycle clock', () => {
     assert.deepEqual(transitions, [['fix', oldWall], ['pause', oldWall], ['unfix', oldWall]]);
-    assert.deepEqual(wallTimes, [oldWall + 684, oldWall + 684]);
-    assert.deepEqual(advances, [['run', 34], ...Array.from({length: 4}, () => ['coalesce', 100]),
+    assert.deepEqual(wallTimes, [oldWall + 3184, oldWall + 3184]);
+    assert.deepEqual(advances, [['run', 34], ...Array.from({length: 29}, () => ['coalesce', 100]),
       ['run', 34], ['coalesce', 100], ['coalesce', 100], ['coalesce', 16]]);
     assert.deepEqual(realWaits, [9, 11]);
+    assert.deepEqual(routeInputs, ['decorate', 'build_next', 'wall', 'wall_next', 'wall_style', 'segment']);
+    assert.deepEqual(routeOcr[0], ['case-b-category-ready', ['Tables']]);
+    assert.deepEqual(routeOcr[1], ['case-b-build-exposed', ['Build']]);
     assert.equal(paused, false);
   });
 }
