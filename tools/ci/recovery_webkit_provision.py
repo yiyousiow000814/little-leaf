@@ -16,6 +16,13 @@ KEYRING = "/usr/share/keyrings/ubuntu-archive-keyring.gpg"
 ARCHIVE_URI = "https://archive.ubuntu.com/ubuntu"
 SECURITY_URI = "https://security.ubuntu.com/ubuntu"
 
+APT_CAPTURE_GRACE_SECONDS = 8
+REFRESH_BUDGET_SECONDS = 75
+FIRST_REFRESH_SECONDS = 50
+FETCH_BUDGET_SECONDS = 100
+FIRST_FETCH_SECONDS = 65
+
+
 def direct_dependency_names(bundle):
     raw = bundle.read_bytes()
     if hashlib.sha256(raw).hexdigest() != PW_BUNDLE:
@@ -98,6 +105,44 @@ def root_apt(conf, max_seconds, exe, *args):
             "/usr/bin/env", f"APT_CONFIG={conf}", "LC_ALL=C", "DEBIAN_FRONTEND=noninteractive",
             exe, *args)
 
+def refresh_webkit_indexes(apt_phase):
+    # Reuse the same isolated signed configuration. A successful full update
+    # is required before the solver can inspect any lists.
+    deadline = time.monotonic() + REFRESH_BUDGET_SECONDS
+    try:
+        apt_phase("webkit-apt-refresh", FIRST_REFRESH_SECONDS, "update")
+    except subprocess.CalledProcessError as error:
+        # GNU timeout only; normal APT errors (including signature/hash
+        # rejection), capture timeouts and hard kills never retry.
+        if error.returncode != 124:
+            raise
+        remaining = int(deadline - time.monotonic()) - APT_CAPTURE_GRACE_SECONDS
+        if remaining <= 0:
+            raise
+        print("Retrying timed-out WebKit index refresh once with the same signed APT configuration",
+              file=sys.stderr)
+        apt_phase("webkit-apt-refresh-retry", remaining, "update")
+
+
+def fetch_webkit_packages(apt_phase, install, names):
+    # Keep the same private signed indexes and APT archive/partial cache. APT
+    # checks all required bytes against those indexes before the offline install.
+    command = (*install, "--download-only", "-y", *names)
+    deadline = time.monotonic() + FETCH_BUDGET_SECONDS
+    try:
+        apt_phase("webkit-apt-fetch", FIRST_FETCH_SECONDS, *command)
+    except subprocess.CalledProcessError as error:
+        # 124 is GNU timeout. Never retry APT's normal errors, including failed
+        # integrity checks, or retry after a hard kill/outer process timeout.
+        if error.returncode != 124:
+            raise
+        remaining = int(deadline - time.monotonic()) - APT_CAPTURE_GRACE_SECONDS
+        if remaining <= 0:
+            raise
+        print("Retrying timed-out WebKit download once with the same signed APT cache", file=sys.stderr)
+        apt_phase("webkit-apt-fetch-retry", remaining, *command)
+
+
 def require_installed(name, expected_version=None):
     row = subprocess.check_output(("dpkg-query", "-W", "-f=${db:Status-Status}\t${Version}", name),
                                   text=True, timeout=10).split("\t")
@@ -127,7 +172,8 @@ def main(core, out):
     conf = isolated_config(root)
 
     def apt_phase(name, seconds, *args):
-        return capture(out, name, root_apt(conf, seconds, "/usr/bin/apt-get", *args), seconds+8)
+        return capture(out, name, root_apt(conf, seconds, "/usr/bin/apt-get", *args),
+                       seconds + APT_CAPTURE_GRACE_SECONDS)
 
     effective = capture(out, "apt-effective",
                         root_apt(conf, 8, "/usr/bin/apt-config", "dump"), 16)
@@ -137,7 +183,7 @@ def main(core, out):
     ):
         raise ValueError("Unexpected effective APT sources, trust, or hooks")
     (out/"apt-official-sources.txt").write_text((root/"ubuntu.sources").read_text())
-    apt_phase("webkit-apt-refresh", 55, "update")
+    refresh_webkit_indexes(apt_phase)
     install = ("install", "--no-remove", "--no-install-recommends")
     selected = operations(apt_phase("webkit-apt-solver", 15, "-s", *install, *names))
     (out/"webkit-transaction.json").write_text(json.dumps({
@@ -147,7 +193,7 @@ def main(core, out):
     # The sole signed source set is unchanged through solve, fetch, and install.
     # No download fallback is permitted in the actual transaction.
     if selected:
-        apt_phase("webkit-apt-fetch", 100, *install, "--download-only", "-y", *names)
+        fetch_webkit_packages(apt_phase, install, names)
         apt_phase("webkit-apt-install", 60, *install, "--no-download", "-y", *names)
     for pkg in names:
         require_installed(pkg)

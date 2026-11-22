@@ -1,0 +1,9 @@
+flowchart TD
+    B["Exact #394 · 16a34fd7"] --> P["Furniture drag advisory warning<br/>After physical and transaction validity"]
+    P --> Q["Invocation-local proposed layout lookup<br/>At most one bin reachability flood per layout"]
+    Q -->|Possible new warning| C["Prepare original layout for comparison"]
+    Q -->|No new warning| R["Preserve advisory result"]
+    C --> R
+    R --> M["20 sets / 6 bins / 53 rows<br/>95 → 0 full-array probes · 6 → 1 floods<br/>6.049 → 1.370 ms method median"]
+    M --> V["49,087 assertions / 6 native suites<br/>85-source atlas closure unchanged"]
+    V --> X["No Web/save, visual approval, FPS or release claim"]

@@ -3,12 +3,13 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path');
 const cp = require('node:child_process'), zlib = require('node:zlib');
-const {hash, requireWallBackText, requireVisibleText, verifyLayout} = require('./wall_compatibility_helpers');
+const {hash, requireWallBackText, requireVisibleText, verifyLayout, selectWallReplacement} = require('./wall_compatibility_helpers');
 const root = path.resolve(__dirname, '../..'), folder = path.join(__dirname, '../fixtures/wall-ocr');
 let checks = 0;
 function check(label, fn) {fn(); checks++; console.log('PASS ' + label);}
 const layoutSource = fs.readFileSync(path.join(__dirname, '../fixtures/wall_compatibility_layout.gd'), 'utf8');
 const shopSource = fs.readFileSync(path.join(root, 'game/scripts/ui/cafe_shop_ui.gd'), 'utf8');
+const compactSource = fs.readFileSync(path.join(root, 'game/scripts/ui/cafe_compact_ui.gd'), 'utf8');
 const browserSource = fs.readFileSync(path.join(__dirname, 'wall_compatibility_browser.js'), 'utf8');
 const workflow = fs.readFileSync(path.join(root, '.github/workflows/build-web.yml'), 'utf8');
 const literalSize = shopSource.match(/_put\(tiles_back,Rect2\(category_margin,header_y,(\d+),(\d+)\)\)/);
@@ -262,7 +263,107 @@ async function verifyConfirmFailureEvidence() {
     });
   }
 }
-verifyConfirmFailureEvidence().then(() => console.log(JSON.stringify({passed: true, checks,
+async function verifyClockWindow() {
+  const {freezeCaseBClock, settleInput, resumeCaseBClock, clickCaseBWallStep} = require('./wall_compatibility_browser');
+  const trayOpenSource = compactSource.split('func set_tray_open(opened:bool):')[1].split('func _set_tray_reveal')[0];
+  check('rendered Tables label is not permission to click while the tray opens', () => {
+    assert.match(trayOpenSource, /mouse_behavior_recursive=Control.MOUSE_BEHAVIOR_DISABLED[\s\S]*?\.20\*absf\(target-tray_reveal\)[\s\S]*?tween_callback[\s\S]*?mouse_behavior_recursive=Control.MOUSE_BEHAVIOR_INHERITED if opened/);
+    assert.match(browserSource, /await click\(page, 'new', name, delay\);\s*if \(name === 'decorate'\) await settleCaseBTrayOpening\(page\);/);
+    assert.match(browserSource, /await selectWallReplacement\(\s*\(name, delay\) => clickCaseBWallStep\(newPage, click, name, delay\),/);
+  });
+  let elapsed = 1300, paused = false, fixed = false;
+  const newWall = 1767225600000, oldWall = newWall + 1200;
+  const wallTimes = [newWall, oldWall], transitions = [], advances = [], realWaits = [];
+  const frames = wallTimes.map((_, index) => ({evaluate: async () => wallTimes[index]}));
+  const page = {
+    context: () => ({pages: () => frames.map(frame => ({frames: () => [frame]}))}),
+    evaluate: async () => elapsed,
+    waitForTimeout: async ms => {realWaits.push(ms);},
+    clock: {
+      setFixedTime: async ticks => {assert(!paused); fixed = true; wallTimes.fill(ticks); transitions.push(['fix', ticks]);},
+      pauseAt: async ticks => {
+        // Model both a skewed old document and 800ms dispatch lag. The legacy
+        // sampling-plus-250ms implementation fails this exact condition.
+        elapsed += 800;
+        if (!fixed) for (const index of wallTimes.keys()) wallTimes[index] += 800;
+        assert(wallTimes.every(now => now <= ticks), 'Cannot fast-forward to the past');
+        paused = true; transitions.push(['pause', ticks]);
+      },
+      setSystemTime: async ticks => {assert(paused && fixed); fixed = false; wallTimes.fill(ticks); transitions.push(['unfix', ticks]);},
+      fastForward: async ms => {
+        assert(paused && !fixed); advances.push(['coalesce', ms]); elapsed += ms;
+        for (const index of wallTimes.keys()) wallTimes[index] += ms;
+      },
+      resume: async () => {assert(paused && !fixed); paused = false;},
+    },
+  };
+  await settleInput(page, 9);
+  await freezeCaseBClock(page);
+  const routeInputs = [], routeOcr = [];
+  const routeStart = elapsed;
+  const emit = async (target, label, name, delay) => {
+    assert.equal(target, page);
+    assert.equal(label, 'new');
+    routeInputs.push(name);
+    if (name === 'decorate') await settleInput(page, delay, true);
+    if (name === 'build_next') assert(elapsed - routeStart >= 2500, 'Arrow input must be after the full opening window');
+  };
+  await selectWallReplacement(
+    (name, delay) => clickCaseBWallStep(page, emit, name, delay),
+    async (name, _region, phrases) => {routeOcr.push([name, phrases]);}, true);
+  await settleInput(page, 400);
+  await settleInput(page, 250, true);
+  elapsed = 39900;
+  await assert.rejects(settleInput(page, 400), /exhausted its controlled pre-autosave time/);
+  await resumeCaseBClock(page);
+  await settleInput(page, 11);
+  check('Case B bounds simulation on real input only and restores lifecycle clock', () => {
+    assert.deepEqual(transitions, [['fix', oldWall], ['pause', oldWall], ['unfix', oldWall]]);
+    assert.deepEqual(wallTimes, [oldWall + 3184, oldWall + 3184]);
+    assert.deepEqual(advances, [['coalesce', 34], ...Array.from({length: 29}, () => ['coalesce', 100]),
+      ['coalesce', 34], ['coalesce', 100], ['coalesce', 100], ['coalesce', 16]]);
+    assert.deepEqual(realWaits, [9, 11]);
+    assert.deepEqual(routeInputs, ['decorate', 'build_next', 'wall', 'wall_next', 'wall_style', 'segment']);
+    assert.deepEqual(routeOcr[0], ['case-b-category-ready', ['Tables']]);
+    assert.deepEqual(routeOcr[1], ['case-b-build-exposed', ['Build']]);
+    assert.equal(paused, false);
+  });
+}
+async function verifyPhaseDeadlines() {
+  const {createPhaseRunner} = require('./wall_compatibility_browser');
+  const entries = [], timers = [], cleared = [];
+  const run = createPhaseRunner(event => entries.push(event), (cb, ms) => {
+    const timer = {cb, ms}; timers.push(timer); return timer;
+  }, timer => cleared.push(timer));
+  const timedOut = run('clock: pause without jump', 8000, () => new Promise(() => {}));
+  assert.deepEqual(entries.map(e => [e.name, e.state]), [['clock: pause without jump', 'started']]);
+  assert.equal(timers[0].ms, 8000);
+  timers[0].cb();
+  await assert.rejects(timedOut, /Case B host deadline: clock: pause without jump/);
+  await assert.rejects(run('OCR: crop', 10000, () => {throw Error('screenshot exception');}), /screenshot exception/);
+  assert.equal(await run('Apply: durable acknowledgement', 17000, () => 'opaque signal'), 'opaque signal');
+  check('host phase journal distinguishes cancelled waits from real completion and errors', () => {
+    assert.deepEqual(cleared, timers);
+    assert.deepEqual(entries.map(e => [e.id, e.state, e.deadline_ms]),
+      [[1, 'started', 8000], [1, 'timed-out', 8000], [2, 'started', 10000], [2, 'failed', 10000],
+       [3, 'started', 17000], [3, 'completed', 17000]]);
+    assert(entries.every(e => Number.isFinite(e.elapsed_ms) && e.elapsed_ms >= 0 && Number.isFinite(Date.parse(e.at))));
+  });
+}
+function verifyGestureObserver() {
+  const {assertSingleCanvasGesture} = require('./wall_compatibility_browser');
+  const point = [717.54, 213.86], down = {type: 'mousedown', button: 0, x: 717, y: 214, trusted: true, canvas: true};
+  const up = {...down, type: 'mouseup'};
+  check('bound critical input allows one trusted canvas press/release only', () => {
+    assert.doesNotThrow(() => assertSingleCanvasGesture('segment', point, [down, up]));
+    for (const events of [[down], [up, down], [down, up, down, up], [{...down, trusted: false}, up],
+      [down, {...up, canvas: false}], [down, {...up, x: 720}]]) {
+      assert.throws(() => assertSingleCanvasGesture('segment', point, events), /expected one trusted canvas/);
+    }
+    assert.match(browserSource, /stoppedClockPages\.has\(page\) && \['segment', 'confirm', 'apply'\]\.includes\(name\)/);
+  });
+}
+verifyConfirmFailureEvidence().then(verifyClockWindow).then(verifyPhaseDeadlines).then(verifyGestureObserver).then(() => console.log(JSON.stringify({passed: true, checks,
   browser_runtime_exercised: false,
   method: 'native-source geometry, retained-pixel and failure-only boundary guards'})))
   .catch(error => {console.error(error); process.exitCode = 1;});

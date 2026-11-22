@@ -44,6 +44,51 @@ class Fixture extends RefCounted:
 class TrafficProbe extends Tasks:
 	var opportunities=0
 	func spawn(_cell,_kind,_id=-1,_step=0):opportunities+=1;return -1
+# Frozen #384 observation and ordered spawn reference. Shared geometry and codec
+# are intentional: the change only replaces the floor-policy lookup.
+class LegacyObservation extends Tasks:
+	func observe_walks():
+		var live={}
+		for guest in game.model.customers:
+			var id=int(guest.id);live[id]=true;var pos=Vector2(float(guest.x),float(guest.z));var cell=Vector2i(floori(pos.x),floori(pos.y))
+			if not walks.has(id):walks[id]={"guest_id":id,"pos":pos,"cell":cell,"inside_steps":0,"dropped":false};continue
+			if game.model.layout_held("guests",id):continue
+			var track=walks[id];var old_cell:Vector2i=track.cell;var moved=pos.distance_to(track.pos)>.00001
+			var adjacent=absi(cell.x-old_cell.x)+absi(cell.y-old_cell.y)==1
+			if moved and adjacent and str(guest.phase) in WALKING_PHASES and not bool(guest.get("withdrawn",false)) and not game.model.segment_blocked(track.pos,pos) and scan_allowed(old_cell):
+				track.inside_steps+=1
+				# Each eligible crossing offers a small repeatable chance, so aggregate
+				# frequency grows with customer traffic, not an every-footstep guarantee.
+				var roll=posmod(id*53+int(track.inside_steps)*17,100)
+				if not track.dropped and int(track.inside_steps)>=3 and roll<DROP_CHANCE_PERCENT:
+					var kind=["banana","crumbs"][posmod(id+int(track.inside_steps),2)]
+					var spawned=spawn(old_cell,kind,id,int(track.inside_steps))
+					if spawned>=0:track.dropped=true
+			track.pos=pos;track.cell=cell
+		for id in walks.keys():
+			if not live.has(id):walks.erase(id)
+	func spawn(cell:Vector2i,kind:String,guest_id=-1,path_step=0)->int:
+		if messes.size()>=MAX_NEW_LITTER or kind not in ["banana","crumbs"] or not scan_allowed(cell):return -1
+		for entry in messes.values():
+			var separation:Vector2i=entry.floor_cell-cell
+			if absi(separation.x)<=1 and absi(separation.y)<=1:return -1
+		var center=Vector2(cell)+Vector2(.5,.5);var id=next_id
+		var entry={"id":id,"token":id,"floor_cell":cell,"floor_target":center,"debris_target":center+Vector2(.1,-.08),"spill_target":center+Vector2(-.1,.08),"floor_debris":"none" if kind=="spill" else kind,"floor_spill":kind=="spill","spill_remaining":1.0 if kind=="spill" else 0.0,"spill_cleaned":kind!="spill","trash_owner":"none" if kind=="spill" else "floor","trash_staff_index":-1,"trash_target_id":-1,"floor_dirty":true,"floor_cleaned":false,"source_guest_id":guest_id,"spawn_path_step":path_step}
+		if not geometry.generate(entry,posmod(id*47+int(guest_id)*13,1000000000),LITTER_SCALE,true):return -1
+		# Every visible piece must stay inside the actually traversed eligible tile.
+		for point in entry.mess_shape.outline:
+			if Vector2i(floori(point.x),floori(point.y))!=cell:return -1
+		messes[id]=entry;next_id+=1
+		return id
+	func scan_allowed(cell:Vector2i)->bool:
+		if not game._staff_walkable(cell) or game._is_station_workface(cell):return false
+		for zone in litter_exclusions:
+			if zone.has_point(cell):return false
+		# There are no persisted zone labels in this baseline. Reserve the kitchen
+		# station neighborhoods; future explicit zones use litter_exclusions above.
+		for item in game.model.items:
+			if str(item.kind) in KITCHEN_KINDS and Rect2i(Vector2i(int(item.x)-1,int(item.z)-1),Vector2i(3,3)).has_point(cell):return false
+		return true
 class ArtRecorder extends RefCounted:
 	var game
 	var ui_scale=1.0
@@ -162,6 +207,8 @@ func run():
 	quit(0 if failures.is_empty() else 1)
 
 func extended_checks(codec,legacy):
+	test_observed_bin_side_geometry()
+	test_observation_parity(codec)
 	test_natural_walks()
 	var total=0;var at_ten=0
 	for id in range(1,101):
@@ -245,3 +292,111 @@ func test_natural_walks():
 		valid=valid and visited.has(entry.source_guest_id) and visited[entry.source_guest_id].has(entry.floor_cell) and natural.floor_tasks.litter_allowed(entry.floor_cell) and not entry.floor_spill
 	check(valid,"real model movement creates only dry litter on its observed eligible route")
 	evidence.natural_walk={"simulation_seconds":60,"guests":visited.size(),"messes":natural.floor_tasks.messes.size(),"route_constrained":valid}
+
+func test_observation_parity(codec):
+	var actual=empty_floor()
+	var oracle=empty_floor()
+	oracle.floor_tasks=LegacyObservation.new(oracle)
+	# Several distinct source tiles in one callback, including a rug-only floor,
+	# actual bin service sides, kitchen fringe and a held crossing.
+	for world in [actual,oracle]:
+		world.model.items.assign([
+			{"id":201,"kind":"bin","x":2,"z":2,"rot":2},
+			{"id":202,"kind":"bin","x":8,"z":5,"rot":1},
+			{"id":203,"kind":"stove","x":7,"z":1,"rot":0},
+			{"id":204,"kind":"rug","x":4,"z":6,"rot":0},
+			{"id":205,"kind":"register","x":10,"z":4,"rot":0},
+		])
+		world.model.built_walls.append({"id":210,"axis":"z","x":5,"z":4,"height":"full","material":"sage_panels"})
+		world.model.revision+=1
+		world.floor_tasks.litter_exclusions.append(Rect2i(3,7,1,1))
+		world.model.service_snapshot.layout_hold={"guests":[{"id":7}]}
+	check(oracle.model.bin_service_cells(oracle.model.items[0]).has(Vector2i(2,3)) and oracle.model.bin_service_cells(oracle.model.items[1]).has(Vector2i(8,6)),"parity fixture has two distinct real bin workfaces")
+	check(oracle.model.segment_blocked(Vector2(4.5,4.5),Vector2(5.5,4.5)),"parity fixture contains an actual blocking wall")
+	var initial=[Vector2(2.5,6.5),Vector2(2.5,3.5),Vector2(8.5,6.5),Vector2(6.5,2.5),Vector2(3.5,7.5),Vector2(4.5,4.5),Vector2(6.5,7.5),Vector2(7.5,7.5)]
+	var crossing=[Vector2(3.5,6.5),Vector2(2.5,4.5),Vector2(9.5,6.5),Vector2(6.5,3.5),Vector2(4.5,7.5),Vector2(5.5,4.5),Vector2(7.5,7.5),Vector2(8.5,7.5)]
+	for world in [actual,oracle]:
+		for i in initial.size():
+			var pos:Vector2=initial[i]
+			world.model.customers.append({"id":i+1,"x":pos.x,"z":pos.y,"phase":"leaving" if i==7 else "checkout_walk","withdrawn":i==7})
+		world.floor_tasks.observe_walks()
+	check(actual.floor_tasks.snapshot()==oracle.floor_tasks.snapshot(),"new guests initialize identical track snapshots without a crossing")
+	_observe_parity_step(actual,oracle,crossing,"mixed crossing")
+	for id in range(2,9):
+		check(actual.floor_tasks.walks[id].inside_steps==0,"ineligible crossing leaves exact zero steps for guest "+str(id))
+	check(actual.floor_tasks.walks[7].pos==initial[6],"held crossing leaves track coordinates untouched")
+	check(actual.floor_tasks.walks[8].pos==crossing[7],"withdrawn crossing still updates track coordinates")
+	crossing[0]=Vector2(4.5,6.5)
+	_observe_parity_step(actual,oracle,crossing,"second eligible crossing")
+	crossing[0]=Vector2(5.5,6.5)
+	_observe_parity_step(actual,oracle,crossing,"real drop on rug")
+	check(actual.floor_tasks.messes.size()==1 and actual.floor_tasks.walks[1].dropped,"parity scenario reaches original deterministic drop")
+	for world in [actual,oracle]:
+		var round_trip=codec.decode(JSON.parse_string(JSON.stringify(codec.encode(world.floor_tasks.snapshot()))))
+		world.floor_tasks.restore(round_trip)
+	check(actual.floor_tasks.snapshot()==oracle.floor_tasks.snapshot(),"all mess and walk records match after actual save codec roundtrip")
+	_observe_parity_step(actual,oracle,crossing,"stationary observation after restore")
+	for world in [actual,oracle]:
+		world.model.items.remove_at(1)
+		world.model.revision+=1
+		world.model.service_snapshot.erase("layout_hold")
+	crossing[2]=Vector2(8.5,6.5)
+	_observe_parity_step(actual,oracle,crossing,"layout changes and visit resumed after restore")
+	crossing[2]=Vector2(9.5,6.5)
+	_observe_parity_step(actual,oracle,crossing,"removed bin no longer reserves its former side")
+	check(actual.floor_tasks.walks[3].inside_steps==2,"changed layout is read at subsequent observations")
+	# This is a real door aperture in the wall used by the prior rejected crossing.
+	for world in [actual,oracle]:
+		world.model.wall_attachments.append({"id":211,"kind":"door","wall_ids":["wall:210"],"offset":.5,"width":1.0})
+		world.model.revision+=1
+	check(not oracle.model.segment_blocked(Vector2(5.5,4.5),Vector2(4.5,4.5)),"opening the wall really permits the same segment")
+	crossing[5]=Vector2(4.5,4.5)
+	_observe_parity_step(actual,oracle,crossing,"through actual wall aperture")
+	check(actual.floor_tasks.walks[6].inside_steps==1,"crossing the opened door records a step")
+	for world in [actual,oracle]:
+		world.model.customers.clear()
+		world.floor_tasks.observe_walks()
+	check(actual.floor_tasks.snapshot()==oracle.floor_tasks.snapshot() and actual.floor_tasks.walks.is_empty() and actual.floor_tasks.messes.size()==1,"retire all track records but keep exactly the same residual mess")
+	var capped_actual=empty_floor()
+	var capped_oracle=empty_floor()
+	capped_oracle.floor_tasks=LegacyObservation.new(capped_oracle)
+	for world in [capped_actual,capped_oracle]:
+		for id in range(12):world.floor_tasks.messes[id+1]={"floor_cell":Vector2i(100+id*3,100)}
+		walk(world)
+	check(capped_actual.floor_tasks.snapshot()==capped_oracle.floor_tasks.snapshot(),"full snapshot parity when the normal spawn opportunity reaches the 12-mess cap")
+	check(capped_actual.floor_tasks.walks[1].inside_steps==3 and not capped_actual.floor_tasks.walks[1].dropped,"cap blocks the drop, not eligible track counting")
+
+func _observe_parity_step(actual,oracle,positions:Array,label:String):
+	for world in [actual,oracle]:
+		for i in positions.size():
+			world.model.customers[i].x=positions[i].x
+			world.model.customers[i].z=positions[i].y
+		world.floor_tasks.observe_walks()
+	check(actual.floor_tasks.snapshot()==oracle.floor_tasks.snapshot(),"full legacy observation parity: "+label)
+
+func test_observed_bin_side_geometry():
+	var bin={"id":201,"kind":"bin","x":4,"z":5,"rot":0}
+	var rug={"id":202,"kind":"rug","x":4,"z":6,"rot":0}
+	var solid={"id":203,"kind":"table","x":4,"z":6,"rot":0}
+	for row in [
+		{"label":"wall cuts off bin side","items":[bin],"wall":true,"door":false,"bin_side":false,"steps":1},
+		{"label":"door restores bin side","items":[bin],"wall":true,"door":true,"bin_side":true,"steps":0},
+		{"label":"a rug alone does not obstruct bin side","items":[bin,rug],"wall":false,"door":false,"bin_side":true,"steps":0},
+		{"label":"first rug permits the walk but second solid obstructs bin side","items":[bin,rug,solid],"wall":false,"door":false,"bin_side":false,"steps":1},
+		{"label":"first solid blocks the walk before later rug","items":[bin,solid,rug],"wall":false,"door":false,"bin_side":false,"steps":0},
+	]:
+		var actual=empty_floor()
+		var oracle=empty_floor()
+		oracle.floor_tasks=LegacyObservation.new(oracle)
+		for world in [actual,oracle]:
+			world.model.items.assign(row.items.duplicate(true))
+			if row.wall:
+				world.model.built_walls.append({"id":210,"axis":"x","x":4,"z":6,"height":"full","material":"sage_panels"})
+			if row.door:
+				world.model.wall_attachments.append({"id":211,"kind":"door","wall_ids":["wall:210"],"offset":.5,"width":1.0})
+			world.model.revision+=1
+			world.model.customers.append({"id":1,"x":4.5,"z":6.5,"phase":"arriving"})
+			world.floor_tasks.observe_walks()
+		check(oracle.model.bin_service_cells(oracle.model.items[0]).has(Vector2i(4,6))==row.bin_side,"model bin service side: "+row.label)
+		_observe_parity_step(actual,oracle,[Vector2(5.5,6.5)],row.label)
+		check(actual.floor_tasks.walks[1].inside_steps==row.steps,"crossing step: "+row.label)

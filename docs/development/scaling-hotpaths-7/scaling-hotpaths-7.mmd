@@ -1,0 +1,12 @@
+flowchart TD
+    BASE["#380 · 0eb6108 integration base"] --> PRE["Cumulative batches 1–6"]
+    BASE --> D["Dining appearance per draw<br/>Replace repeated D² + N×D work"]
+    BASE --> A["West admission candidate<br/>Reuse work at eligible threshold counts"]
+    BASE -.-> X["Excluded: multi-register synthetic scaling<br/>Normal purchase/load cap: one"]
+    D --> DH["8/16/32 groups: 108/408/1,584 old scans<br/>→ 8/16/32 scans + 24/48/96 keyed lookups<br/>82,394 assertions · 5 focused suites"]
+    A --> AH["18 legal thresholds through purchase/doors/save/load<br/>First: 954 → 115 probes · rejected first: 1,349 → 137<br/>48/48 behavior parity · 844 native checks / 5 isolated suites"]
+    DH --> Q["Exact local combination: 67,593 assertions · 11 suites passed"]
+    AH --> Q
+    Q --> V["Exact #384: four native dining PNG pairs matched<br/>Original-three atlas: nine independently decoded PNGs matched"]
+    V --> F["Web/save · larger scene · actual cloud FPS · merge remain open"]
+    F -.-> B["Use one frozen native baseline; no historical rerun"]

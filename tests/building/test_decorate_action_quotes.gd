@@ -37,6 +37,25 @@ func wall_quotes():
  check(not plan.commit(model,quote) and model.coins==945,"reusing a replacement receipt cannot charge again")
  quote=plan.prepare_build(model,Plan.Action.WALL_REPLACE,{"key":"x:2:0","height":"half","material":"sage_panels"})
  check(quote.new_cost==35 and quote.refund==27 and quote.net==8,"paid wall quote carries its real refund and net payment")
+func furniture_warning_contract():
+ var m=Model.new();Start.apply(m);m.coins=1000000
+ check(m.place("bin",8,7) and m.place("bin",9,7),"preview fixture has two normally placed bins")
+ var landing=Model.ENTRY_LANDING
+ check(m.placement_warning("plant",landing.x,landing.y)=="Bin sides blocked: clear any adjacent side in Decorate","furniture preview reports newly cut bin reachability")
+ check(m.place("plant",landing.x,landing.y),"an idle user can still physically place despite warning")
+ check(m.placement_warning("plant",8,6)=="","ordinary placement does not report already unreachable bins")
+ check(m.placement_warning("stove",4,0,-1,2)=="Stove front blocked: staff will wait until you make space in Decorate","a new blocked front still takes priority")
+ check(m.placement_warning("counter",4,0)=="Pass counter back blocked: chef needs a clear drop-off tile","rear warning follows a usable front")
+ var pair=Model.new();Start.apply(pair);pair.coins=1000000
+ pair.items.clear();pair.dining_sets.clear()
+ check(pair.place("table_set",6,1) and pair.place("plant",5,1) and pair.place("plant",7,1),"pair and adjacent furniture use normal placement")
+ var snapshot=JSON.stringify([pair.items,pair.dining_sets,pair.customers,pair.revision,pair.coins])
+ check(pair.placement_warning("plant",6,0)=="Table service sides blocked: clear a side beside the diner in Decorate","only free table work side remains warnable")
+ check(pair.placement_warning("rug",6,0)=="","rug is not a solid occupant")
+ check(snapshot==JSON.stringify([pair.items,pair.dining_sets,pair.customers,pair.revision,pair.coins]),"advisory preview touches no layout, actors, revision or wallet")
+ check(pair.place("plant",6,0),"warning does not change legal transaction")
+ check(pair.placement_warning("plant",8,6)=="","ordinary edit skips pre-existing lost table face")
+ check(pair.placement_warning("table_set",8,6)=="Table service sides blocked: clear a side beside the diner in Decorate","dining proposed layout still reports first pre-existing blocked table")
 func run():
  var m=Model.new();Start.apply(m);m.coins=10000
  # This bounded actor-only fixture does not claim to be a resumable visit.
@@ -107,5 +126,6 @@ func run():
  check(frozen(m)==before,"building draft changes no actor or service field")
  check(m.cancel_decoration_session() and m.coins==wallet and m.items==original,"building Cancel restores exact wallet and furnishing baseline")
  wall_quotes()
+ furniture_warning_contract()
  print("DECORATE_ACTION_QUOTES_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"original_player_save_used":false,"scope":"isolated planner only; no Apply/reconciliation/UI acceptance"}))
  quit(0 if failures.is_empty() else 1)

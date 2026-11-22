@@ -5,6 +5,7 @@ extends RefCounted
 ## exact original bytes before a native migration save may replace its target.
 const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
 const Openings=preload("res://scripts/gameplay/cafe_wall_openings.gd")
+const WallSupportValidation=preload("res://scripts/gameplay/cafe_wall_support_validation.gd")
 const LegacyEdges=preload("res://scripts/gameplay/cafe_building_edges.gd")
 const Runtime=preload("res://scripts/persistence/cafe_runtime_codec.gd")
 const Contract=preload("res://scripts/persistence/cafe_save_contract.gd")
@@ -92,7 +93,7 @@ static func read_openings(data:Dictionary,walls:Array)->Dictionary:
 		attachments.append({"id":int(raw.id),"kind":str(raw.kind),"wall_ids":raw.wall_ids.duplicate(),"offset":float(raw.offset),"width":width,"paid_cost":int(raw.paid_cost)})
 		ids[int(raw.id)]=true;highest=maxi(highest,int(raw.id))
 	if not codec._integer(data.get("next_attachment_id"),highest+1,1000000001):return bad
-	var error=Openings.installed_support_error(walls,attachments)
+	var error=WallSupportValidation.error(walls,attachments)
 	if error!="":return {"ok":false,"error":error}
 	return {"ok":true,"attachments":attachments,"next_attachment_id":int(data.next_attachment_id)}
 
@@ -114,7 +115,7 @@ static func import_validated(products:Dictionary,segments:Dictionary,old_walls:A
 		var first:Dictionary=by_id[opening.wall_ids[0]]
 		var offset=Openings.axis_value((opening.a+opening.b)*.5-Vector2(first.x,first.z),first.axis)
 		openings.append({"id":int(opening.id),"kind":str(opening.kind),"wall_ids":opening.wall_ids.duplicate(),"offset":offset,"width":float(opening.width),"paid_cost":int(opening.paid_cost)})
-	var error=Openings.installed_support_error(walls,openings)
+	var error=WallSupportValidation.error(walls,openings)
 	if error!="":return {"ok":false,"error":error}
 	return {"ok":true,"walls":walls,"attachments":openings,"migration_report":projection.migration_report}
 

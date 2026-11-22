@@ -30,12 +30,21 @@ class PlateProbe extends "res://scripts/rendering/illustrated_cafe.gd":
   if radius==Vector2(4.2,1.6):cup_shadows+=1
 class SinkModel extends RefCounted:
  var sink={"id":1,"kind":"sink","rot":0,"x":0,"z":0}
- func get_item(_id):return sink
+ var customers=[]
+ var items=[sink]
+ func get_item(id):
+  for item in items:
+   if item.id==id:return item
+  return {}
  func workface_cell(_sink):return Vector2i(0,1)
  func cell_center(cell):return Vector2(cell)+Vector2(.5,.5)
 class SinkQueue extends RefCounted:
  var dishes={}
- func count_at(_id):return dishes.size()
+ func count_at(id):
+  var count:=0
+  for dish in dishes.values():
+   if dish.sink_id==id:count+=1
+  return count
  func entry(worker):return dishes.get(int(worker.job_dish_id),{})
 class SinkGame extends Node:
  var model=SinkModel.new()
@@ -44,18 +53,49 @@ class SinkGame extends Node:
  var service_guests={}
  var paused=true
  var editing=false
+ var wall_detail=false
 class SinkFurnitureProbe extends "res://scripts/rendering/illustrated_furniture.gd":
  func draw_sink_front_rim(artist:Node2D,_at:Vector2,_rotation:int):artist.events.append("rim")
  func draw_sink_front_tap(artist:Node2D,_at:Vector2,_rotation:int):artist.events.append("tap")
 class SinkPayloadProbe extends PlateProbe:
  var events=[]
  var plate_clips=[]
- func _plate(_at:Vector2,_remaining=1.0,_dirty=false):
-  events.append("plate");plate_clips.append(_plate_clip.duplicate())
+ var plate_positions=[]
+ func _plate(at:Vector2,_remaining=1.0,_dirty=false):
+  events.append("plate");plate_clips.append(_plate_clip.duplicate());plate_positions.append([at,_plate_transform])
 func _initialize():run.call_deferred()
 func check(ok,label):
  checks+=1
  if not ok:failures.append(label);printerr("FAIL ",label)
+func capture_sink_payload(payload,sink_id:int)->Array:
+ payload.events.clear();payload.plate_clips.clear();payload.plate_positions.clear()
+ payload._sink_dishes(sink_id)
+ return [payload.events.duplicate(),payload.plate_clips.duplicate(),payload.plate_positions.duplicate()]
+
+func check_draw_queries(payload,sink_game):
+ sink_game.model.items.append({"id":2,"kind":"sink","rot":2,"x":1,"z":0})
+ sink_game.model.items.append({"id":3,"kind":"sink","rot":1,"x":2,"z":0})
+ sink_game.dishwashing.dishes={90:{"id":90,"sink_id":1},16:{"id":16,"sink_id":2},3:{"id":3,"sink_id":1},50:{"id":50,"sink_id":1}}
+ var at_face={"role":"cleaner","job_kind":"wash","station_id":1,"art_action":"washing","pos":Vector2(.5,1.5),"job_dish_id":3,"job_elapsed":8.5}
+ var badly_placed=at_face.duplicate();badly_placed.pos=Vector2(.5,1.55)
+ var second=at_face.duplicate();second.job_dish_id=90
+ var drop={"role":"waiter","art_action":"dropping_dishes","art_target_id":1,"job_guest_id":72,"job_token":31,"pos":Vector2(.5,1.5),"destination":Vector2i(0,1),"art_phase":.71}
+ sink_game.staff_states=[badly_placed,drop,at_face,second]
+ sink_game.service_guests={72:{"dish_id":50}}
+ var wash=payload._sink_wash_state(1)
+ var baseline=[]
+ for sink_id in [1,2,3]:baseline.append(capture_sink_payload(payload,sink_id))
+ payload.sink_drop_lowering.clear()
+ payload._begin_drawing_lookups()
+ check(payload._drawing_sink_rows==null,"No query collector before the first accepted sink")
+ check(payload._sink_wash_state(1)==wash and wash.worker==at_face,"Indexed washer order and physical fit exactly match direct state")
+ check(payload._sink_queue_ids(1,3)==[50,90] and payload._sink_queue_ids(2,-1)==[16],"Explicitly ordered dish IDs and active dish exclusions")
+ for sink_id in [1,2,3]:
+  check(capture_sink_payload(payload,sink_id)==baseline[sink_id-1],"Indexed sink payload retains draw order, transforms, clipping and lowering at sink %d"%sink_id)
+ check(baseline[2][0].is_empty() and not payload._drawing_sink_rows.has(3),"Empty basin paints no collector or tap payload")
+ payload._finish_drawing_lookups()
+ check(payload._drawing_sink_rows==null,"Draw scope releases all sink query rows")
+
 func run():
  var furniture=Furniture.new();var probe=Probe.new();root.add_child(probe)
  for rotation in range(4):
@@ -113,6 +153,7 @@ func run():
     check(payload.events==["plate","tap"],"plate followed by rotated faucet in %s r%s"%[state,rotation])
     var expected=PackedVector2Array() if state=="washing" else Geometry.sink_outline(Geometry.SINK_BASIN_INNER,Geometry.SINK_OPENING_HEIGHT,rotation)
     check(payload.plate_clips.size()==1 and payload.plate_clips[0]==expected,"submerged aperture mask and raised clearance preserved in %s r%s"%[state,rotation])
+ check_draw_queries(payload,sink_game)
  payload.free();sink_game.free()
  plate._action_prop(Vector2.ZERO,Vector2.ZERO,"carrying_drink",.4,"drink","none")
  check(plate.cup_shadows==0,"held cup does not cast a floating surface shadow")

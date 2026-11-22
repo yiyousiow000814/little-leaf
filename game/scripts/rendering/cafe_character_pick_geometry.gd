@@ -154,6 +154,15 @@ func command_hit(method:StringName,args:Array,point:Vector2,opacity:float,transf
 			var width=float(material.get_shader_parameter("stroke_width")) if method==&"retained_aa_mesh" and material is ShaderMaterial else .7
 			var geometry_scale=float(material.get_shader_parameter("geometry_scale")) if method==&"scaled_contours" and material is ShaderMaterial else 1.0
 			return _mesh_hit(args[0],point,opacity,minf(width*scale,1.0)/scale if method==&"retained_aa_mesh" else 1.0,geometry_scale)
+		&"wall_solid_quads":
+			# Keep the original polygon boundary check before triangle tolerance.
+			var vertices:PackedVector2Array=args[1];var colors:PackedColorArray=args[2]
+			for start in range(0,vertices.size(),4):
+				var quad:=vertices.slice(start,start+4)
+				if not Geometry2D.is_point_in_polygon(point,quad):continue
+				var hit=_triangles_hit(quad,colors.slice(start,start+4),Geometry2D.triangulate_polygon(quad),point,opacity)
+				if hit!=CLEAR:return hit
+			return CLEAR
 		&"ordered_triangles":return _triangles_hit(args[1],args[2],args[0],point,opacity)
 		&"draw_texture_rect_region":return _texture_hit(args,point,opacity,images)
 		&"draw_line",&"scalable_line":return _line_hit(args[0],args[1],args[2],args[3],point,opacity,transform)

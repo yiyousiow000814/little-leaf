@@ -5,6 +5,23 @@ class TestMain extends "res://scripts/main.gd":
  var save_calls=0
  func _load_startup():save_writes_suppressed=true;fresh_start=false;model.reset_new();paused=true
  func _save():save_calls+=1;return true
+const Model=preload("res://scripts/core/cafe_model.gd")
+class CountedGroups extends RefCounted:
+ var rows:Array=[]
+ var visits:=0
+ func is_empty():return rows.is_empty()
+ func size():return rows.size()
+ func _iter_init(cursor):cursor[0]=0;return not rows.is_empty()
+ func _iter_next(cursor):cursor[0]+=1;return cursor[0]<rows.size()
+ func _iter_get(index):visits+=1;return rows[index]
+class LookupModel extends RefCounted:
+ var customers=[];var items=[];var dining_sets
+class LookupGame extends Node:
+ var model=LookupModel.new()
+class DiningProbe extends "res://scripts/rendering/illustrated_cafe.gd":
+ var last={}
+ func _chair(_p:Vector2,r:int,back_only:bool,style:String="basic"):last={"part":"chair","rotation":r,"back":back_only,"style":style}
+ func item(kind:String,_p:Vector2,rot:int,_id:int,variant:String=""):last={"part":kind,"rotation":rot,"variant":variant}
 var game
 var checks=0
 var failures=[]
@@ -12,8 +29,78 @@ func check(ok,label):
  checks+=1
  if not ok and not failures.has(label):failures.append(label);printerr(label)
 func snapshot():return JSON.stringify({"items":game.model.items,"guests":game.model.customers,"service":game._service_save_snapshot(),"coins":game.model.coins,"payroll":game.model.payroll_elapsed,"earned":game.model.total_earned,"cleaned":game.model.total_cleaned})
+func _place_test_set(model,product):
+ for z in range(model.depth):
+  for x in range(model.width):
+   for rotation in range(4):
+    if model.place(product,x,z,rotation):return true
+ return false
+
+func _allowed_dining_layout():
+ var model=Model.new();model.reset_new();model.coins=10000
+ var original=model.dining_sets.size()
+ for product in ["table_set_cottage","table_set_retro"]:
+  check(_place_test_set(model,product),"Ordinary placement accepts another styled dining set: "+product)
+ check(model.dining_sets.size()==original+2,"Two additional sets coexist with the starter, not a synthetic duplicate")
+ for group in model.dining_sets:
+  for id in [group.table_id,group.seat_id]:
+   var item=model.get_item(id)
+   check(not item.has("dining_variant") and model.dining_variant_for(id)==group.variant,"Normal physical members use canonical group appearance")
+ print("DINING_APPEARANCE_LAYOUT ",JSON.stringify({"preset_sets":original,"after_two_purchases":model.dining_sets.size()}))
+
+func _appearance_lookups():
+ var a=DiningProbe.new();a.game=LookupGame.new()
+ var samples=[]
+ for n in [0,1,2,8,16,32]:
+  var rows=[];var entries=[]
+  for i in range(n):
+   var variant=["refined_single","cottage_single","retro_single","legacy_bench"][i%4]
+   var table=2*i+1;var seat=2*i+2
+   rows.append({"table_id":table,"seat_id":seat,"variant":variant})
+   entries.append({"kind":"table","id":table,"rot":1})
+   var chair={"kind":"bench" if variant=="legacy_bench" else "chair","id":seat,"rot":3}
+   entries.append(chair);entries.append(chair)
+  # Both members in a valid live set have no raw dining_variant; the legacy
+  # lookup scans through its group for table, seat and painter-order seat back.
+  var groups=CountedGroups.new();groups.rows=rows
+  # Small fast paths use actual Array subscripting, not test instrumentation.
+  a.game.model.dining_sets=groups if n>=2 else rows
+  a._begin_drawing_lookups()
+  for kind in ["rug","plant","lamp","register","bookshelf","divider"]:
+   check(a._drawing_furniture_variant({"kind":kind,"id":999})=="oak_single","Non-dining appearance uses normal neutral style")
+  check(a._drawing_furniture_variant({"kind":"table","id":1,"dining_variant":"retro_single"})=="retro_single","Preview variant wins before touching groups")
+  check(a._drawing_dining_variants==null and groups.visits==0,"No index for unneeded or explicitly styled furniture")
+  var baseline_visits=0
+  for entry in entries:
+   var expected="oak_single"
+   for group in rows:
+    baseline_visits+=1
+    if entry.id==group.table_id or entry.id==group.seat_id:expected=group.variant;break
+   check(a._drawing_furniture_variant(entry)==expected,"Table / chair / bench member matches direct historical lookup")
+  check(baseline_visits==3*n*(n+1)/2,"Direct reference visits the expected growing prefixes")
+  check(groups.visits==(n if n>=2 else 0),"One group iteration for all admitted appearances")
+  check((a._drawing_dining_variants==null) == (n<2),"No allocation for starter layouts; larger world index is draw-owned")
+  samples.append({"sets":n,"appearances":entries.size(),"old_group_visits":baseline_visits,"index_build_visits":groups.visits,"bounded_direct_checks":entries.size() if n==1 else 0})
+  a._finish_drawing_lookups()
+  check(a._drawing_dining_variants==null,"No membership map escapes the world frame")
+ var conflict=[{"table_id":5,"seat_id":6,"variant":"refined_single"},{"table_id":6,"seat_id":7,"variant":"retro_single"},{"table_id":9,"seat_id":10,"variant":""}]
+ a.game.model.dining_sets=conflict;a._begin_drawing_lookups()
+ var chair={"id":6,"kind":"chair","rot":2};var table={"id":5,"kind":"table","rot":1}
+ var chair_style=a._drawing_furniture_variant(chair);var table_style=a._drawing_furniture_variant(table)
+ check(chair_style=="refined_single" and a._drawing_furniture_variant({"id":7,"kind":"chair"})=="retro_single","First saved group wins per member ID; other member still resolves")
+ check(a._drawing_furniture_variant({"id":10,"kind":"chair"})=="oak_single","Empty historical variant binds neutral artwork without a delayed live lookup")
+ var body=a._paint_furniture_body.bind("item",table,table.rot,table_style)
+ var back=a._paint_furniture_body.bind("chair_back",chair,chair.rot,chair_style)
+ a._finish_drawing_lookups();conflict[0].variant="cottage_single"
+ body.call();check(a.last=={"part":"table","rotation":1,"variant":"refined_single"},"Deferred table painter consumes admitted appearance")
+ back.call();check(a.last=={"part":"chair","rotation":2,"back":true,"style":"refined"},"Deferred seat back consumes same admitted appearance")
+ a._begin_drawing_lookups();check(a._drawing_furniture_variant(chair)=="cottage_single","Next frame picks up authoritative group change")
+ a._finish_drawing_lookups();a.game.free();a.free()
+ print("DINING_APPEARANCE_COUNTS ",JSON.stringify(samples))
 func _initialize():run.call_deferred()
 func run():
+ _appearance_lookups()
+ _allowed_dining_layout()
  game=TestMain.new();root.add_child(game);game.set_process(false);await process_frame;game.illustration.set_process(false)
  game.model.operating_open=true;game.model._spawn_customer();game.model.operating_open=false
  check(not game.model.customers.is_empty(),"Synthetic guest exists")

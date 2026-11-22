@@ -91,6 +91,7 @@ const DiningStyles=preload("res://scripts/gameplay/cafe_dining_sets.gd")
 const DiningArt=preload("res://scripts/rendering/dining_style_art.gd")
 var dining_art=DiningArt.new()
 const OpeningArt=preload("res://scripts/rendering/illustrated_openings.gd")
+const WallQueries=preload("res://scripts/rendering/illustrated_wall_queries.gd")
 const OpeningGeometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 var render_wall_attachments:Array=[]
 const WallArt=preload("res://scripts/rendering/illustrated_walls.gd")
@@ -448,8 +449,13 @@ func update_motion(delta: float):
 	if guest_motion_cleanup_elapsed>=1.0:
 		guest_motion_cleanup_elapsed=0.0
 		_prune_departed_guest_motion()
+	# Renderer-only motion uses the same row snapshot for all seat/station
+	# lookups in this tick; no index survives a model or frame transition.
+	var prior_items:Variant=_presentation_item_rows
+	_presentation_item_rows=_index_presentation_items()
 	if game.editing or game.paused:
 		_update_meal_docking(0.0) # Seed load-time presentation without advancing a paused transition.
+		_presentation_item_rows=prior_items
 		return
 	_update_meal_docking(delta)
 	for guest in game.model.visual_customers():
@@ -459,7 +465,7 @@ func update_motion(delta: float):
 		if bool(guest.get("seated",false)):
 			docking=_guest_seated_offset(guest,position)
 		elif guest.phase=="paying":
-			var register=game.model.get_item(int(guest.get("checkout_register_id",-1)))
+			var register=_presentation_item(int(guest.get("checkout_register_id",-1)))
 			if not register.is_empty():
 				var toward=Vector2(register.x+.5,register.z+.5)-position
 				docking=toward.normalized()*CheckoutArt.payment_inset(toward,int(register.rot),false)
@@ -469,7 +475,7 @@ func update_motion(delta: float):
 		seat_blends[int(guest.id)]=target if bool(guest.get("dismounting",false)) else move_toward(float(seat_blends.get(int(guest.id),0.0)),target,delta*(4.0 if target>0 else 8.0))
 		var heading:Vector2=guest.get("heading",Vector2.RIGHT)
 		if float(seat_blends[int(guest.id)])>.01 or bool(guest.get("dismounting",false)):
-			var table=game.model.get_item(int(guest.table_id))
+			var table=_presentation_item(int(guest.table_id))
 			if not table.is_empty():heading=Vector2(table.x+.5,table.z+.5)-position
 		_update_character_facing(key,heading)
 	var natural={}
@@ -495,6 +501,8 @@ func update_motion(delta: float):
 		# A held cup/plate turns across the torso continuously when a walking
 		# sprite changes facing. It must not flip instantaneously to the other hand.
 		carry_hand_offsets[key]=(carry_hand_offsets.get(key,target_hand) as Vector2).move_toward(target_hand,delta*90.0) if carrying else target_hand
+	_presentation_item_rows=prior_items
+
 func _staff_docking(staff:Dictionary,key:String)->Vector2:
 	var docking=Vector2.ZERO
 	if str(staff.get("art_action","")) in ["sweeping","mopping"]:
@@ -502,7 +510,7 @@ func _staff_docking(staff:Dictionary,key:String)->Vector2:
 		docking=FloorCleaningApproach.cached_offset(staff.pos,staff.get("art_target",staff.pos),game.model,stance_offsets.get(key,Vector2.ZERO),floor_approach_cache[key])
 	elif str(staff.get("art_action","")) in ["taking_order","preparing_food","cooking","plating","preparing_drink","placing_plate","dropping_dishes","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","taking_payment"]:
 		var target=staff.get("art_target",staff.pos)
-		var station=game.model.get_item(int(staff.get("art_target_id",-1)))
+		var station=_presentation_item(int(staff.get("art_target_id",-1)))
 		# A table has no tall cabinet: keep the worker on its aisle side so
 		# the tabletop does not swallow its shoulders during the small gesture.
 		var inset=.12 if str(station.get("kind",""))=="table" else .40
@@ -519,7 +527,7 @@ func _staff_docking(staff:Dictionary,key:String)->Vector2:
 	# A front drop uses the outer corner of the existing work tile. Begin the
 	# sidestep on arrival; the janitor retains its authored washing contact.
 	if str(staff.get("art_action","")) in ["carrying_dishes","dropping_dishes"]:
-		var sink=game.model.get_item(int(staff.get("art_target_id",-1)))
+		var sink=_presentation_item(int(staff.get("art_target_id",-1)))
 		if sink.get("kind","")=="sink":
 			var front=game.model.workface_cell(sink)
 			if staff.destination==front and staff.pos.distance_to(game.model.cell_center(front))<.75:
@@ -565,7 +573,7 @@ func _shared_staff_stances(natural:Dictionary,delta:float)->Dictionary:
 			# instead of an allowlist that forgets one completion order.
 			if str(staff.art_action)==str(old.action) and staff.art_target==old.contact and staff.pos.distance_to(old.center)<.03:
 				entry.contact=old.contact;entry.target_id=old.target_id;entry.kind=old.kind
-				var target=game.model.get_item(int(old.target_id))
+				var target=_presentation_item(int(old.target_id))
 				if not target.is_empty():_shared_contact_geometry(entry,target)
 			if not groups.has(cell):groups[cell]=[]
 			groups[cell].append(entry);live[old.key]=cell
@@ -676,7 +684,7 @@ func _update_meal_docking(delta:float):
 	var visual_delta=maxf(delta,0)
 	var active={}
 	for guest in game.model.customers:
-		var chair=game.model.get_item(int(guest.chair_id));var table=game.model.get_item(int(guest.table_id))
+		var chair=_presentation_item(int(guest.chair_id));var table=_presentation_item(int(guest.table_id))
 		if chair.is_empty() or table.is_empty():continue
 		var id=int(chair.id);active[id]=true
 		var toward=Vector2(table.x-chair.x,table.z-chair.z).normalized()
@@ -689,21 +697,21 @@ func _update_meal_docking(delta:float):
 		meal_chair_offsets[id]=(meal_chair_offsets[id] as Vector2).move_toward(Vector2.ZERO,visual_delta*DiningPlacement.DOCK_SPEED)
 		if (meal_chair_offsets[id] as Vector2).length_squared()<.000001:meal_chair_offsets.erase(id)
 	for id in table_dining_directions.keys():
-		if game.model.get_item(int(id)).is_empty():table_dining_directions.erase(id)
+		if _presentation_item(int(id)).is_empty():table_dining_directions.erase(id)
 
 func _meal_chair_offset(entry:Dictionary)->Vector2:
 	if not is_instance_valid(game) or game.editing or bool(entry.get("preview",false)) or str(entry.get("kind","")) not in ["chair","bench"]:return Vector2.ZERO
 	var id=int(entry.id)
 	if meal_chair_offsets.has(id):return meal_chair_offsets[id]
 	# A paused/load-at-mealtime first frame starts at its state-derived pose.
-	for guest in game.model.customers:
+	for guest in _drawing_guests("chair",id):
 		if int(guest.chair_id)!=id or str(guest.phase)!="eating" or not bool(guest.get("seated",false)) or bool(guest.get("dismounting",false)):continue
-		var table=game.model.get_item(int(guest.table_id))
+		var table=_presentation_item(int(guest.table_id))
 		if not table.is_empty():return DiningPlacement.target_dock(Vector2(table.x-entry.x,table.z-entry.z),true)
 	return Vector2.ZERO
 
 func _guest_seated_offset(guest:Dictionary,position:Vector2)->Vector2:
-	var table=game.model.get_item(int(guest.table_id));var chair=game.model.get_item(int(guest.chair_id))
+	var table=_presentation_item(int(guest.table_id));var chair=_presentation_item(int(guest.chair_id))
 	if table.is_empty():return Vector2.ZERO
 	var anchor=position;var weight=1.0
 	if bool(guest.get("dismounting",false)):
@@ -714,7 +722,7 @@ func _guest_seated_offset(guest:Dictionary,position:Vector2)->Vector2:
 func _render_position(key:String,position:Vector2) -> Vector2:
 	if stance_offsets.has(key):return position+stance_offsets[key]
 	if is_instance_valid(game) and key.begins_with("guest_"):
-		for guest in game.model.customers:
+		for guest in _drawing_guests("key",key):
 			if key=="guest_%s"%guest.id and bool(guest.get("seated",false)):return position+_guest_seated_offset(guest,position)
 	return position
 
@@ -1054,6 +1062,79 @@ func _render_anchor_visible(anchor:Vector2,extra:Vector2=Vector2.INF)->bool:
 	if extra.is_finite():bounds=bounds.merge(RenderVisibility.local_bounds(extra,scale,Rect2(-128,-192,256,272)))
 	return render_bounds_visible(bounds)
 
+# Transient draw/motion lookups: the model remains the owner of row data.
+var _drawing_guest_rows:Variant=null
+var _drawing_chair_cells:Variant=null
+var _presentation_item_rows:Variant=null
+var _drawing_sink_rows:Variant=null
+var _drawing_dining_variants:Variant=null
+
+func _begin_drawing_lookups()->void:
+	var by_key:Dictionary={}
+	var by_table:Dictionary={}
+	var by_chair:Dictionary={}
+	for guest in game.model.customers:
+		_index_drawing_guest(by_key,"guest_%s"%guest.id,guest)
+		_index_drawing_guest(by_table,int(guest.table_id),guest)
+		_index_drawing_guest(by_chair,int(guest.chair_id),guest)
+	_drawing_guest_rows={"key":by_key,"table":by_table,"chair":by_chair}
+	_drawing_chair_cells={}
+	_presentation_item_rows=_index_presentation_items(_drawing_chair_cells)
+
+func _finish_drawing_lookups()->void:
+	_drawing_guest_rows=null
+	_drawing_chair_cells=null
+	_presentation_item_rows=null
+	_drawing_sink_rows=null
+	_drawing_dining_variants=null
+
+# Called only for admitted furniture. Store immutable variant values, not groups.
+func _drawing_furniture_variant(entry:Dictionary)->String:
+	var explicit=str(entry.get("dining_variant",""))
+	if explicit!="":return explicit
+	if entry.kind not in ["table","chair","bench"]:return "oak_single"
+	var groups=game.model.dining_sets
+	var id=int(entry.id)
+	# The empty layout and one-set starter do not allocate an index.
+	if groups.is_empty():return "oak_single"
+	if groups.size()==1:
+		var only=groups[0]
+		return _group_art_variant(only) if int(only.table_id)==id or int(only.seat_id)==id else "oak_single"
+	if _drawing_dining_variants==null:
+		_drawing_dining_variants={}
+		for group in groups:
+			var table_id=int(group.table_id);var seat_id=int(group.seat_id)
+			var variant=_group_art_variant(group)
+			if not _drawing_dining_variants.has(table_id):_drawing_dining_variants[table_id]=variant
+			if not _drawing_dining_variants.has(seat_id):_drawing_dining_variants[seat_id]=variant
+	return _drawing_dining_variants.get(id,"oak_single")
+
+static func _group_art_variant(group:Dictionary)->String:
+	var variant=str(group.get("variant","oak_single"))
+	return "oak_single" if variant=="" else variant
+
+func _index_presentation_items(chair_cells:Variant=null)->Dictionary:
+	var by_id:Dictionary={}
+	var rank:=0
+	for entry in game.model.items:
+		var id:=int(entry.id)
+		if not by_id.has(id):by_id[id]=entry
+		if chair_cells!=null and str(entry.kind) in ["chair","bench"]:
+			var cell:=Vector2i(int(entry.x),int(entry.z))
+			if not chair_cells.has(cell):chair_cells[cell]=rank
+		rank+=1
+	return by_id
+
+static func _index_drawing_guest(index:Dictionary,key:Variant,guest:Dictionary)->void:
+	if not index.has(key):index[key]=[]
+	index[key].append(guest)
+
+func _drawing_guests(index:String,key:Variant)->Array:
+	return game.model.customers if _drawing_guest_rows==null else _drawing_guest_rows[index].get(key,[])
+
+func _presentation_item(id:int)->Dictionary:
+	return game.model.get_item(id) if _presentation_item_rows==null else _presentation_item_rows.get(id,{})
+
 var playtest_draw_ms=0.0
 func objects_hidden()->bool:
 	return is_instance_valid(game) and "compact_ui" in game and game.compact_ui!=null and "shop_ui" in game.compact_ui and game.compact_ui.shop_ui!=null and game.compact_ui.shop_ui.objects_hidden()
@@ -1068,8 +1149,9 @@ func _draw_ground_rugs(render_items:Array):
 		if not _render_anchor_visible(anchor):continue
 		opacity=.63 if bool(entry.get("preview",false)) else 1.0
 		art_transform(anchor,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
-		var callback=_paint_furniture_body.bind("item",entry,int(entry.rot))
-		var appearance=["furniture","item",entry,int(entry.rot),_dining_style(int(entry.id),str(entry.get("dining_variant",""))),Vector2.ZERO]
+		var variant=_drawing_furniture_variant(entry)
+		var callback=_paint_furniture_body.bind("item",entry,int(entry.rot),variant)
+		var appearance=["furniture","item",entry,int(entry.rot),_dining_style(int(entry.id),variant),Vector2.ZERO]
 		if not retain_native_local_object(callback,appearance,_art_transform):callback.call()
 		art_transform(Vector2.ZERO)
 		opacity=1.0
@@ -1106,6 +1188,7 @@ func _draw():
 	var size=get_viewport_rect().size
 	var show_service=not game.editing
 	var show_objects=not objects_hidden()
+	_begin_drawing_lookups()
 	# Keep admission in landed coordinates, including the complete descent band.
 	# Changing the admitted prefix while descending shifts painter-order slots
 	# and rebuilds unchanged downstream art. Godot still culls retained nodes to
@@ -1114,10 +1197,8 @@ func _draw():
 	var preparing = use_retained_presentation and game.cafe_intro!=null and game.cafe_intro.preparing
 	_warmup_view=Rect2(Vector2(0,-size.y*1.35),Vector2(size.x,size.y*2.35)) if stable_admission or preparing else Rect2()
 	render_wall_attachments=game.build_tools.get_render_attachments() if game.build_tools!=null and game.build_tools.has_method("get_render_attachments") else game.model.wall_attachments
-	var openings=[]
-	for attachment in render_wall_attachments if show_objects else []:
-		var opening=OpeningGeometry.aperture(attachment,game.model.built_walls)
-		if not opening.is_empty():opening["preview"]=bool(attachment.get("preview",false));openings.append(opening)
+	var wall_queries=WallQueries.new(game.model.built_walls,render_wall_attachments) if show_objects else null
+	var openings:Array=wall_queries.apertures if wall_queries!=null else []
 	update_projection()
 	# Resolve input picking before switching to draw-local coordinates. A
 	# projection refresh during drawing would apply the retained camera pan twice.
@@ -1171,10 +1252,10 @@ func _draw():
 	_draw_staff_ground_rings(show_service)
 	if game.build_tools!=null:game.build_tools.draw_floor_preview(self)
 	if show_objects and game.editing and game.selected_id>=0 and not ("interaction" in game and game.interaction!=null and game.interaction.drag_active):
-		var selected=game.model.get_item(game.selected_id)
+		var selected=_presentation_item(game.selected_id)
 		if not selected.is_empty():
 			for member in game.model.logical_members(game.selected_id):
-				var part=game.model.get_item(member);var x=float(part.x);var z=float(part.z)
+				var part=_presentation_item(member);var x=float(part.x);var z=float(part.z)
 				var corners=[iso(x+.04,z+.04),iso(x+.96,z+.04),iso(x+.96,z+.96),iso(x+.04,z+.96)]
 				poly(corners,Color(.96,.92,.68,.38))
 				for i in range(4):line(corners[i],corners[(i+1)%4],"90a072",1.2)
@@ -1230,7 +1311,7 @@ func _draw():
 		var render_pos=_render_position("guest_%s"%guest.id,Vector2(float(guest.x),float(guest.z)))
 		if float(guest.x)>=0 and float(guest.z)>=0 and not str(guest.phase) in ["dirty","cleaning"]:
 			var dining=CheckoutArt.guest_action(guest,game.service_guests.get(int(guest.id),{}))=="eating"
-			var surface=game.model.get_item(int(guest.table_id) if dining else int(guest.get("checkout_register_id",-1)))
+			var surface=_presentation_item(int(guest.table_id) if dining else int(guest.get("checkout_register_id",-1)))
 			var target=Vector2.INF if surface.is_empty() else iso(float(surface.x)+.5,float(surface.z)+.5)
 			if not _render_anchor_visible(iso(render_pos.x,render_pos.y),target):continue
 			var body_depth=render_pos.x+render_pos.y+.15
@@ -1244,7 +1325,7 @@ func _draw():
 		var staff=game.staff_states[i]
 		var render_pos=_render_position("staff_%s"%i,staff.pos)
 		var body_depth=render_pos.x+render_pos.y+.15
-		var target=game.model.get_item(int(staff.get("art_target_id",-1)))
+		var target=_presentation_item(int(staff.get("art_target_id",-1)))
 		var contact=staff.get("art_target",staff.get("art_station",staff.pos))
 		if not _render_anchor_visible(iso(render_pos.x,render_pos.y),iso(contact.x,contact.y)):continue
 		var staff_action=str(staff.get("art_action",""))
@@ -1278,7 +1359,7 @@ func _draw():
 			var tint=Color.WHITE
 			if is_preview:
 				tint=Color("eeb9a1") if not game.build_tools.preview_valid else (Color("efd095") if game.build_tools.preview_warning!="" else Color("c6e1ae"))
-			_draw_wall_slice(e,.68 if is_preview else 1.0,tint);continue
+			_draw_wall_slice(e,.68 if is_preview else 1.0,tint,wall_queries);continue
 		if e.type in ["item","chair_back","beverage_foreground","stove_foreground"]:
 			var d=e.entry
 			var meal_offset:Vector2=e.get("meal_offset",Vector2.ZERO)
@@ -1287,12 +1368,13 @@ func _draw():
 			art_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 			var static_body = (d.kind in ["table", "chair", "bench", "plant", "lamp", "bookshelf", "divider", "rug"] or (use_retained_register and d.kind=="register")) and e.type in ["item", "chair_back"]
 			if static_body:
-				var body = _paint_furniture_body.bind(e.type, d, int(e.get("rot", 0)))
-				var appearance = ["furniture", e.type, d, int(e.get("rot", 0)), _dining_style(int(d.id), str(d.get("dining_variant", ""))), _table_vase_point(int(d.id)) if d.kind=="table" else Vector2.ZERO]
+				var variant=_drawing_furniture_variant(d)
+				var body = _paint_furniture_body.bind(e.type, d, int(e.get("rot", 0)),variant)
+				var appearance = ["furniture", e.type, d, int(e.get("rot", 0)), _dining_style(int(d.id),variant), _table_vase_point(int(d.id)) if d.kind=="table" else Vector2.ZERO]
 				if d.kind=="register":appearance.append(CheckoutArt.register_visual_state(self,int(d.id)))
 				if not retain_native_local_object(body, appearance, _art_transform):body.call()
 			else:
-				_paint_furniture_body(e.type, d, int(e.get("rot", 0)))
+				_paint_furniture_body(e.type,d,int(e.get("rot",0)),str(d.get("dining_variant","")))
 			if d.kind=="table" and show_service: _meal(d.id)
 			if d.kind=="sink" and show_service: _sink_dishes(d.id)
 			if d.kind=="counter" and show_service: _station_payloads(d.id,d.kind,int(d.rot))
@@ -1313,7 +1395,7 @@ func _draw():
 			if e.type=="guest":
 				direction=d.get("heading",Vector2.ZERO)
 				if seated and not bool(d.get("dismounting",false)):
-					var table=game.model.get_item(int(d.table_id))
+					var table=_presentation_item(int(d.table_id))
 					direction=Vector2(float(table.x)+.5,float(table.z)+.5)-Vector2(float(d.x),float(d.z))
 			else:direction=_staff_visual_heading(d,pose)
 			if e.type=="guest" and moving and not seated and str(d.phase) not in ["checkout_wait","paying"]:direction=pose.heading
@@ -1343,14 +1425,14 @@ func _draw():
 			var reach=Vector2(18,-28)
 			var target=d.get("art_target",d.get("art_station",Vector2.ZERO)) if e.type=="staff" else Vector2.ZERO
 			if e.type=="guest" and d.phase=="paying":
-				var register=game.model.get_item(int(d.get("checkout_register_id",-1)))
+				var register=_presentation_item(int(d.get("checkout_register_id",-1)))
 				if not register.is_empty():target=Vector2(register.x+.5,register.z+.5)
 			elif seated and not bool(d.get("dismounting",false)):
-				var table=game.model.get_item(int(d.table_id));target=Vector2(table.x+.5,table.z+.5)
+				var table=_presentation_item(int(d.table_id));target=Vector2(table.x+.5,table.z+.5)
 			if target!=Vector2.ZERO:
 				var unit_scale=ui_scale*zoom*(1.55 if game.wall_detail else 1.0)
 				var ground=(iso(target.x,target.y)-p)/unit_scale
-				var target_item=game.model.get_item(int(d.get("art_target_id",-1))) if e.type=="staff" else game.model.get_item(int(d.get("checkout_register_id",-1)) if d.phase=="paying" else int(d.table_id))
+				var target_item=_presentation_item(int(d.get("art_target_id",-1))) if e.type=="staff" else _presentation_item(int(d.get("checkout_register_id",-1)) if d.phase=="paying" else int(d.table_id))
 				var kind=str(target_item.get("kind","table"))
 				pose["local_trash_disposal"]=e.type=="staff" and action=="disposing_trash" and target_item.is_empty() and int(d.get("art_target_id",0))==-3000000-int(e.index)
 				var drink_job="drink" in str(d.get("art_service_kind","")) or str(d.get("art_service_kind",""))=="brew" or action in ["collecting_drink","preparing_drink","drinking"]
@@ -1362,7 +1444,7 @@ func _draw():
 						# the character painter owns the fixed-length contact stroke.
 						surface=Vector2(0,-DiningPlacement.TABLE_HEIGHT-1.0)
 				elif kind=="sink" and action=="washing":
-					var wash=SinkWashArt.state(game,int(target_item.id))
+					var wash=_sink_wash_state(int(target_item.id))
 					if not wash.is_empty():
 						var wash_geometry=SinkWashArt.geometry(int(target_item.rot),float(wash.seconds),int(wash.count))
 						surface=wash_geometry.center
@@ -1427,14 +1509,15 @@ func _draw():
 	_finish_native_objects()
 	canvas_stream.finish()
 	character_pick_geometry.drawing(self)
+	_finish_drawing_lookups()
 	playtest_draw_ms=(Time.get_ticks_usec()-playtest_started)/1000.0
-func _draw_wall_slice(piece:Dictionary,alpha:float,tint:Color):
+func _draw_wall_slice(piece:Dictionary,alpha:float,tint:Color,wall_queries=null):
 	# Keep each depth slice in its original painter slot. Reuse the existing
 	# native draw-list owner instead of rebuilding unchanged wall polygons.
 	# Each draw's existing preparation owns the exact geometry dependency
 	# values, including neighboring end/corner cuts and draft openings. Keep
 	# neither whole-model copies nor a persistent layout cache in every slice.
-	var preparation=OpeningArt.built_preparation(self,piece,render_wall_attachments)
+	var preparation=OpeningArt.built_preparation(self,piece,render_wall_attachments,wall_queries)
 	var shape=["wall-slice",piece.wall_t0,piece.wall_t1,piece.wall_end,
 		preparation,alpha,tint,origin]
 	# The retained callback owns derived geometry only, never model/draft arrays.
@@ -1448,7 +1531,8 @@ func _paint_wall_slice(piece:Dictionary,alpha:float,tint:Color,draw_origin:Vecto
 	# transform moves to the retained parent; do not change float arithmetic.
 	var previous_origin=origin
 	origin=draw_origin
-	OpeningArt.draw_built_piece(self,piece,[],alpha,tint)
+	if not OpeningArt.try_native_solid_slice(self,piece,alpha,tint):
+		OpeningArt.draw_built_piece(self,piece,[],alpha,tint)
 	origin=previous_origin
 
 func _draw_legacy_pavement(ground_view: Rect2):
@@ -1886,14 +1970,23 @@ func _draw_head_legacy(p:Vector2,species:int,away:bool,blink:bool,chef_hat:bool,
 
 func _table_guest_direction(table_id:int) -> Vector2:
 	if not is_instance_valid(game):return Vector2.DOWN
-	var table=game.model.get_item(table_id)
+	var table=_presentation_item(table_id)
 	if table.is_empty():return Vector2.DOWN
 	var center=Vector2(table.x+.5,table.z+.5)
-	for guest in game.model.customers:
+	for guest in _drawing_guests("table",table_id):
 		if int(guest.table_id)==table_id:
-			var chair=game.model.get_item(int(guest.chair_id))
+			var chair=_presentation_item(int(guest.chair_id))
 			if not chair.is_empty():return (Vector2(chair.x+.5,chair.z+.5)-center).normalized()
 	if table_dining_directions.has(table_id):return table_dining_directions[table_id]
+	if _drawing_chair_cells!=null:
+		var table_cell:=Vector2i(int(table.x),int(table.z))
+		var first_rank:int=game.model.items.size()
+		var direction:=Vector2.DOWN
+		for dir in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
+			var rank:=int(_drawing_chair_cells.get(table_cell+dir,first_rank))
+			if rank<first_rank:
+				first_rank=rank;direction=Vector2(dir)
+		return direction
 	for chair in game.model.items:
 		if str(chair.kind) in ["chair","bench"] and abs(int(chair.x)-int(table.x))+abs(int(chair.z)-int(table.z))==1:
 			return Vector2(int(chair.x)-int(table.x),int(chair.z)-int(table.z))
@@ -1954,7 +2047,7 @@ static func bubble_symbol_geometry(words:String)->Dictionary:
 	return {}
 func _meal(table_id: int):
 	if game==null: return
-	for guest in game.model.customers:
+	for guest in _drawing_guests("table",table_id):
 		if int(guest.table_id)!=table_id: continue
 		var record=game.service_guests.get(int(guest.id),{}) if "service_guests" in game else {}
 		var dirty=str(guest.phase) in ["checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"]
@@ -1970,9 +2063,9 @@ func _meal(table_id: int):
 func _chair_rotation(entry) -> int:
 	# Occupied chairs face the table they actually serve; other placed chairs
 	# retain their independently editable four-way orientation.
-	for guest in game.model.customers:
+	for guest in _drawing_guests("chair",int(entry.id)):
 		if int(guest.chair_id)==int(entry.id) and (bool(guest.get("seated",false)) or float(seat_blends.get(int(guest.id),0))>.01):
-			var table=game.model.get_item(int(guest.table_id))
+			var table=_presentation_item(int(guest.table_id))
 			var d=Vector2i(int(table.x-entry.x),int(table.z-entry.z))
 			if d.y<0: return 0
 			if d.x<0: return 3
@@ -2101,21 +2194,58 @@ func _draw_floor_tools(at:Vector2,pose:Dictionary,action:String,payload:String):
 
 
 var sink_drop_lowering={}
+func _sink_draw_row(sink_id:int)->Variant:
+	# Lazy within the synchronous world draw, so icon/editing and off-screen
+	# sinks do no grouping. Standalone/archived painters keep the old queries.
+	if _drawing_guest_rows==null or not "dishwashing" in game:return null
+	if _drawing_sink_rows==null:
+		_drawing_sink_rows={}
+		for dish in game.dishwashing.dishes.values():
+			_sink_draw_bucket(int(dish.sink_id)).ids.append(int(dish.id))
+		for index in range(game.staff_states.size()):
+			var staff=game.staff_states[index]
+			var action=str(staff.get("art_action",""))
+			if action=="dropping_dishes":
+				_sink_draw_bucket(int(staff.get("art_target_id",-1))).drops.append({"staff":staff,"index":index})
+			elif action=="washing" and staff.get("role")=="cleaner" and staff.get("job_kind")=="wash":
+				_sink_draw_bucket(int(staff.get("station_id",-1))).washers.append(staff)
+	return _drawing_sink_rows.get(sink_id,{})
+
+func _sink_draw_bucket(sink_id:int)->Dictionary:
+	if not _drawing_sink_rows.has(sink_id):_drawing_sink_rows[sink_id]={"ids":[],"drops":[],"washers":[]}
+	return _drawing_sink_rows[sink_id]
+
+func _sink_wash_state(sink_id:int)->Dictionary:
+	var row=_sink_draw_row(sink_id)
+	if row==null:return SinkWashArt.state(game,sink_id)
+	if row.is_empty():return {}
+	if not row.has("wash"):
+		row.wash={} if row.washers.is_empty() else SinkWashArt.state(game,sink_id,_presentation_item(sink_id),row.washers,row.ids.size())
+	return row.wash
+
 func _sink_queue_ids(sink_id:int,active_id:int)->Array:
+	var row=_sink_draw_row(sink_id)
+	if row!=null:
+		if row.is_empty():return []
+		if row.get("active")!=active_id:
+			row.active=active_id
+			row.queue=row.ids.filter(func(id):return id!=active_id)
+			row.queue.sort()
+		return row.queue
 	var ids=[]
 	for dish in game.dishwashing.dishes.values():
 		if int(dish.sink_id)==sink_id and int(dish.id)!=active_id:ids.append(int(dish.id))
 	ids.sort();return ids
 
 func _sink_drop_geometry(staff:Dictionary,index:int)->Dictionary:
-	var sink=game.model.get_item(int(staff.art_target_id))
+	var sink=_presentation_item(int(staff.art_target_id))
 	var key="staff_%s"%index;var at=_render_position(key,staff.pos)
 	var scale=ui_scale*zoom*(1.55 if game.wall_detail else 1.0)
 	var origin=(iso(at.x,at.y)-iso(sink.x+.5,sink.z+.5))/scale
 	var facing=character_facings.get(key,{"back":false,"mirror":1.0})
 	var carry=carry_hand_offsets.get(key,DirectionalCharacter.carry_anchor(bool(facing.back))*Vector2(float(facing.mirror),1))
 	var start=origin+carry+Vector2(4*float(facing.mirror),0)
-	var wash=SinkWashArt.state(game,int(sink.id))
+	var wash=_sink_wash_state(int(sink.id))
 	var active_id=-1 if wash.is_empty() else int(wash.worker.job_dish_id)
 	var ids=_sink_queue_ids(int(sink.id),active_id)
 	var record=game.service_guests.get(int(staff.job_guest_id),{})
@@ -2142,20 +2272,26 @@ func _sink_drop_geometry(staff:Dictionary,index:int)->Dictionary:
 	return result
 
 func _sink_dishes(sink_id: int):
-	var sink=game.model.get_item(sink_id)
-	var count=game.dishwashing.count_at(sink_id) if "dishwashing" in game else 0
-	if not "dishwashing" in game:
-		for record in game.service_guests.values():
-			if record.plate_owner=="sink" and int(record.plate_target_id)==sink_id:count+=1
-	var dropping=[]
-	for index in game.staff_states.size():
-		var staff=game.staff_states[index]
-		if str(staff.get("art_action",""))=="dropping_dishes" and int(staff.get("art_target_id",-1))==sink_id:dropping.append({"staff":staff,"index":index})
+	var sink=_presentation_item(sink_id)
+	var row=_sink_draw_row(sink_id)
+	var count:int=0
+	var dropping:Array=[]
+	if row!=null:
+		if row.is_empty():return
+		count=row.ids.size();dropping=row.drops
+	else:
+		count=game.dishwashing.count_at(sink_id) if "dishwashing" in game else 0
+		if not "dishwashing" in game:
+			for record in game.service_guests.values():
+				if record.plate_owner=="sink" and int(record.plate_target_id)==sink_id:count+=1
+		for index in game.staff_states.size():
+			var staff=game.staff_states[index]
+			if str(staff.get("art_action",""))=="dropping_dishes" and int(staff.get("art_target_id",-1))==sink_id:dropping.append({"staff":staff,"index":index})
 	if count<=0 and dropping.is_empty():return
 	var rotation=int(sink.get("rot",0));var geometry=FurnitureArt.KitchenGeometry
 	var aperture=geometry.sink_outline(geometry.SINK_BASIN_INNER,geometry.SINK_OPENING_HEIGHT,rotation)
 	var at=geometry.sink_plate_anchor(rotation)
-	var wash=SinkWashArt.state(game,sink_id)
+	var wash=_sink_wash_state(sink_id)
 	var active_id=-1 if wash.is_empty() else int(wash.worker.job_dish_id)
 	# The static basin already owns the original rim color and silhouette.
 	# Mask submerged dishes to its opening below instead of repainting the
@@ -2230,7 +2366,7 @@ func _stove_heat_state(item_id:int)->Dictionary:
 		var record=game.service_guests.get(int(staff.get("job_guest_id",-1)),{})
 		if int(record.get("meal_station_id",-1))!=item_id or str(record.get("plate_owner",""))!="kitchen":continue
 		var elapsed=float(staff.get("job_elapsed",0.0))
-		var station=game.model.get_item(item_id)
+		var station=_presentation_item(item_id)
 		var remaining=game.Model.cooking_seconds(game.Model.stove_speed_multiplier(station))-elapsed
 		return {"elapsed":elapsed,"remaining":remaining,"strength":0.0 if _cooking_reduced_motion() else cooking_motion_strength}
 	return {}
@@ -2487,15 +2623,15 @@ func paint_native_object(target: Node2D, callback: Callable) -> void:
 	opacity = saved_opacity
 	native_draw_target = null
 
-func _paint_furniture_body(part: String, d: Dictionary, rotation: int) -> void:
+func _paint_furniture_body(part:String,d:Dictionary,rotation:int,variant:String)->void:
 	if part=="beverage_foreground":furniture_art.draw_beverage_foreground(self,Vector2.ZERO,int(d.rot))
 	elif part=="stove_foreground":furniture_art.draw_stove_foreground(self,Vector2.ZERO,int(d.rot),int(d.id))
 	elif part=="chair_back":
 		if d.kind=="bench":furniture_art.draw_bench_part(self,Vector2.ZERO,rotation,true)
-		else:_chair(Vector2.ZERO,rotation,true,_dining_style(int(d.id),str(d.get("dining_variant",""))))
-	elif d.kind=="chair": _chair(Vector2.ZERO,_chair_rotation(d),false,_dining_style(int(d.id),str(d.get("dining_variant",""))))
+		else:_chair(Vector2.ZERO,rotation,true,_dining_style(int(d.id),variant))
+	elif d.kind=="chair": _chair(Vector2.ZERO,_chair_rotation(d),false,_dining_style(int(d.id),variant))
 	elif d.kind=="bench":furniture_art.draw_bench_part(self,Vector2.ZERO,_chair_rotation(d),false)
-	else: item(d.kind,Vector2.ZERO,int(d.rot),int(d.id),str(d.get("dining_variant","")))
+	else: item(d.kind,Vector2.ZERO,int(d.rot),int(d.id),variant)
 
 func _paint_character_body_part(part: String, species: int, cloth: String, staff: bool, back: bool, profile: bool) -> void:
 	var painter = DirectionalCharacter.new()

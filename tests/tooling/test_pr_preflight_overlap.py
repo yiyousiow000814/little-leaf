@@ -72,6 +72,27 @@ class PreflightOverlapTests(unittest.TestCase):
             self.assertEqual(run(commit),0);self.assertEqual(out.read_text().strip(),f'binding={commit}:7:2')
             out.unlink();f.write_text('modified');self.assertNotEqual(run(commit),0);self.assertFalse(out.exists())
 
+    def test_optional_pr_preflight_does_not_skip_required_non_pr_consumers(self):
+        workflow = yaml.safe_load((ROOT / ".github/workflows/build-web.yml").read_text())
+        jobs = workflow["jobs"]
+        lanes = {
+            "play": ["build"],
+            "browser": ["build"],
+            "compatibility": ["build", "historical"],
+            "firebase": ["build", "play", "browser", "compatibility"],
+        }
+        for name, required in lanes.items():
+            with self.subTest(job=name):
+                needs = jobs[name]["needs"]
+                self.assertEqual([needs] if isinstance(needs, str) else needs, required)
+                terms = ["!cancelled()"]
+                if name == "firebase":
+                    terms.append("inputs.firebase_preview")
+                terms += [f"needs.{dep}.result == 'success'" for dep in required]
+                self.assertEqual(jobs[name]["if"], "${{ " + " && ".join(terms) + " }}")
+        self.assertEqual(jobs["gate"]["if"], "always()")
+        self.assertIn("needs.guard.outputs.ordinary_pr == 'true'", jobs["preflight"]["if"])
+
     def test_trusted_main_only_recognizes_exact_skipped_optional_name(self):
         base=[{'name':n,'status':'completed','conclusion':'success'} for n in REQUIRED_JOBS]
         sibling={'name':'web / preflight','status':'completed','conclusion':'skipped'}
