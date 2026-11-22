@@ -1,0 +1,10 @@
+# QA only. Do not merge this caller. Retire the branch after retaining the exact run receipt.
+name: Qualify integrated Web jobs on isolated push (QA only)
+on:
+  push:
+    branches: [qa/ci-nonpr-integrated-397]
+permissions:
+  contents: read
+jobs:
+  web:
+    uses: ./.github/workflows/build-web.yml
