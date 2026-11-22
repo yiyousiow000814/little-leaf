@@ -391,6 +391,8 @@ jobs:
           retention-days: 7
   play:
     name: browser (play)
+    # The PR-only preflight is a deliberately skipped ancestor on non-PR routes.
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -500,6 +502,7 @@ jobs:
           retention-days: 7
   browser:
     name: browser (recovery)
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -631,6 +634,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
   compatibility:
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.historical.result == 'success' }}
     needs: [build, historical]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -741,7 +745,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
   firebase:
-    if: inputs.firebase_preview
+    if: ${{ !cancelled() && inputs.firebase_preview && needs.build.result == 'success' && needs.play.result == 'success' && needs.browser.result == 'success' && needs.compatibility.result == 'success' }}
     needs: [build, play, browser, compatibility]
     runs-on: ubuntu-24.04
     timeout-minutes: 35

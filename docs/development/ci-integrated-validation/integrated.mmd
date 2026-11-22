@@ -5,5 +5,8 @@ flowchart TD
     F --> C
     A["#391 CI + signed refresh retry<br/>rc124 only · 50s first / 75s aggregate"] --> C
     C --> P["532 local Python checks + JS/atlas · 24.15s<br/>22 focused Mail/Storage"]
-    P --> G["Open: fresh ordinary main-target full run<br/>5 min target · 10 min cap"]
-    G --> X["No main-push, release or 60 FPS qualification"]
+    P --> G["Prior exact ordinary run 44510115110 · PASS 9m 56s<br/>Play, Recovery, CrazyGames, both save cases and aggregate"]
+    N["Main run 44460244371 · fail closed<br/>Optional PR preflight skipped; browser jobs suppressed"] --> H["Integrate #367 · explicit cancellation and direct-needs guards<br/>Preserve Firebase flag and evidence gate"]
+    G --> FQ["Fresh exact-head ordinary + no-deploy non-PR qualification pending"]
+    H --> FQ
+    FQ --> X["No release or 60 FPS qualification"]
