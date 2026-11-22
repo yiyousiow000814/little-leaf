@@ -1,0 +1,42 @@
+flowchart TD
+    Sim["Live simulation update"]
+    Sim --> G["Guest reads current route point"]
+    G --> B{"First segment clear?"}
+    B -->|"Yes: reuse once"| S["Check the actual step, move, advance cursor"]
+    B -->|"No"| R["Existing reroute; validate the new segment"]
+    R --> S
+    S -->|"Budget remains"| L["Check subsequent segment"]
+    L --> S
+    Sim --> F["Staff choose work position and honor live claims"]
+    F --> O["Order at table: reuse the live verdict's route length only for the same start cell"]
+    O --> E{"Retained path has remaining points?"}
+    E -->|"Yes"| V["Existing signature check, validation and replan rules"]
+    E -->|"No"| N["Skip completed-path hash; keep route data"]
+    V --> M["Existing movement and task rules"]
+    N --> M
+    S --> D["Actor drawing reads positions; no route search"]
+    M --> D
+    D -.-> C{"Separate renderer candidate: staff action is cooking?"}
+    C -->|"Yes"| H["Read stove heat and cooking clock"]
+    C -->|"No"| P["Draw the original action without cooking-only work"]
+    H --> P
+
+    F -.-> A["Local workface sweep candidate"]
+    A --> Q["Lazily share static layout and checkout membership within the sweep"]
+    A --> I["Find possible peers by work cell, in roster order"]
+    A --> Y["Two workface checks read the already prepared furniture occupancy"]
+    A --> K["Workface route lengths reuse the already prepared navigation signature"]
+    Q --> J["Read actual route, rankings, ownership and contender reach live"]
+    I --> J
+    Y --> J
+    K --> J
+    J --> U["Publish a worker and update the local index"]
+    U --> W{"Synchronous checkout settlement?"}
+    W -->|"Yes"| X["Discard projections before call-out; next query reads latest state"]
+    W -->|"No"| A
+    X --> A
+    X --> Z["For the rest of this tick, workface occupancy falls back to the live item scan"]
+    X --> T["Route queries after checkout recompute the live navigation signature"]
+    Z --> J
+    T --> J
+    J --> O

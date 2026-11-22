@@ -979,9 +979,26 @@ func _floor_work_intent(staff:Dictionary,entry:Dictionary,cell:Vector2i)->Dictio
 	var state={"role":staff.role,"job_kind":"floor" if guest.is_empty() else "cleanup","job_step":0 if guest.is_empty() else 3,"job_token":int(entry.token),"job_guest_id":int(guest.get("id",-1)),"job_mess_id":int(entry.get("id",-1))}
 	return _work_intent(staff,{"kind":"floor","id":-1000000-int(entry.get("id",-1))},cell,state)
 
-func _work_contact_valid(staff:Dictionary,target:Dictionary,cell:Vector2i)->bool:
+# Geometry only, scoped to one synchronous staff sweep. No decisions or
+# partner availability are stored here; direct helper callers see live lookup.
+func _workface_layout(frame_claims:Dictionary)->Dictionary:
+	if not frame_claims.has("workface_layout"):return {}
+	if frame_claims.workface_layout==null:frame_claims.workface_layout=model.order_assignment_layout()
+	return frame_claims.workface_layout
+
+func _workface_checkout_claimed(frame_claims:Dictionary,cell:Vector2i)->bool:
+	if not frame_claims.has("checkout_cells"):return model.checkout_claims().has(cell)
+	if frame_claims.checkout_cells==null:frame_claims.checkout_cells=model.checkout_claims()
+	return frame_claims.checkout_cells.has(cell)
+
+func _staff_workface_walkable(cell:Vector2i,frame_claims:Dictionary)->bool:
+	var occupied=frame_claims.get("navigation_occupancy")
+	if occupied==null:return _staff_walkable(cell)
+	return cell.x>=1 and model.is_floor_owned(cell) and not bool(occupied.get(cell,false))
+
+func _work_contact_valid(staff:Dictionary,target:Dictionary,cell:Vector2i,frame_claims:Dictionary={})->bool:
 	# Pure geometry/current-target check: never call destination selection here.
-	if _layout_staff_held(staff) or staff.job_kind=="" or target.is_empty() or not _staff_walkable(cell) or model.checkout_claims().has(cell):return false
+	if _layout_staff_held(staff) or staff.job_kind=="" or target.is_empty() or not _staff_workface_walkable(cell,frame_claims) or _workface_checkout_claimed(frame_claims,cell):return false
 	var kind=str(target.kind);var valid=false
 	if kind=="floor_disposal":valid=cell==Vector2i(staff.pos.floor())
 	elif _is_floor_cleanup(staff):
@@ -989,9 +1006,9 @@ func _work_contact_valid(staff:Dictionary,target:Dictionary,cell:Vector2i)->bool
 		var action=str(SERVICE_STEPS[staff.job_kind][int(staff.job_step)].action)
 		valid=not record.is_empty() and floor_tasks.geometry.work_cells(record,action).has(cell) and floor_tasks.geometry.space_available(cell)
 	elif kind=="table":
-		valid=model.table_service_cells(target).has(cell)
-		if staff.job_kind=="order" and service_guests.has(int(staff.job_guest_id)):valid=valid or model.order_rear_cell(target,service_guests[int(staff.job_guest_id)].guest)==cell
-	elif kind=="bin":valid=model.bin_service_cells(target).has(cell)
+		valid=model.table_service_cells(target,model.items,_workface_layout(frame_claims)).has(cell)
+		if staff.job_kind=="order" and service_guests.has(int(staff.job_guest_id)):valid=valid or model.order_rear_cell(target,service_guests[int(staff.job_guest_id)].guest,_workface_layout(frame_claims))==cell
+	elif kind=="bin":valid=model.bin_service_cells(target,null,_workface_layout(frame_claims)).has(cell)
 	elif kind in ["stove","beverage","sink","counter","register"]:
 		var center=Vector2i(int(target.x),int(target.z));var face=model.workface_cell(target)
 		if (kind=="counter" and staff.role=="chef") or (kind=="register" and staff.role=="cashier"):face=2*center-face
@@ -1001,59 +1018,111 @@ func _work_contact_valid(staff:Dictionary,target:Dictionary,cell:Vector2i)->bool
 			valid=cell in [face,center+side,center-side]
 		valid=valid and not model.edge_blocked(center,cell)
 	if not valid:return false
-	return _work_route_length(staff,staff_states.find(staff),Vector2i(staff.pos.floor()),cell)>=0
+	return _work_route_length(staff,staff_states.find(staff),Vector2i(staff.pos.floor()),cell,frame_claims)>=0
 
-func _staff_work_claim(staff:Dictionary,cell:Vector2i)->Dictionary:
+func _staff_work_claim(staff:Dictionary,cell:Vector2i,frame_claims:Dictionary={})->Dictionary:
 	if staff.get("table_face_cell",Vector2i(-1,-1))!=cell and staff.destination!=cell:return {}
 	var target=_service_target(staff)
-	return _work_intent(staff,target,cell) if _work_contact_valid(staff,target,cell) else {}
+	return _work_intent(staff,target,cell) if _work_contact_valid(staff,target,cell,frame_claims) else {}
 
 func _staff_owns_work_endpoint(staff:Dictionary,cell:Vector2i)->bool:
 	return not _staff_work_claim(staff,cell).is_empty()
 
 func _work_cell_available(cell:Vector2i,staff:Dictionary,intent:Dictionary,claimed:Array,frame_claims:Dictionary={})->bool:
-	if intent.is_empty() or _layout_staff_held(staff) or not _staff_walkable(cell) or model.checkout_claims().has(cell):return false
-	if _work_route_length(staff,staff_states.find(staff),Vector2i(staff.pos.floor()),cell)<0:return false
+	return _available_work_route_length(cell,staff,intent,claimed,frame_claims)>=0
+
+# Index membership, not eligibility: pending peer geometry, jobs and ranks
+# are still evaluated live. Realized claims keep their original value/order.
+func _mark_work_peer_cell(index:Dictionary,cell:Vector2i,peer:int)->void:
+	if not index.has(cell):index[cell]=[peer];return
+	var owners:Array=index[cell]
+	owners.insert(owners.bsearch(peer),peer)
+
+func _staff_work_peers(cell:Vector2i,frame:Dictionary):
+	if not frame.has("peer_cells"):return range(staff_states.size())
+	if frame.peer_cells==null:
+		var cells={}
+		var positions=[]
+		for peer in staff_states.size():
+			var recorded:bool=frame.has(peer)
+			var staff:Dictionary=staff_states[peer]
+			var endpoints=[frame[peer].get("cell",Vector2i(-1,-1))] if recorded else [staff.destination]
+			if not recorded:
+				var face:Vector2i=staff.get("table_face_cell",Vector2i(-1,-1))
+				if face!=endpoints[0]:endpoints.append(face)
+			positions.append(endpoints)
+			for endpoint in endpoints:
+				if not cells.has(endpoint):cells[endpoint]=[]
+				cells[endpoint].append(peer)
+		frame.peer_cells=cells
+		frame.peer_positions=positions
+	return frame.peer_cells.get(cell,[])
+
+func _publish_work_peer(frame:Dictionary,peer:int,cell:Vector2i)->void:
+	if frame.peer_cells==null:return
+	var index:Dictionary=frame.peer_cells
+	var endpoints:Array=frame.peer_positions[peer]
+	if endpoints==[cell]:return
+	for previous in endpoints:index[previous].erase(peer)
+	_mark_work_peer_cell(index,cell,peer)
+	frame.peer_positions[peer]=[cell]
+
+func _available_work_route_length(cell:Vector2i,staff:Dictionary,intent:Dictionary,claimed:Array,frame_claims:Dictionary={})->int:
+	if intent.is_empty():return -1
+	var own=staff_states.find(staff)
+	if model.layout_held("staff",own) or not _staff_workface_walkable(cell,frame_claims) or _workface_checkout_claimed(frame_claims,cell):return -1
+	var route_length=_work_route_length(staff,own,Vector2i(staff.pos.floor()),cell,frame_claims)
+	if route_length<0:return -1
 	# Plan one real geometry-valid endpoint per task so idle standing gives way
 	# to all work. Resource/task acquisition remains in the assignment owners.
-	if bool(frame_claims.get("planning",false)):return true
-	var remaining=claimed.count(cell);var own=staff_states.find(staff)
-	for index in staff_states.size():
+	if bool(frame_claims.get("planning",false)):return route_length
+	var remaining=claimed.count(cell)
+	for index in _staff_work_peers(cell,frame_claims):
 		if index==own:continue
 		if frame_claims.has(index):
 			var snapshot:Dictionary=frame_claims[index]
 			if snapshot.get("cell",Vector2i(-1,-1))!=cell:continue
 			if bool(snapshot.get("claimed",true)):remaining-=1
-			if WorkClaims.conflicts(intent,snapshot):return false
+			if WorkClaims.conflicts(intent,snapshot):return -1
 		else:
-			var peer=_staff_work_claim(staff_states[index],cell)
+			var peer=_staff_work_claim(staff_states[index],cell,frame_claims)
 			if not WorkClaims.conflicts(intent,peer):continue
 			# Duplicate task ownership is never arbitration. Other exclusive
 			# work follows the existing order, including chef incumbency/fairness.
-			if WorkClaims.task_conflicts(intent.task,peer.task):return false
+			if WorkClaims.task_conflicts(intent.task,peer.task):return -1
 			# Independent shared-stance work cannot steal a real selected
 			# equipment workspace, including an in-flight later roster owner.
-			if not intent.exclusive and peer.exclusive:return false
+			if not intent.exclusive and peer.exclusive:return -1
 			var order=_chef_work_order()
-			if own<0 or order.find(index)<order.find(own):return false
+			if own<0 or order.find(index)<order.find(own):return -1
 	# Only identifiable frame claims can be waived, never anonymous extras.
-	return remaining<=0
+	return route_length if remaining<=0 else -1
 
 func _table_face_available(cell:Vector2i,staff:Dictionary,claimed:Array,intent:Dictionary={},frame_claims:Dictionary={})->bool:
 	if intent.is_empty():intent=_work_intent(staff,_service_target(staff),cell)
 	return _work_cell_available(cell,staff,intent,claimed,frame_claims)
 
-func _work_route_length(staff:Dictionary,staff_index:int,from:Vector2i,cell:Vector2i)->int:
+func _work_route_length(staff:Dictionary,staff_index:int,from:Vector2i,cell:Vector2i,frame_claims:Dictionary={})->int:
 	# Cache positive and negative route lengths, never claims or diner eligibility.
 	# Only owned floor candidates enter: at most MAX_WIDTH*MAX_DEPTH (324) small
 	# verdicts per staff. A changed start/topology drops the entire prior set.
-	var key=[model.navigation_signature(),from]
+	var geometry=frame_claims.get("route_geometry")
+	var key=[model.navigation_signature() if geometry==null else geometry,from]
 	if staff.get("work_route_key",[])!=key:
+		if geometry!=null:key[0]=geometry.duplicate()
 		staff.work_route_key=key;staff.work_route_lengths={}
 	if not staff.work_route_lengths.has(cell):
 		var route=_staff_route(staff_index,cell) if staff_index>=0 else _static_service_path(from,cell)
 		staff.work_route_lengths[cell]=route.size() if not route.is_empty() or from==cell else -1
 	return int(staff.work_route_lengths[cell])
+
+func _order_face_route_length(staff:Dictionary,staff_index:int,from:Vector2i,cell:Vector2i,claimed:Array,intent:Dictionary,frame_claims:Dictionary)->int:
+	if intent.is_empty():intent=_work_intent(staff,_service_target(staff),cell)
+	var available_length=_available_work_route_length(cell,staff,intent,claimed,frame_claims)
+	if available_length<0 or from==Vector2i(staff.pos.floor()):return available_length
+	# The availability verdict always uses the live start. An explicitly
+	# different planning start still requires its own original route query.
+	return _work_route_length(staff,staff_index,from,cell,frame_claims)
 
 func _table_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed:Array,order_guest:Dictionary={},frame_claims:Dictionary={},order_layout:Dictionary={})->Vector2i:
 	var prospective={}
@@ -1065,20 +1134,20 @@ func _table_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,c
 	var pinned:Vector2i=staff.get("table_face_cell",Vector2i(-1,-1))
 	var staff_index=staff_states.find(staff)
 	var force_replan=float(staff.get("stalled_time",0.0))>.65
-	if int(staff.get("table_face_id",-1))==int(item.id) and cells.has(pinned) and _table_face_available(pinned,staff,claimed,intent,frame_claims):
+	if int(staff.get("table_face_id",-1))==int(item.id) and cells.has(pinned):
 		if not order_guest.is_empty():
-			if _work_route_length(staff,staff_index,from,pinned)>=0:return pinned
-		elif not _static_service_path(from,pinned).is_empty():
+			if _order_face_route_length(staff,staff_index,from,pinned,claimed,intent,frame_claims)>=0:return pinned
+		elif _table_face_available(pinned,staff,claimed,intent,frame_claims) and not _static_service_path(from,pinned).is_empty():
 			if not force_replan or staff_index<0 or from==pinned or not _staff_route(staff_index,pinned).is_empty():return pinned
 	var best=Vector2i(-1,-1);var shortest=1000000
 	for cell in cells:
 		# The rear is a fallback only. A still-valid pinned rear above remains
 		# stable even if an ordinary table face becomes available during travel.
 		if cell==rear and best!=Vector2i(-1,-1):break
-		if not _table_face_available(cell,staff,claimed,intent,frame_claims):continue
 		var length=-1
-		if not order_guest.is_empty():length=_work_route_length(staff,staff_index,from,cell)
+		if not order_guest.is_empty():length=_order_face_route_length(staff,staff_index,from,cell,claimed,intent,frame_claims)
 		else:
+			if not _table_face_available(cell,staff,claimed,intent,frame_claims):continue
 			var route=_staff_route(staff_index,cell) if staff_index>=0 else _static_service_path(from,cell)
 			if not route.is_empty() or from==cell:length=route.size()
 		if length>=0 and length<shortest:best=cell;shortest=length
@@ -1088,7 +1157,7 @@ func _table_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,c
 
 func _bin_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed:Array,frame_claims:Dictionary={})->Vector2i:
 	var intent=_work_intent(staff,item,Vector2i(-1,-1))
-	var cells=model.bin_service_cells(item)
+	var cells=model.bin_service_cells(item,null,_workface_layout(frame_claims))
 	var staff_index=staff_states.find(staff)
 	var pinned:Vector2i=staff.get("destination",Vector2i(-1,-1))
 	# Keep an in-flight approach stable. Replan when a peer, wall or changed
@@ -1115,7 +1184,7 @@ func _service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed
 		return floor_tasks.destination_for_record(service_guests[int(staff.job_guest_id)],staff,from,claimed,front_claims)
 	if str(item.get("kind",""))=="table":
 		var guest:Dictionary=service_guests.get(int(staff.job_guest_id),{}).get("guest",{}) if staff.job_kind=="order" else {}
-		return _table_service_destination(staff,item,from,claimed,guest,front_claims)
+		return _table_service_destination(staff,item,from,claimed,guest,front_claims,_workface_layout(front_claims))
 	staff.table_face_id=-1;staff.table_face_cell=Vector2i(-1,-1)
 	if str(item.get("kind",""))=="bin":return _bin_service_destination(staff,item,from,claimed,front_claims)
 	if str(item.get("kind",""))=="sink":
@@ -1900,10 +1969,14 @@ func _set_staff_art(staff: Dictionary, action: String, target: Dictionary, phase
 	staff.art_station=staff.art_target
 
 func _staff_route_invalid(staff:Dictionary,geometry:Array)->bool:
+	var cursor=int(staff.index)
+	# An exhausted route has no legs to validate. Keep its saved coordinates,
+	# but do not rehash them on every idle tick or certify a suffix not checked.
+	if cursor>=staff.path.size():return false
 	var signature=[geometry,hash(staff.path)]
 	if staff.get("validated_route_signature",[])==signature:return false
 	var point:Vector2=staff.pos
-	for index in range(int(staff.index),staff.path.size()):
+	for index in range(cursor,staff.path.size()):
 		var cell:Vector2i=staff.path[index]
 		var next=Vector2(cell.x+.5,cell.y+.5)
 		if not _staff_walkable(cell) or model.segment_blocked(point,next):return true
@@ -1962,10 +2035,11 @@ func _animate_staff(delta: float):
 		_prepare_cleanup_step(staff_states[index],index);floor_tasks.prepare(staff_states[index],index)
 	# One selected geometry-valid endpoint per live task protects work from idle.
 	# Unselected alternatives and actor transit remain unreserved.
-	model.navigation_cells()
+	var navigation_occupancy=model.navigation_cells()
 	var route_geometry=model.navigation_signature()
 	var workfaces=[]
 	var geometry_work={} # Frame-local presentation evidence; never a reservation.
+	var planning_claims={"planning":true,"workface_layout":null,"checkout_cells":null,"navigation_occupancy":navigation_occupancy,"route_geometry":route_geometry}
 	for index in staff_states.size():
 		var staff=staff_states[index]
 		if model.layout_held("staff",index):continue
@@ -1974,7 +2048,7 @@ func _animate_staff(delta: float):
 		if staff.job_kind=="":continue
 		var target=_service_target(staff)
 		var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
-		var face=_service_destination(staff,target,from,[],{"planning":true}) if not target.is_empty() else Vector2i(-1,-1)
+		var face=_service_destination(staff,target,from,[],planning_claims) if not target.is_empty() else Vector2i(-1,-1)
 		if face!=Vector2i(-1,-1):
 			geometry_work[index]=[WorkClaims.task(staff),int(staff.job_step),int(target.id),face,_work_intent(staff,target,face)]
 			if not workfaces.has(face):workfaces.append(face)
@@ -1987,7 +2061,7 @@ func _animate_staff(delta: float):
 	active_staff_passages.clear() # Retained runtime field; no physical transit claims.
 	var claimed=[]
 	var worked_stations={}
-	var front_claims={} # Full value claims survive completion; no saved reservation ledger.
+	var front_claims={"workface_layout":planning_claims.workface_layout,"peer_cells":null,"checkout_cells":planning_claims.checkout_cells,"navigation_occupancy":navigation_occupancy,"route_geometry":route_geometry} # Realized claims still survive completion.
 	for index in _chef_work_order():
 		var staff=staff_states[index]
 		if model.layout_held("staff",index):continue
@@ -2023,6 +2097,7 @@ func _animate_staff(delta: float):
 		if claims_cell:claimed.append(destination)
 		front_claims[index]=_work_intent(staff,target_item,destination) if interaction_available and not target_item.is_empty() else {"cell":destination,"productive":false}
 		front_claims[index]["claimed"]=claims_cell
+		_publish_work_peer(front_claims,index,destination)
 		if str(target_item.get("kind",""))=="sink" and destination!=model.workface_cell(target_item):front_claims[index]["lane"]=0
 		var at_destination=staff.pos.distance_to(Vector2(destination.x+.5,destination.y+.5))<.03
 		var route_invalid=_staff_route_invalid(staff,route_geometry)
@@ -2067,7 +2142,7 @@ func _animate_staff(delta: float):
 		# not yielding. Travel never advances a preparation/serving/wiping clock.
 		if staff.job_kind=="" or staff.yield_time>0 or target_item.is_empty() or not interaction_available: continue
 		if staff.pos.distance_to(Vector2(destination.x+.5,destination.y+.5))>=.03: continue
-		var rear_order=staff.job_kind=="order" and destination==model.order_rear_cell(target_item,service_guests[int(staff.job_guest_id)].guest)
+		var rear_order=staff.job_kind=="order" and destination==model.order_rear_cell(target_item,service_guests[int(staff.job_guest_id)].guest,_workface_layout(front_claims))
 		if not rear_order and str(target_item.kind)!="floor_disposal" and not _is_floor_cleanup(staff):
 			if absi(destination.x-int(target_item.x))+absi(destination.y-int(target_item.z))!=1 or model.edge_blocked(destination,Vector2i(int(target_item.x),int(target_item.z))):continue
 		if destination!=_service_destination(staff,target_item,from,[],front_claims):continue
@@ -2082,7 +2157,7 @@ func _animate_staff(delta: float):
 			for other_index in staff_states.size():
 				if other_index==index or model.layout_held("staff",other_index): continue
 				var other=staff_states[other_index]
-				var other_claim=_staff_work_claim(other,other.destination)
+				var other_claim=_staff_work_claim(other,other.destination,front_claims)
 				if other_claim.is_empty() or other_claim.resource!=front_claims[index].resource:continue
 				if float(other.job_elapsed)>0.0 or (other_index<index and float(staff.job_elapsed)<=0.0): station_busy=true; break
 		if station_busy: continue
@@ -2106,6 +2181,14 @@ func _animate_staff(delta: float):
 			# settlement signal, so signal-triggered saves see one valid snapshot.
 			if model.checkout_ready(guest,register_id):
 				_clear_service_job(staff)
+				# Settlement emits synchronously; listeners can edit the layout.
+				front_claims.workface_layout=null
+				front_claims.checkout_cells=null
+				# Do not refresh model navigation (and the wall index) earlier than before.
+				front_claims.navigation_occupancy=null
+				front_claims.route_geometry=null
+				front_claims.peer_cells=null
+				front_claims.erase("peer_positions")
 				model.commit_checkout_payment(int(guest.id),int(guest.checkout_ticket),register_id,token)
 			continue
 		if step.action=="wiping": record.table_wiped=true
