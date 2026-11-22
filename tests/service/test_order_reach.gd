@@ -11,6 +11,35 @@ class CountedFixture extends Fixture:
  func _staff_route(index:int,cell:Vector2i)->Array:
   if cell in [Vector2i(5,6),Vector2i(8,6)]:rear_route_calls+=1
   return super._staff_route(index,cell)
+class AvailableCountedFixture extends Fixture:
+ var starts:Array[Vector2i]=[]
+ func _work_route_length(staff:Dictionary,staff_index:int,from:Vector2i,cell:Vector2i,frame_claims:Dictionary={})->int:
+  starts.append(from)
+  return super._work_route_length(staff,staff_index,from,cell,frame_claims)
+func check_live_route_reuse():
+ var g=AvailableCountedFixture.new();g.setup();pin_order(g)
+ var s=g.staff_states[0];var from=Vector2i(s.pos.floor());var alternate=from+Vector2i.LEFT
+ check(destination(g)==REAR and g.starts==[from],"unselected order rear acquires its same live route verdict once")
+ g.starts.clear()
+ check(destination(g)==REAR and g.starts==[from],"pinned order rear acquires its same live route verdict once")
+ g.starts.clear()
+ check(g._service_destination(s,g.model.get_item(101),alternate)==REAR and g.starts==[from,alternate],"different planning start retains the original second lookup")
+ g.starts.clear()
+ check(g._service_destination(s,g.model.get_item(101),from,[REAR])==INVALID,"live anonymous claim still rejects the pinned endpoint")
+ cleanup(g)
+func equal_route_tie_uses_existing_order():
+ var g=fixture();pin_order(g);var s=g.staff_states[0]
+ g.model.items.erase(g.model.get_item(103));g.model.items.erase(g.model.get_item(105))
+ var from=Vector2i(5,2);s.pos=g.model.cell_center(from)
+ var left=Vector2i(4,4);var right=Vector2i(6,4)
+ var left_length=g._work_route_length(s,0,from,left)
+ var right_length=g._work_route_length(s,0,from,right)
+ check(left_length>=0 and left_length==right_length,"both ordinary faces have real equal-length routes")
+ var target=g.model.get_item(101)
+ check(g._service_destination(s,target,from)==left,"direct selection retains left-first equal-length tie")
+ s.table_face_id=-1;s.table_face_cell=INVALID
+ check(g._service_destination(s,target,from,[],{"planning":true,"route_geometry":g.model.navigation_signature()})==left,"scoped geometry retains the same equal-length tie")
+ cleanup(g)
 func check(ok,label):
  checks+=1
  if not ok:failures.append(label);printerr("FAIL ",label)
@@ -26,6 +55,8 @@ func pin_order(g):
  var s=g.staff_states[0]
  s.job_kind="order";s.job_guest_id=201;s.job_token=g.service_guests[201].token;s.station_id=101
 func run():
+ check_live_route_reuse()
+ equal_route_tie_uses_existing_order()
  check_order_retry_scope()
  var g=fixture();var s=g.staff_states[0];var record=g.service_guests[201]
  check(g.model.table_service_cells(g.model.get_item(101)).is_empty(),"fixture blocks all physical table faces")
