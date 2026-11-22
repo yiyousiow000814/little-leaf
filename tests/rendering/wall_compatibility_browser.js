@@ -17,6 +17,16 @@ const contract = JSON.parse(fs.readFileSync(path.join(fixtureDir, 'contract.json
 // request, transaction, validator or acknowledgement is replaced or suppressed.
 function observeOwnedTestPage() {
   const observation = window.__wallCompatibility = {saveStarts: 0, saves: [], clients: 0, writes: [], transactions: [], launchArgs: null};
+  // Only armed around critical, real mouse clicks in Case B. No input handler
+  // is wrapped, cancelled or paced by the observer itself.
+  window.__wallTestGesture = null;
+  for (const type of ['mousedown', 'mouseup']) {
+    window.addEventListener(type, event => {
+      const gesture = window.__wallTestGesture;
+      if (gesture && gesture.length < 4) gesture.push({type, button: event.button, x: event.clientX, y: event.clientY,
+        trusted: event.isTrusted, canvas: event.target?.id === 'canvas'});
+    }, {capture: true, passive: true});
+  }
   const relevant = name => name === 'little-leaf.authoritative.v1' || name === '/userfs';
   for (const method of ['add', 'put', 'delete', 'clear']) {
     const original = IDBObjectStore.prototype[method];
@@ -170,18 +180,15 @@ async function settleInput(page, ms, afterMouse = false) {
   assert(Number.isFinite(before) && before + delta <= CASE_B_MAX_VIRTUAL_MS,
     'Case B exhausted its controlled pre-autosave time before the expected UI appeared');
   let remaining = delta;
-  // Deliver real mouse input through two ordinary scheduled frames. For UI
-  // settling, do not replay every missed RAF across all pages: a 400 ms burst
-  // runs 25 full wasm callbacks inside one Clock RPC. Coalesce into <=100ms
-  // quanta (below the pinned Godot 8/60s default process clamp). One elapsed
-  // quantum can draw one frame; the actual readiness OCR stays authoritative.
-  if (afterMouse || remaining <= 34) {
-    await phaseOn(page, 'clock: deliver input frames (34 ms virtual)', 8000, () => page.clock.runFor(34));
-    remaining -= 34;
-  }
+  // The real mouse-down and mouse-up have already been dispatched by the
+  // browser. Do not burst multiple RAFs even after input: the wall review can
+  // need an expensive first redraw. Coalesce each <=100ms quantum into one
+  // due RAF; keep actual OCR and durable save acknowledgements authoritative.
+  // Keep the same 34ms first quantum after a click; later waits remain
+  // below Godot's default 8/60s process-step clamp.
   while (remaining > 0) {
-    const step = Math.min(remaining, 100);
-    await phaseOn(page, 'clock: settle rendered UI (' + step + ' ms virtual)', 8000, () => page.clock.fastForward(step));
+    const step = Math.min(remaining, afterMouse && remaining === delta ? 34 : 100);
+    await phaseOn(page, 'clock: settle one due RAF (' + step + ' ms virtual)', 8000, () => page.clock.fastForward(step));
     remaining -= step;
   }
   const after = await page.evaluate(() => performance.now());
@@ -200,6 +207,13 @@ async function settleCaseBTrayOpening(page) {
       13000, () => settleInput(page, step));
     remaining -= step;
   }
+}
+function assertSingleCanvasGesture(name, point, events) {
+  assert(Array.isArray(events) && events.length === 2 &&
+    events.every((event, index) => event.type === ['mousedown', 'mouseup'][index] && event.button === 0 &&
+      event.trusted === true && event.canvas === true &&
+      Math.abs(event.x - point[0]) <= 1 && Math.abs(event.y - point[1]) <= 1),
+    'Case B expected one trusted canvas mouse-down/up at the bound ' + name + ' point');
 }
 async function clickCaseBWallStep(page, click, name, delay) {
   await click(page, 'new', name, delay);
@@ -363,7 +377,18 @@ async function main() {
     };
     const click = async (page, label, name, delay = 250) => {
       const point = layouts[label].points[name]; assert(point && point.length === 2, 'Derived point ' + name);
+      const trace = label === 'new' && stoppedClockPages.has(page) && ['segment', 'confirm', 'apply'].includes(name);
+      if (trace) await phaseOn(page, 'gesture: arm ' + name, 8000, () => page.evaluate(() => {window.__wallTestGesture = [];}));
       await phaseOn(page, 'input: ' + label + ' ' + name, 8000, () => page.mouse.click(...point));
+      if (trace) {
+        const events = await phaseOn(page, 'gesture: snapshot ' + name, 8000, () => page.evaluate(() => {
+          const seen = window.__wallTestGesture;
+          window.__wallTestGesture = null;
+          return seen;
+        }));
+        (report.case_b_gestures ||= []).push({name, point, events});
+        assertSingleCanvasGesture(name, point, events);
+      }
       await phaseOn(page, 'settle input: ' + label + ' ' + name, 13000, () => settleInput(page, delay, true));
     };
     const screenText = async (page, label, name, phrases) => {
@@ -633,4 +658,4 @@ async function main() {
   }
 }
 if (require.main === module) main().catch(error => {console.error(error); process.exitCode = 1;});
-module.exports = {observeOwnedTestPage, readSnapshot, freezeCaseBClock, settleInput, resumeCaseBClock, createPhaseRunner, clickCaseBWallStep};
+module.exports = {observeOwnedTestPage, readSnapshot, freezeCaseBClock, settleInput, resumeCaseBClock, createPhaseRunner, clickCaseBWallStep, assertSingleCanvasGesture};

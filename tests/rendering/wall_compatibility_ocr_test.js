@@ -290,10 +290,6 @@ async function verifyClockWindow() {
         paused = true; transitions.push(['pause', ticks]);
       },
       setSystemTime: async ticks => {assert(paused && fixed); fixed = false; wallTimes.fill(ticks); transitions.push(['unfix', ticks]);},
-      runFor: async ms => {
-        assert(paused && !fixed); advances.push(['run', ms]); elapsed += ms;
-        for (const index of wallTimes.keys()) wallTimes[index] += ms;
-      },
       fastForward: async ms => {
         assert(paused && !fixed); advances.push(['coalesce', ms]); elapsed += ms;
         for (const index of wallTimes.keys()) wallTimes[index] += ms;
@@ -324,8 +320,8 @@ async function verifyClockWindow() {
   check('Case B bounds simulation on real input only and restores lifecycle clock', () => {
     assert.deepEqual(transitions, [['fix', oldWall], ['pause', oldWall], ['unfix', oldWall]]);
     assert.deepEqual(wallTimes, [oldWall + 3184, oldWall + 3184]);
-    assert.deepEqual(advances, [['run', 34], ...Array.from({length: 29}, () => ['coalesce', 100]),
-      ['run', 34], ['coalesce', 100], ['coalesce', 100], ['coalesce', 16]]);
+    assert.deepEqual(advances, [['coalesce', 34], ...Array.from({length: 29}, () => ['coalesce', 100]),
+      ['coalesce', 34], ['coalesce', 100], ['coalesce', 100], ['coalesce', 16]]);
     assert.deepEqual(realWaits, [9, 11]);
     assert.deepEqual(routeInputs, ['decorate', 'build_next', 'wall', 'wall_next', 'wall_style', 'segment']);
     assert.deepEqual(routeOcr[0], ['case-b-category-ready', ['Tables']]);
@@ -354,7 +350,20 @@ async function verifyPhaseDeadlines() {
     assert(entries.every(e => Number.isFinite(e.elapsed_ms) && e.elapsed_ms >= 0 && Number.isFinite(Date.parse(e.at))));
   });
 }
-verifyConfirmFailureEvidence().then(verifyClockWindow).then(verifyPhaseDeadlines).then(() => console.log(JSON.stringify({passed: true, checks,
+function verifyGestureObserver() {
+  const {assertSingleCanvasGesture} = require('./wall_compatibility_browser');
+  const point = [717.54, 213.86], down = {type: 'mousedown', button: 0, x: 717, y: 214, trusted: true, canvas: true};
+  const up = {...down, type: 'mouseup'};
+  check('bound critical input allows one trusted canvas press/release only', () => {
+    assert.doesNotThrow(() => assertSingleCanvasGesture('segment', point, [down, up]));
+    for (const events of [[down], [up, down], [down, up, down, up], [{...down, trusted: false}, up],
+      [down, {...up, canvas: false}], [down, {...up, x: 720}]]) {
+      assert.throws(() => assertSingleCanvasGesture('segment', point, events), /expected one trusted canvas/);
+    }
+    assert.match(browserSource, /stoppedClockPages\.has\(page\) && \['segment', 'confirm', 'apply'\]\.includes\(name\)/);
+  });
+}
+verifyConfirmFailureEvidence().then(verifyClockWindow).then(verifyPhaseDeadlines).then(verifyGestureObserver).then(() => console.log(JSON.stringify({passed: true, checks,
   browser_runtime_exercised: false,
   method: 'native-source geometry, retained-pixel and failure-only boundary guards'})))
   .catch(error => {console.error(error); process.exitCode = 1;});
