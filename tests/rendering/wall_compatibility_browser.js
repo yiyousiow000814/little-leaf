@@ -106,6 +106,39 @@ async function readSnapshot(page) {
 const active = snapshot => snapshot.authority.find(([key]) => key === 'active')[1];
 async function observation(page) {return page.evaluate(() => structuredClone(__wallCompatibility));}
 const stoppedClockPages = new WeakSet();
+const phaseByPage = new WeakMap();
+const directPhase = (_name, _ms, run) => run();
+const phaseOn = (page, name, ms, run) => (phaseByPage.get(page) || directPhase)(name, ms, run);
+
+// Node host clock only; Playwright page clock never controls these deadlines.
+// The fallible operation is not retried after timeout. Journal before issuing
+// it so a killed parent still retains the last named in-flight phase.
+function createPhaseRunner(writeLine, timeout = setTimeout, cancel = clearTimeout) {
+  let next = 0;
+  return async (name, ms, run) => {
+    const id = ++next;
+    const started = process.hrtime.bigint();
+    let timer;
+    const note = state => writeLine({id, name, state, at: new Date().toISOString(),
+      elapsed_ms: Number(process.hrtime.bigint() - started) / 1000000, deadline_ms: ms});
+    note('started');
+    try {
+      const deadline = new Promise((_resolve, reject) => {
+        timer = timeout(() => {
+          const error = Error('Case B host deadline: ' + name + ' (' + ms + ' ms)');
+          error.phaseId = id;
+          reject(error);
+        }, ms);
+      });
+      const result = await Promise.race([deadline, Promise.resolve().then(run)]);
+      note('completed');
+      return result;
+    } catch (error) {
+      note(error?.phaseId === id ? 'timed-out' : 'failed');
+      throw error;
+    } finally {cancel(timer);}
+  };
+}
 const nodeWait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // Only Case B's exact-input window is clock-stepped. The game still executes
@@ -114,18 +147,18 @@ const nodeWait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const CASE_B_MAX_VIRTUAL_MS = 40000;
 async function freezeCaseBClock(page) {
   const frames = page.context().pages().flatMap(peer => peer.frames());
-  const samples = await Promise.all(frames.map(frame => frame.evaluate(() => Date.now())));
+  const samples = await phaseOn(page, 'clock: sample context wall times', 8000, () => Promise.all(frames.map(frame => frame.evaluate(() => Date.now()))));
   assert(samples.length > 0 && samples.every(Number.isFinite), 'Case B browser clocks have finite wall times');
   const anchor = Math.ceil(Math.max(...samples));
-  const before = await page.evaluate(() => performance.now());
+  const before = await phaseOn(page, 'clock: read pre-pause monotonic tick', 8000, () => page.evaluate(() => performance.now()));
   // Playwright applies this clock context-wide, including the loaded old tab.
   // Freeze wall time at a common anchor first: scheduler latency and clock
   // skew cannot turn the pause into a backward fast-forward. Unfix wall time
   // after pausing, without resetting or advancing the real simulation clock.
-  await page.clock.setFixedTime(anchor);
-  await page.clock.pauseAt(anchor);
-  await page.clock.setSystemTime(anchor);
-  const elapsed = await page.evaluate(() => performance.now());
+  await phaseOn(page, 'clock: align wall time', 8000, () => page.clock.setFixedTime(anchor));
+  await phaseOn(page, 'clock: pause without jump', 8000, () => page.clock.pauseAt(anchor));
+  await phaseOn(page, 'clock: restore wall-time progression while paused', 8000, () => page.clock.setSystemTime(anchor));
+  const elapsed = await phaseOn(page, 'clock: read paused monotonic tick', 8000, () => page.evaluate(() => performance.now()));
   assert(Number.isFinite(before) && before >= 0 && Number.isFinite(elapsed) && elapsed >= before && elapsed < CASE_B_MAX_VIRTUAL_MS,
     'Case B loaded inside the controlled pre-autosave window');
   stoppedClockPages.add(page);
@@ -136,13 +169,13 @@ async function settleInput(page, ms) {
   const before = await page.evaluate(() => performance.now());
   assert(Number.isFinite(before) && before + delta <= CASE_B_MAX_VIRTUAL_MS,
     'Case B exhausted its controlled pre-autosave time before the expected UI appeared');
-  await page.clock.runFor(delta);
+  await phaseOn(page, 'clock: step UI callbacks (' + delta + ' ms virtual)', 12000, () => page.clock.runFor(delta));
   const after = await page.evaluate(() => performance.now());
   assert(Math.abs(after - before - delta) <= 1 && after <= CASE_B_MAX_VIRTUAL_MS,
     'Case B clock advanced exactly the requested UI settling time');
 }
 async function resumeCaseBClock(page) {
-  await page.clock.resume();
+  await phaseOn(page, 'clock: resume before lifecycle', 8000, () => page.clock.resume());
   stoppedClockPages.delete(page);
 }
 async function idle(page) {
@@ -211,7 +244,9 @@ async function main() {
   fs.mkdirSync(output, {recursive: true});
   const report = {status: 'running', browser_verified: false, synthetic_only: true, checks: [], cases: {}, errors: []};
   const check = (ok, label) => {assert(ok, label); report.checks.push(label);};
-  let browser, server;
+  let browser, server, forceExit = false;
+  const caseB = selectedCase === 'old_opened_after_new' ? directPhase : createPhaseRunner(line =>
+    fs.appendFileSync(path.join(output, 'wall-compatibility-phases.jsonl'), JSON.stringify(line) + '\n'));
   try {
     const preflight = JSON.parse(fs.readFileSync(path.join(layoutDir, 'preflight.json')));
     assert.equal(preflight.status, 'passed');
@@ -265,7 +300,7 @@ async function main() {
     const origin = 'http://127.0.0.1:' + server.address().port;
     const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     const channel = process.env.PLAYWRIGHT_CHROMIUM_CHANNEL || undefined;
-    browser = await chromium.launch({headless: false, chromiumSandbox: true, channel});
+    browser = await caseB('Chromium launch', 35000, () => chromium.launch({headless: false, chromiumSandbox: true, channel}));
     report.browser = {channel: channel || 'bundled Chromium', version: browser.version(),
       playwright: require(path.join(process.env.PLAYWRIGHT_MODULE || 'playwright', 'package.json')).version, sandbox: true};
     const createPage = async (context, scale) => {
@@ -288,8 +323,8 @@ async function main() {
       return context;
     };
     const boot = async (page, label, revision) => {
-      await page.goto(origin + '/' + label + '/index.html');
-      await page.waitForFunction(() => !document.getElementById('status'), null, {timeout: 90000});
+      await phaseOn(page, label + ' boot: navigate', 35000, () => page.goto(origin + '/' + label + '/index.html'));
+      await phaseOn(page, label + ' boot: first rendered frame', 91000, () => page.waitForFunction(() => !document.getElementById('status'), null, {timeout: 90000}));
       await page.waitForTimeout(500);
       const result = await page.evaluate(() => JSON.parse(__littleLeafVault.bootJson));
       check(result.ok && result.source === 'authority' && result.revision === revision, label + ' actual export reads the expected verified authority revision');
@@ -297,7 +332,8 @@ async function main() {
     };
     const click = async (page, label, name, delay = 250) => {
       const point = layouts[label].points[name]; assert(point && point.length === 2, 'Derived point ' + name);
-      await page.mouse.click(...point); await settleInput(page, delay);
+      await phaseOn(page, 'input: ' + label + ' ' + name, 8000, () => page.mouse.click(...point));
+      await phaseOn(page, 'settle input: ' + label + ' ' + name, 13000, () => settleInput(page, delay));
     };
     const screenText = async (page, label, name, phrases) => {
       await page.waitForTimeout(200);
@@ -322,13 +358,13 @@ async function main() {
         // during its opening tween, so a slow exported frame may ignore the
         // first click even after a fixed wall-clock delay. Never retry payment.
         if (retryTarget) await click(page, 'new', retryTarget, 0);
-        await settleInput(page, 400);
-        await page.screenshot({path: path.join(output, name + '.png')});
+        await phaseOn(page, 'OCR: settle ' + name, 13000, () => settleInput(page, 400));
+        await phaseOn(page, 'OCR: screenshot ' + name, 10000, () => page.screenshot({path: path.join(output, name + '.png'), timeout: 9500}));
         const texts = [];
         for (const spec of regions) {
           const {x, y, width, height} = spec;
           const crop = path.join(output, name + '-' + spec.key + '-crop.png');
-          const png = await page.screenshot({path: crop, clip: {x, y, width, height}});
+          const png = await phaseOn(page, 'OCR: crop ' + name + '/' + spec.key, 10000, () => page.screenshot({path: crop, clip: {x, y, width, height}, timeout: 9500}));
           let input = crop;
           if (spec.scale > 1) {
             // Preserve raw evidence. This separate OCR input repeats each
@@ -429,12 +465,17 @@ async function main() {
     // controlled browser time keeps UI tweens working without spending the
     // 50-second dirty-save interval while the host processes OCR evidence.
     if (selectedCase === 'all' || selectedCase === 'already_open_old') {
-      const context = await createContext();
+      const context = await caseB('create isolated context', 12000, createContext);
       try {
-        const fixture = await context.newPage(); await fixture.goto(origin + '/fixture');
-        const seeded = await seed(fixture, oldSource, fixtures['old-format1.json']);
-        const oldPage = await createPage(context, 0), newPage = await createPage(context, .1);
-        await oldPage.bringToFront(); await boot(oldPage, 'old', active(seeded).revision);
+        const fixture = await caseB('fixture: open seed page', 15000, async () => {
+          const page = await context.newPage(); await page.goto(origin + '/fixture'); return page;
+        });
+        const seeded = await caseB('fixture: seed historical authority', 15000, () => seed(fixture, oldSource, fixtures['old-format1.json']));
+        const [oldPage, newPage] = await caseB('create old and new test pages', 15000, async () =>
+          [await createPage(context, 0), await createPage(context, .1)]);
+        phaseByPage.set(oldPage, caseB); phaseByPage.set(newPage, caseB);
+        await caseB('old boot: foreground', 8000, () => oldPage.bringToFront());
+        await caseB('old boot: verify historical export', 115000, () => boot(oldPage, 'old', active(seeded).revision));
         // Prove the real old controller accepted its model, then restore the
         // operating state. A vault-only boot result is not engine acceptance.
         await click(oldPage, 'old', 'business'); await idle(oldPage);
@@ -443,15 +484,15 @@ async function main() {
         check(acceptedOld.saves.length === 2 && acceptedOld.saves.every(result => result.ok && result.durable),
           'Actual old engine accepts format 1 and durably saves ordinary UI actions');
         // Let an ordinary page-hide save settle BEFORE the new engine loads R.
-        await newPage.bringToFront(); await idle(oldPage);
+        await caseB('old lifecycle: hide and settle', 18000, async () => {await newPage.bringToFront(); await idle(oldPage);});
         const baseline = await stableSnapshot(fixture), revision = active(baseline).revision;
         const oldBoot = await oldPage.evaluate(() => JSON.parse(__littleLeafVault.bootJson));
         check(oldBoot.revision === revision && JSON.parse(oldBoot.payload).wall_format === 1, 'Genuinely loaded old engine and authority share revision R');
         // Start observation at R, before the new engine opens. Never clear a
         // post-commit old mutation, even if it happened on a focus transition.
         await oldPage.evaluate(() => {__wallCompatibility.writes = []; __wallCompatibility.transactions = []; __wallCompatibility.saves = []; __wallCompatibility.saveStarts = 0;});
-        await newPage.clock.install();
-        await boot(newPage, 'new', revision);
+        await caseB('clock: install before new navigation', 8000, () => newPage.clock.install());
+        await caseB('new boot: verify shared authority R', 115000, () => boot(newPage, 'new', revision));
         await freezeCaseBClock(newPage);
         report.case_b_clock = {virtual_ms_at_freeze: await newPage.evaluate(() => performance.now()),
           virtual_ms_limit: CASE_B_MAX_VIRTUAL_MS, scale: .1};
@@ -497,7 +538,7 @@ async function main() {
         }
         check(afterConfirm.saveStarts === 0, 'Wall Confirm changes only the Decorate draft before Apply');
         check(canonical(await readSnapshot(fixture)) === canonical(baseline), 'Unapplied wall edit preserves every durable authority, wallet and ownership byte');
-        await click(newPage, 'new', 'apply'); await idle(newPage);
+        await click(newPage, 'new', 'apply'); await caseB('Apply: durable real IndexedDB acknowledgement', 17000, () => idle(newPage));
         const committed = await readSnapshot(fixture), payload = JSON.parse(active(committed).payload);
         report.new_ui_edit = {revision_before: revision, revision_after: active(committed).revision,
           building_format: payload.building_format, wall_format: payload.wall_format, target: layouts.new.expected_target, expected_segment: layouts.new.expected_segment,
@@ -511,10 +552,10 @@ async function main() {
         check(canonical(active(committed).campaigns) === canonical(active(baseline).campaigns), 'New commit retains compensation receipt without a second grant');
         const newObserved = await observation(newPage);
         check(newObserved.saveStarts === 1 && newObserved.saves.length === 1 && newObserved.saves[0].ok && newObserved.saves[0].durable && newObserved.saves[0].revision === revision + 1 && newObserved.saves[0].creditedCoins === 0, 'Actual new controller receives durable R+1 acknowledgement');
-        await newPage.screenshot({path: path.join(output, 'case-b-new-committed.png')});
+        await caseB('Apply: committed screenshot', 10000, () => newPage.screenshot({path: path.join(output, 'case-b-new-committed.png'), timeout: 9500}));
         report.case_b_clock.virtual_ms_at_apply_ack = await newPage.evaluate(() => performance.now());
         await resumeCaseBClock(newPage);
-        await oldPage.bringToFront(); await idle(newPage);
+        await caseB('new lifecycle: hide and settle', 18000, async () => {await oldPage.bringToFront(); await idle(newPage);});
         // Settle and close the successful new writer before testing forbidden
         // old writes. Otherwise a later foreground switch can legitimately
         // trigger another new page-hide save and muddy the byte-equality check.
@@ -543,7 +584,7 @@ async function main() {
         await screenText(oldPage, 'old', 'case-b-old-reloaded', ['Invalid saved wall or finish data', 'original progress is unchanged']);
         await assertUnchanged(oldPage, reloadBaseline, 'Case B old reload');
         report.cases.already_open_old.reload = await verifyNewReload(context, reloadBaseline, 'case-b-new-restored');
-      } finally {await context.close();}
+      } finally {await caseB('close isolated context', 8000, () => context.close());}
     }
     check(report.errors.length === 0, 'Both actual exports run without unexpected script/browser errors');
     report.status = 'passed'; report.browser_verified = true;
@@ -551,12 +592,14 @@ async function main() {
     report.status = 'failed'; report.error = error.stack; process.exitCode = 1;
   } finally {
     if (browser) {
-      try {await browser.close();} catch (error) {report.errors.push('Browser cleanup: ' + String(error)); report.status = 'failed'; report.browser_verified = false; process.exitCode = 1;}
+      try {await caseB('close Chromium', 8000, () => browser.close());}
+      catch (error) {report.errors.push('Browser cleanup: ' + String(error)); report.status = 'failed'; report.browser_verified = false; process.exitCode = 1; forceExit = true;}
     }
     if (server) {server.closeAllConnections(); await new Promise(resolve => server.close(resolve));}
     fs.writeFileSync(path.join(output, 'wall-compatibility-browser.json'), JSON.stringify(report, null, 2) + '\n');
     console.log(JSON.stringify(report, null, 2));
+    if (forceExit) process.exit(1);
   }
 }
 if (require.main === module) main().catch(error => {console.error(error); process.exitCode = 1;});
-module.exports = {observeOwnedTestPage, readSnapshot, freezeCaseBClock, settleInput, resumeCaseBClock};
+module.exports = {observeOwnedTestPage, readSnapshot, freezeCaseBClock, settleInput, resumeCaseBClock, createPhaseRunner};

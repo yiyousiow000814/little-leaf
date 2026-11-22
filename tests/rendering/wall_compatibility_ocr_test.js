@@ -306,7 +306,28 @@ async function verifyClockWindow() {
     assert.equal(paused, false);
   });
 }
-verifyConfirmFailureEvidence().then(verifyClockWindow).then(() => console.log(JSON.stringify({passed: true, checks,
+async function verifyPhaseDeadlines() {
+  const {createPhaseRunner} = require('./wall_compatibility_browser');
+  const entries = [], timers = [], cleared = [];
+  const run = createPhaseRunner(event => entries.push(event), (cb, ms) => {
+    const timer = {cb, ms}; timers.push(timer); return timer;
+  }, timer => cleared.push(timer));
+  const timedOut = run('clock: pause without jump', 8000, () => new Promise(() => {}));
+  assert.deepEqual(entries.map(e => [e.name, e.state]), [['clock: pause without jump', 'started']]);
+  assert.equal(timers[0].ms, 8000);
+  timers[0].cb();
+  await assert.rejects(timedOut, /Case B host deadline: clock: pause without jump/);
+  await assert.rejects(run('OCR: crop', 10000, () => {throw Error('screenshot exception');}), /screenshot exception/);
+  assert.equal(await run('Apply: durable acknowledgement', 17000, () => 'opaque signal'), 'opaque signal');
+  check('host phase journal distinguishes cancelled waits from real completion and errors', () => {
+    assert.deepEqual(cleared, timers);
+    assert.deepEqual(entries.map(e => [e.id, e.state, e.deadline_ms]),
+      [[1, 'started', 8000], [1, 'timed-out', 8000], [2, 'started', 10000], [2, 'failed', 10000],
+       [3, 'started', 17000], [3, 'completed', 17000]]);
+    assert(entries.every(e => Number.isFinite(e.elapsed_ms) && e.elapsed_ms >= 0 && Number.isFinite(Date.parse(e.at))));
+  });
+}
+verifyConfirmFailureEvidence().then(verifyClockWindow).then(verifyPhaseDeadlines).then(() => console.log(JSON.stringify({passed: true, checks,
   browser_runtime_exercised: false,
   method: 'native-source geometry, retained-pixel and failure-only boundary guards'})))
   .catch(error => {console.error(error); process.exitCode = 1;});
