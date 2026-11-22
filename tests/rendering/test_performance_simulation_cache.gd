@@ -72,6 +72,16 @@ func run():
  check(not game._staff_route_invalid(staff,m.navigation_signature()),"wall removal restores route")
  staff.path=[Vector2i(4,3),Vector2i(-1,-1)]
  check(game._staff_route_invalid(staff,m.navigation_signature()),"changed route cannot reuse old validation")
+ var previous_witness=staff.validated_route_signature
+ var retained_path=staff.path
+ staff.index=staff.path.size()
+ check(not game._staff_route_invalid(staff,[999]),"exhausted route has no future legs even under changed geometry")
+ check(is_same(staff.path,retained_path) and staff.index==2,"exhaustion does not rewrite the saved route or cursor")
+ check(staff.validated_route_signature==previous_witness,"exhausted route is not hashed or certified for the changed geometry")
+ staff.index=1
+ check(game._staff_route_invalid(staff,[999]),"an unconsumed suffix after exhaustion is validated normally")
+ var empty_staff={"pos":Vector2(3.5,3.5),"path":[],"index":0}
+ check(not game._staff_route_invalid(empty_staff,[999]) and not empty_staff.has("validated_route_signature"),"empty staff route skips without creating a validation witness")
  for node in [game.people,game.ui]:node.free()
  game.free()
  var admission=AdmissionModel.new();admission.customers.clear()
