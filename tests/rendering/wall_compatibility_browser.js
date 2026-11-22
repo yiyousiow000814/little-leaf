@@ -163,13 +163,27 @@ async function freezeCaseBClock(page) {
     'Case B loaded inside the controlled pre-autosave window');
   stoppedClockPages.add(page);
 }
-async function settleInput(page, ms) {
+async function settleInput(page, ms, afterMouse = false) {
   if (!stoppedClockPages.has(page)) return page.waitForTimeout(ms);
-  const delta = Math.max(34, ms); // allow two nominal frames to consume real mouse input
+  const delta = Math.max(34, ms);
   const before = await page.evaluate(() => performance.now());
   assert(Number.isFinite(before) && before + delta <= CASE_B_MAX_VIRTUAL_MS,
     'Case B exhausted its controlled pre-autosave time before the expected UI appeared');
-  await phaseOn(page, 'clock: step UI callbacks (' + delta + ' ms virtual)', 12000, () => page.clock.runFor(delta));
+  let remaining = delta;
+  // Deliver real mouse input through two ordinary scheduled frames. For UI
+  // settling, do not replay every missed RAF across all pages: a 400 ms burst
+  // runs 25 full wasm callbacks inside one Clock RPC. Coalesce into <=100ms
+  // quanta (below the pinned Godot 8/60s default process clamp). One elapsed
+  // quantum can draw one frame; the actual readiness OCR stays authoritative.
+  if (afterMouse || remaining <= 34) {
+    await phaseOn(page, 'clock: deliver input frames (34 ms virtual)', 8000, () => page.clock.runFor(34));
+    remaining -= 34;
+  }
+  while (remaining > 0) {
+    const step = Math.min(remaining, 100);
+    await phaseOn(page, 'clock: settle rendered UI (' + step + ' ms virtual)', 8000, () => page.clock.fastForward(step));
+    remaining -= step;
+  }
   const after = await page.evaluate(() => performance.now());
   assert(Math.abs(after - before - delta) <= 1 && after <= CASE_B_MAX_VIRTUAL_MS,
     'Case B clock advanced exactly the requested UI settling time');
@@ -333,7 +347,7 @@ async function main() {
     const click = async (page, label, name, delay = 250) => {
       const point = layouts[label].points[name]; assert(point && point.length === 2, 'Derived point ' + name);
       await phaseOn(page, 'input: ' + label + ' ' + name, 8000, () => page.mouse.click(...point));
-      await phaseOn(page, 'settle input: ' + label + ' ' + name, 13000, () => settleInput(page, delay));
+      await phaseOn(page, 'settle input: ' + label + ' ' + name, 13000, () => settleInput(page, delay, true));
     };
     const screenText = async (page, label, name, phrases) => {
       await page.waitForTimeout(200);

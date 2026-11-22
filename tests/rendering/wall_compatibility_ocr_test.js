@@ -284,7 +284,11 @@ async function verifyClockWindow() {
       },
       setSystemTime: async ticks => {assert(paused && fixed); fixed = false; wallTimes.fill(ticks); transitions.push(['unfix', ticks]);},
       runFor: async ms => {
-        assert(paused && !fixed); advances.push(ms); elapsed += ms;
+        assert(paused && !fixed); advances.push(['run', ms]); elapsed += ms;
+        for (const index of wallTimes.keys()) wallTimes[index] += ms;
+      },
+      fastForward: async ms => {
+        assert(paused && !fixed); advances.push(['coalesce', ms]); elapsed += ms;
         for (const index of wallTimes.keys()) wallTimes[index] += ms;
       },
       resume: async () => {assert(paused && !fixed); paused = false;},
@@ -292,16 +296,18 @@ async function verifyClockWindow() {
   };
   await settleInput(page, 9);
   await freezeCaseBClock(page);
-  await settleInput(page, 0);
+  await settleInput(page, 0, true);
   await settleInput(page, 400);
+  await settleInput(page, 250, true);
   elapsed = 39900;
   await assert.rejects(settleInput(page, 400), /exhausted its controlled pre-autosave time/);
   await resumeCaseBClock(page);
   await settleInput(page, 11);
   check('Case B bounds simulation on real input only and restores lifecycle clock', () => {
     assert.deepEqual(transitions, [['fix', oldWall], ['pause', oldWall], ['unfix', oldWall]]);
-    assert.deepEqual(wallTimes, [oldWall + 434, oldWall + 434]);
-    assert.deepEqual(advances, [34, 400]);
+    assert.deepEqual(wallTimes, [oldWall + 684, oldWall + 684]);
+    assert.deepEqual(advances, [['run', 34], ...Array.from({length: 4}, () => ['coalesce', 100]),
+      ['run', 34], ['coalesce', 100], ['coalesce', 100], ['coalesce', 16]]);
     assert.deepEqual(realWaits, [9, 11]);
     assert.equal(paused, false);
   });
