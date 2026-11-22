@@ -48,8 +48,26 @@ jobs:
           ref: 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
           path: .compatibility-old
           persist-credentials: false
-      - name: Bind identical producer layouts without native work
-        run: python3 tools/qualification/prepare_browser_qa.py wall --merge-only --old-source .compatibility-old --old-build "$RUNNER_TEMP/old-web-build" --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-preflight"
+      - name: Fetch the original already-validated layout receipt
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: '14760551918'
+          path: ${{ runner.temp }}/caseb-original-evidence
+          digest-mismatch: error
+          run-id: '45035606300'
+          github-token: ${{ github.token }}
+      - name: Authenticate exact original layout inputs for diagnostic use only
+        run: |
+          set -euo pipefail
+          saved="$RUNNER_TEMP/caseb-original-evidence/web-build/evidence/wall-preflight"
+          cd "$saved"
+          sha256sum -c <<'CHECKSUMS'
+          6fd5645d18420a3878bb1fd4b466826d2c8d5d553619bb249cfb9fd6a4afcf7b  preflight.json
+          5eb1af8b864252991248968e0d20653f8341bfe8b0da72a06a2b767192a4bd27  old-layout.json
+          93d3693e9cb39a6fb15b59ed004c1bc6ac6d52df8a820f74e0492e1af773a31b  new-layout.json
+          CHECKSUMS
+          cmp old-layout.json "$RUNNER_TEMP/old-web-build/evidence/wall-layout/old-layout.json"
+          cmp new-layout.json "$RUNNER_TEMP/web-build/evidence/wall-layout/new-layout.json"
       - name: Overlay only the two browser test drivers onto the exact source
         run: |
           set -euo pipefail
@@ -64,7 +82,7 @@ jobs:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
           node tests/rendering/wall_compatibility_ocr_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/wall-ocr-fixtures.log"
-          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/rendering/wall_compatibility_browser.js --case already_open_old --old-source .compatibility-old --old-web "$RUNNER_TEMP/old-web-build/web" --new-web "$RUNNER_TEMP/web-build/web" --layout-dir "$RUNNER_TEMP/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/web-build/evidence/wall-browser/already_open_old"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/rendering/wall_compatibility_browser.js --case already_open_old --old-source .compatibility-old --old-web "$RUNNER_TEMP/old-web-build/web" --new-web "$RUNNER_TEMP/web-build/web" --layout-dir "$RUNNER_TEMP/caseb-original-evidence/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/web-build/evidence/wall-browser/already_open_old"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
