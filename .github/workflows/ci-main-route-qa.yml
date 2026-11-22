@@ -1,0 +1,10 @@
+# QA only. Do not merge this caller. Retire this branch after preserving the run receipt.
+name: Qualify browser save clock against integrated push (QA only)
+on:
+  push:
+    branches: [qa/397-browser-clock-isolation]
+permissions:
+  contents: read
+jobs:
+  web:
+    uses: ./.github/workflows/build-web.yml
