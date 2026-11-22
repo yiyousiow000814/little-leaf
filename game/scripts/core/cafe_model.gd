@@ -1747,15 +1747,18 @@ func _advance_walk(customer: Dictionary, delta: float) -> void:
 		customer.waiting=true
 		return
 	var position := Vector2(float(customer.x), float(customer.z))
-	if int(customer.route_index)<customer.route.size() and segment_blocked(position,customer.route[int(customer.route_index)]):
-		if not reroute_guest(customer):customer.waiting=true;return
+	var first_segment_clear := false
+	if int(customer.route_index)<customer.route.size():
+		first_segment_clear = not segment_blocked(position,customer.route[int(customer.route_index)])
+		if not first_segment_clear and not reroute_guest(customer):customer.waiting=true;return
 	var budget := WALK_SPEED * delta
 	var route: Array = customer.route
 	while budget > 0.000001 and int(customer.route_index) < route.size():
 		var destination: Vector2 = route[int(customer.route_index)]
-		if segment_blocked(position,destination):
+		if not first_segment_clear and segment_blocked(position,destination):
 			if not reroute_guest(customer):customer.waiting=true;break
 			route=customer.route;continue
+		first_segment_clear = false
 		var difference := destination - position
 		var distance := difference.length()
 		if distance <= 0.000001:

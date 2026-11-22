@@ -1012,11 +1012,15 @@ func _staff_owns_work_endpoint(staff:Dictionary,cell:Vector2i)->bool:
 	return not _staff_work_claim(staff,cell).is_empty()
 
 func _work_cell_available(cell:Vector2i,staff:Dictionary,intent:Dictionary,claimed:Array,frame_claims:Dictionary={})->bool:
-	if intent.is_empty() or _layout_staff_held(staff) or not _staff_walkable(cell) or model.checkout_claims().has(cell):return false
-	if _work_route_length(staff,staff_states.find(staff),Vector2i(staff.pos.floor()),cell)<0:return false
+	return _available_work_route_length(cell,staff,intent,claimed,frame_claims)>=0
+
+func _available_work_route_length(cell:Vector2i,staff:Dictionary,intent:Dictionary,claimed:Array,frame_claims:Dictionary={})->int:
+	if intent.is_empty() or _layout_staff_held(staff) or not _staff_walkable(cell) or model.checkout_claims().has(cell):return -1
+	var route_length=_work_route_length(staff,staff_states.find(staff),Vector2i(staff.pos.floor()),cell)
+	if route_length<0:return -1
 	# Plan one real geometry-valid endpoint per task so idle standing gives way
 	# to all work. Resource/task acquisition remains in the assignment owners.
-	if bool(frame_claims.get("planning",false)):return true
+	if bool(frame_claims.get("planning",false)):return route_length
 	var remaining=claimed.count(cell);var own=staff_states.find(staff)
 	for index in staff_states.size():
 		if index==own:continue
@@ -1024,20 +1028,20 @@ func _work_cell_available(cell:Vector2i,staff:Dictionary,intent:Dictionary,claim
 			var snapshot:Dictionary=frame_claims[index]
 			if snapshot.get("cell",Vector2i(-1,-1))!=cell:continue
 			if bool(snapshot.get("claimed",true)):remaining-=1
-			if WorkClaims.conflicts(intent,snapshot):return false
+			if WorkClaims.conflicts(intent,snapshot):return -1
 		else:
 			var peer=_staff_work_claim(staff_states[index],cell)
 			if not WorkClaims.conflicts(intent,peer):continue
 			# Duplicate task ownership is never arbitration. Other exclusive
 			# work follows the existing order, including chef incumbency/fairness.
-			if WorkClaims.task_conflicts(intent.task,peer.task):return false
+			if WorkClaims.task_conflicts(intent.task,peer.task):return -1
 			# Independent shared-stance work cannot steal a real selected
 			# equipment workspace, including an in-flight later roster owner.
-			if not intent.exclusive and peer.exclusive:return false
+			if not intent.exclusive and peer.exclusive:return -1
 			var order=_chef_work_order()
-			if own<0 or order.find(index)<order.find(own):return false
+			if own<0 or order.find(index)<order.find(own):return -1
 	# Only identifiable frame claims can be waived, never anonymous extras.
-	return remaining<=0
+	return route_length if remaining<=0 else -1
 
 func _table_face_available(cell:Vector2i,staff:Dictionary,claimed:Array,intent:Dictionary={},frame_claims:Dictionary={})->bool:
 	if intent.is_empty():intent=_work_intent(staff,_service_target(staff),cell)
@@ -1055,6 +1059,14 @@ func _work_route_length(staff:Dictionary,staff_index:int,from:Vector2i,cell:Vect
 		staff.work_route_lengths[cell]=route.size() if not route.is_empty() or from==cell else -1
 	return int(staff.work_route_lengths[cell])
 
+func _order_face_route_length(staff:Dictionary,staff_index:int,from:Vector2i,cell:Vector2i,claimed:Array,intent:Dictionary,frame_claims:Dictionary)->int:
+	if intent.is_empty():intent=_work_intent(staff,_service_target(staff),cell)
+	var available_length=_available_work_route_length(cell,staff,intent,claimed,frame_claims)
+	if available_length<0 or from==Vector2i(staff.pos.floor()):return available_length
+	# The availability verdict always uses the live start. An explicitly
+	# different planning start still requires its own original route query.
+	return _work_route_length(staff,staff_index,from,cell)
+
 func _table_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed:Array,order_guest:Dictionary={},frame_claims:Dictionary={},order_layout:Dictionary={})->Vector2i:
 	var prospective={}
 	if not order_guest.is_empty() and staff.job_kind=="":prospective={"role":staff.role,"job_kind":"order","job_step":0,"job_guest_id":int(order_guest.id),"job_token":int(service_guests[int(order_guest.id)].token)}
@@ -1065,20 +1077,20 @@ func _table_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,c
 	var pinned:Vector2i=staff.get("table_face_cell",Vector2i(-1,-1))
 	var staff_index=staff_states.find(staff)
 	var force_replan=float(staff.get("stalled_time",0.0))>.65
-	if int(staff.get("table_face_id",-1))==int(item.id) and cells.has(pinned) and _table_face_available(pinned,staff,claimed,intent,frame_claims):
+	if int(staff.get("table_face_id",-1))==int(item.id) and cells.has(pinned):
 		if not order_guest.is_empty():
-			if _work_route_length(staff,staff_index,from,pinned)>=0:return pinned
-		elif not _static_service_path(from,pinned).is_empty():
+			if _order_face_route_length(staff,staff_index,from,pinned,claimed,intent,frame_claims)>=0:return pinned
+		elif _table_face_available(pinned,staff,claimed,intent,frame_claims) and not _static_service_path(from,pinned).is_empty():
 			if not force_replan or staff_index<0 or from==pinned or not _staff_route(staff_index,pinned).is_empty():return pinned
 	var best=Vector2i(-1,-1);var shortest=1000000
 	for cell in cells:
 		# The rear is a fallback only. A still-valid pinned rear above remains
 		# stable even if an ordinary table face becomes available during travel.
 		if cell==rear and best!=Vector2i(-1,-1):break
-		if not _table_face_available(cell,staff,claimed,intent,frame_claims):continue
 		var length=-1
-		if not order_guest.is_empty():length=_work_route_length(staff,staff_index,from,cell)
+		if not order_guest.is_empty():length=_order_face_route_length(staff,staff_index,from,cell,claimed,intent,frame_claims)
 		else:
+			if not _table_face_available(cell,staff,claimed,intent,frame_claims):continue
 			var route=_staff_route(staff_index,cell) if staff_index>=0 else _static_service_path(from,cell)
 			if not route.is_empty() or from==cell:length=route.size()
 		if length>=0 and length<shortest:best=cell;shortest=length
@@ -1900,10 +1912,14 @@ func _set_staff_art(staff: Dictionary, action: String, target: Dictionary, phase
 	staff.art_station=staff.art_target
 
 func _staff_route_invalid(staff:Dictionary,geometry:Array)->bool:
+	var cursor=int(staff.index)
+	# An exhausted route has no legs to validate. Keep its saved coordinates,
+	# but do not rehash them on every idle tick or certify a suffix not checked.
+	if cursor>=staff.path.size():return false
 	var signature=[geometry,hash(staff.path)]
 	if staff.get("validated_route_signature",[])==signature:return false
 	var point:Vector2=staff.pos
-	for index in range(int(staff.index),staff.path.size()):
+	for index in range(cursor,staff.path.size()):
 		var cell:Vector2i=staff.path[index]
 		var next=Vector2(cell.x+.5,cell.y+.5)
 		if not _staff_walkable(cell) or model.segment_blocked(point,next):return true
