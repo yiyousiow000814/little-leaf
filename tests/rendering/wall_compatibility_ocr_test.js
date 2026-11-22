@@ -264,15 +264,30 @@ async function verifyConfirmFailureEvidence() {
 }
 async function verifyClockWindow() {
   const {freezeCaseBClock, settleInput, resumeCaseBClock} = require('./wall_compatibility_browser');
-  let elapsed = 1300, paused = false;
-  const stops = [], advances = [], realWaits = [];
+  let elapsed = 1300, paused = false, fixed = false;
+  const newWall = 1767225600000, oldWall = newWall + 1200;
+  const wallTimes = [newWall, oldWall], transitions = [], advances = [], realWaits = [];
+  const frames = wallTimes.map((_, index) => ({evaluate: async () => wallTimes[index]}));
   const page = {
-    evaluate: async fn => fn.toString().includes('Date.now') ? 1767225600000 : elapsed,
+    context: () => ({pages: () => frames.map(frame => ({frames: () => [frame]}))}),
+    evaluate: async () => elapsed,
     waitForTimeout: async ms => {realWaits.push(ms);},
     clock: {
-      pauseAt: async ticks => {stops.push(ticks); paused = true;},
-      runFor: async ms => {assert(paused); advances.push(ms); elapsed += ms;},
-      resume: async () => {assert(paused); paused = false;},
+      setFixedTime: async ticks => {assert(!paused); fixed = true; wallTimes.fill(ticks); transitions.push(['fix', ticks]);},
+      pauseAt: async ticks => {
+        // Model both a skewed old document and 800ms dispatch lag. The legacy
+        // sampling-plus-250ms implementation fails this exact condition.
+        elapsed += 800;
+        if (!fixed) for (const index of wallTimes.keys()) wallTimes[index] += 800;
+        assert(wallTimes.every(now => now <= ticks), 'Cannot fast-forward to the past');
+        paused = true; transitions.push(['pause', ticks]);
+      },
+      setSystemTime: async ticks => {assert(paused && fixed); fixed = false; wallTimes.fill(ticks); transitions.push(['unfix', ticks]);},
+      runFor: async ms => {
+        assert(paused && !fixed); advances.push(ms); elapsed += ms;
+        for (const index of wallTimes.keys()) wallTimes[index] += ms;
+      },
+      resume: async () => {assert(paused && !fixed); paused = false;},
     },
   };
   await settleInput(page, 9);
@@ -284,7 +299,8 @@ async function verifyClockWindow() {
   await resumeCaseBClock(page);
   await settleInput(page, 11);
   check('Case B bounds simulation on real input only and restores lifecycle clock', () => {
-    assert.deepEqual(stops, [1767225600250]);
+    assert.deepEqual(transitions, [['fix', oldWall], ['pause', oldWall], ['unfix', oldWall]]);
+    assert.deepEqual(wallTimes, [oldWall + 434, oldWall + 434]);
     assert.deepEqual(advances, [34, 400]);
     assert.deepEqual(realWaits, [9, 11]);
     assert.equal(paused, false);

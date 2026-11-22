@@ -113,10 +113,20 @@ const nodeWait = ms => new Promise(resolve => setTimeout(resolve, ms));
 // periodic saving or change the fixture's original R. All save/IDB gates remain.
 const CASE_B_MAX_VIRTUAL_MS = 40000;
 async function freezeCaseBClock(page) {
-  const now = await page.evaluate(() => Date.now());
-  await page.clock.pauseAt(now + 250);
+  const frames = page.context().pages().flatMap(peer => peer.frames());
+  const samples = await Promise.all(frames.map(frame => frame.evaluate(() => Date.now())));
+  assert(samples.length > 0 && samples.every(Number.isFinite), 'Case B browser clocks have finite wall times');
+  const anchor = Math.ceil(Math.max(...samples));
+  const before = await page.evaluate(() => performance.now());
+  // Playwright applies this clock context-wide, including the loaded old tab.
+  // Freeze wall time at a common anchor first: scheduler latency and clock
+  // skew cannot turn the pause into a backward fast-forward. Unfix wall time
+  // after pausing, without resetting or advancing the real simulation clock.
+  await page.clock.setFixedTime(anchor);
+  await page.clock.pauseAt(anchor);
+  await page.clock.setSystemTime(anchor);
   const elapsed = await page.evaluate(() => performance.now());
-  assert(Number.isFinite(elapsed) && elapsed >= 0 && elapsed < CASE_B_MAX_VIRTUAL_MS,
+  assert(Number.isFinite(before) && before >= 0 && Number.isFinite(elapsed) && elapsed >= before && elapsed < CASE_B_MAX_VIRTUAL_MS,
     'Case B loaded inside the controlled pre-autosave window');
   stoppedClockPages.add(page);
 }
