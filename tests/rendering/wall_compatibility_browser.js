@@ -105,7 +105,46 @@ async function readSnapshot(page) {
 }
 const active = snapshot => snapshot.authority.find(([key]) => key === 'active')[1];
 async function observation(page) {return page.evaluate(() => structuredClone(__wallCompatibility));}
+const stoppedClockPages = new WeakSet();
+const nodeWait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// Only Case B's exact-input window is clock-stepped. The game still executes
+// its real callbacks, but wall time spent on screenshots/OCR cannot trigger
+// periodic saving or change the fixture's original R. All save/IDB gates remain.
+const CASE_B_MAX_VIRTUAL_MS = 40000;
+async function freezeCaseBClock(page) {
+  const now = await page.evaluate(() => Date.now());
+  await page.clock.pauseAt(now + 250);
+  const elapsed = await page.evaluate(() => performance.now());
+  assert(Number.isFinite(elapsed) && elapsed >= 0 && elapsed < CASE_B_MAX_VIRTUAL_MS,
+    'Case B loaded inside the controlled pre-autosave window');
+  stoppedClockPages.add(page);
+}
+async function settleInput(page, ms) {
+  if (!stoppedClockPages.has(page)) return page.waitForTimeout(ms);
+  const delta = Math.max(34, ms); // allow two nominal frames to consume real mouse input
+  const before = await page.evaluate(() => performance.now());
+  assert(Number.isFinite(before) && before + delta <= CASE_B_MAX_VIRTUAL_MS,
+    'Case B exhausted its controlled pre-autosave time before the expected UI appeared');
+  await page.clock.runFor(delta);
+  const after = await page.evaluate(() => performance.now());
+  assert(Math.abs(after - before - delta) <= 1 && after <= CASE_B_MAX_VIRTUAL_MS,
+    'Case B clock advanced exactly the requested UI settling time');
+}
+async function resumeCaseBClock(page) {
+  await page.clock.resume();
+  stoppedClockPages.delete(page);
+}
 async function idle(page) {
+  if (stoppedClockPages.has(page)) {
+    // IDB completion is a browser event, not a time-triggered game callback.
+    // Poll from Node so a stopped page timer cannot hide a missing acknowledgement.
+    for (let i = 0; i < 150; i++) {
+      if (await page.evaluate(() => __wallCompatibility.saveStarts === __wallCompatibility.saves.length)) return;
+      await nodeWait(100);
+    }
+    throw Error('Timed out awaiting actual save acknowledgement with the UI clock paused');
+  }
   await page.waitForFunction(() => __wallCompatibility.saveStarts === __wallCompatibility.saves.length, null, {timeout: 15000});
 }
 async function stableSnapshot(page) {
@@ -248,7 +287,7 @@ async function main() {
     };
     const click = async (page, label, name, delay = 250) => {
       const point = layouts[label].points[name]; assert(point && point.length === 2, 'Derived point ' + name);
-      await page.mouse.click(...point); await page.waitForTimeout(delay);
+      await page.mouse.click(...point); await settleInput(page, delay);
     };
     const screenText = async (page, label, name, phrases) => {
       await page.waitForTimeout(200);
@@ -273,7 +312,7 @@ async function main() {
         // during its opening tween, so a slow exported frame may ignore the
         // first click even after a fixed wall-clock delay. Never retry payment.
         if (retryTarget) await click(page, 'new', retryTarget, 0);
-        await page.waitForTimeout(400);
+        await settleInput(page, 400);
         await page.screenshot({path: path.join(output, name + '.png')});
         const texts = [];
         for (const spec of regions) {
@@ -376,8 +415,9 @@ async function main() {
       } finally {await context.close();}
     }
     // Case B: the old engine stays genuinely loaded throughout the real new UI
-    // edit. Its scale 0 prevents unrelated old autosaves. New scale .1 keeps UI
-    // tweens working and gives a50-second dirty-save interval for this short edit.
+    // edit. Its scale 0 prevents unrelated old autosaves. With new scale .1,
+    // controlled browser time keeps UI tweens working without spending the
+    // 50-second dirty-save interval while the host processes OCR evidence.
     if (selectedCase === 'all' || selectedCase === 'already_open_old') {
       const context = await createContext();
       try {
@@ -400,7 +440,11 @@ async function main() {
         // Start observation at R, before the new engine opens. Never clear a
         // post-commit old mutation, even if it happened on a focus transition.
         await oldPage.evaluate(() => {__wallCompatibility.writes = []; __wallCompatibility.transactions = []; __wallCompatibility.saves = []; __wallCompatibility.saveStarts = 0;});
+        await newPage.clock.install();
         await boot(newPage, 'new', revision);
+        await freezeCaseBClock(newPage);
+        report.case_b_clock = {virtual_ms_at_freeze: await newPage.evaluate(() => performance.now()),
+          virtual_ms_limit: CASE_B_MAX_VIRTUAL_MS, scale: .1};
         await selectWallReplacement(
           (name, delay) => click(newPage, 'new', name, delay),
           (name, region, phrases, retryTarget) => screenUiText(newPage, name, region, phrases, retryTarget),
@@ -458,6 +502,8 @@ async function main() {
         const newObserved = await observation(newPage);
         check(newObserved.saveStarts === 1 && newObserved.saves.length === 1 && newObserved.saves[0].ok && newObserved.saves[0].durable && newObserved.saves[0].revision === revision + 1 && newObserved.saves[0].creditedCoins === 0, 'Actual new controller receives durable R+1 acknowledgement');
         await newPage.screenshot({path: path.join(output, 'case-b-new-committed.png')});
+        report.case_b_clock.virtual_ms_at_apply_ack = await newPage.evaluate(() => performance.now());
+        await resumeCaseBClock(newPage);
         await oldPage.bringToFront(); await idle(newPage);
         // Settle and close the successful new writer before testing forbidden
         // old writes. Otherwise a later foreground switch can legitimately
@@ -503,4 +549,4 @@ async function main() {
   }
 }
 if (require.main === module) main().catch(error => {console.error(error); process.exitCode = 1;});
-module.exports = {observeOwnedTestPage, readSnapshot};
+module.exports = {observeOwnedTestPage, readSnapshot, freezeCaseBClock, settleInput, resumeCaseBClock};

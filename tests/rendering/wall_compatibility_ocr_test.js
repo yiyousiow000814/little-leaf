@@ -262,7 +262,35 @@ async function verifyConfirmFailureEvidence() {
     });
   }
 }
-verifyConfirmFailureEvidence().then(() => console.log(JSON.stringify({passed: true, checks,
+async function verifyClockWindow() {
+  const {freezeCaseBClock, settleInput, resumeCaseBClock} = require('./wall_compatibility_browser');
+  let elapsed = 1300, paused = false;
+  const stops = [], advances = [], realWaits = [];
+  const page = {
+    evaluate: async fn => fn.toString().includes('Date.now') ? 1767225600000 : elapsed,
+    waitForTimeout: async ms => {realWaits.push(ms);},
+    clock: {
+      pauseAt: async ticks => {stops.push(ticks); paused = true;},
+      runFor: async ms => {assert(paused); advances.push(ms); elapsed += ms;},
+      resume: async () => {assert(paused); paused = false;},
+    },
+  };
+  await settleInput(page, 9);
+  await freezeCaseBClock(page);
+  await settleInput(page, 0);
+  await settleInput(page, 400);
+  elapsed = 39900;
+  await assert.rejects(settleInput(page, 400), /exhausted its controlled pre-autosave time/);
+  await resumeCaseBClock(page);
+  await settleInput(page, 11);
+  check('Case B bounds simulation on real input only and restores lifecycle clock', () => {
+    assert.deepEqual(stops, [1767225600250]);
+    assert.deepEqual(advances, [34, 400]);
+    assert.deepEqual(realWaits, [9, 11]);
+    assert.equal(paused, false);
+  });
+}
+verifyConfirmFailureEvidence().then(verifyClockWindow).then(() => console.log(JSON.stringify({passed: true, checks,
   browser_runtime_exercised: false,
   method: 'native-source geometry, retained-pixel and failure-only boundary guards'})))
   .catch(error => {console.error(error); process.exitCode = 1;});
