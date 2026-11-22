@@ -28,24 +28,38 @@ try {
   await assertFails(setDoc(doc(alice,'anything','else'),data));
   await assertSucceeds(setDoc(ref(alice),{...data,revision:4})); // coalesced offline revisions
   await assertSucceeds(setDoc(ref(bob,'bob'),data));
-  const root=globalThis;
-  vm.runInThisContext(readFileSync('../web/little_leaf_firebase.js','utf8'));
+  // Raw rule checks above deliberately use opaque synthetic records. The
+  // production adapter validates and hashes actual save records before CAS.
+  for(const name of ['little_leaf_vault','little_leaf_firebase'])
+    vm.runInThisContext(readFileSync(`../web/${name}.js`,'utf8'));
+  const codec=globalThis.LittleLeafAuthorityCodec;
+  const cafe=JSON.parse(readFileSync(new URL('../../tests/fixtures/unified_building_candidate.json',import.meta.url),'utf8'));
+  async function savedCafe(revision,coins){
+    const record={format:2,profileId:data.profileId,revision,createdAt:1,updatedAt:revision,
+      origin:{source:'fresh',legacyDigest:null,importedAt:1},payload:JSON.stringify({...cafe,coins}),previous:null,campaigns:{}};
+    record.digest=await codec.hash(codec.fingerprint(record));
+    return {...data,revision,digest:record.digest,record:JSON.stringify(record)};
+  }
+  const initial=await savedCafe(1,40);
+  const candidates=await Promise.all([savedCafe(2,41),savedCafe(2,42)]);
   const sdk={doc,getDocFromServer,runTransaction,serverTimestamp};
   const raceDB=env.authenticatedContext('race',google).firestore();
   await assertSucceeds(setDoc(ownerRef(raceDB,'race'),initialSession));
   const ownership={assertActive:()=>({writerId,writerEpoch:1}),sessionRef:ownerRef(raceDB,'race')};
-  const remote=root.LittleLeafFirebase.createRemote(raceDB,sdk,ownership),guard=()=>{};
+  const remote=globalThis.LittleLeafFirebase.createRemote(raceDB,sdk,ownership),guard=()=>{};
   assert.equal(await remote.read('race'),null);
-  await remote.compareAndSet('race',null,data,guard);
-  await remote.compareAndSet('race',null,data,guard); // ambiguous prior acknowledgment is idempotent
-  const updates=await Promise.allSettled([
-    remote.compareAndSet('race',data.digest,{...data,revision:2,digest:'b'.repeat(64)},guard),
-    remote.compareAndSet('race',data.digest,{...data,revision:2,digest:'c'.repeat(64)},guard)
-  ]);
-  assert.equal(updates.filter(r=>r.status==='fulfilled').length,1,'only one stale-base transaction wins');
-  assert(['REVISION_CONFLICT','permission-denied'].includes(updates.find(r=>r.status==='rejected').reason.code),'CAS or monotonic server rules reject loser');
-  assert.equal((await remote.read('race')).revision,2);
-  await assert.rejects(remote.compareAndSet('race',null,data,()=>{throw Error('account changed');}),/account changed/);
+  await assert.rejects(remote.compareAndSet('race',null,data,guard),{code:'CORRUPT_AUTHORITY'});
+  assert.equal(await remote.read('race'),null,'invalid fixture never reaches storage');
+  await remote.compareAndSet('race',null,initial,guard);
+  await remote.compareAndSet('race',null,initial,guard); // ambiguous prior acknowledgment is idempotent
+  assert.deepEqual(await remote.read('race'),initial);
+  const outcomes=await Promise.allSettled(candidates.map(candidate=>remote.compareAndSet('race',initial.digest,candidate,guard)));
+  const winner=outcomes.findIndex(result=>result.status==='fulfilled');
+  assert.equal(outcomes.filter(result=>result.status==='fulfilled').length,1,'only one stale-base transaction wins');
+  assert(['REVISION_CONFLICT','permission-denied'].includes(outcomes.find(result=>result.status==='rejected').reason.code),'CAS or monotonic server rules reject loser');
+  assert.deepEqual(await remote.read('race'),candidates[winner]);
+  await assert.rejects(remote.compareAndSet('race',null,initial,()=>{throw Error('account changed');}),/account changed/);
+  assert.deepEqual(await remote.read('race'),candidates[winner],'account guard leaves winner intact');
   console.log('Actual adapter Firestore emulator CAS/race/idempotency checks passed.');
   console.log('Strict Firestore emulator rules checks passed: synthetic demo project only.');
 } finally {await env.cleanup();}
