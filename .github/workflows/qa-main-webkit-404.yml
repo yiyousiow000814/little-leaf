@@ -1,0 +1,146 @@
+# Scratch only. Not a deployment workflow, PR gate, or release qualification.
+name: Recovery WebKit main-like QA 404
+on:
+  push:
+    branches: [qa/main-webkit-404-one-shot]
+    paths: [.github/workflows/qa-main-webkit-404.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  browser:
+    name: recovery QA (${{ matrix.provision }})
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/qa/main-webkit-404-one-shot' && github.event.created && !github.event.deleted && github.run_attempt == 1
+    strategy:
+      fail-fast: false
+      matrix:
+        provision: [legacy, isolated]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PR_LOCKED_CHROMIUM_PROVISION: 'false'
+      RECOVERY_ISOLATED_WEBKIT_PROVISION: ${{ matrix.provision == 'isolated' }}
+      CHROMIUM_PROVISION_RELATIVE: chromium-provision/recovery
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: f682ad42584792196e50d58b4435fe0c975c1256
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Require the original successful exact-main attempt and input digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 'f682ad42584792196e50d58b4435fe0c975c1256'
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/45191576191" | jq -e --arg sha 'f682ad42584792196e50d58b4435fe0c975c1256' '
+            .head_sha == $sha and .head_branch == "main" and .event == "push" and .run_attempt == 1 and .conclusion == "success" and .workflow_id == 375009089'
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/14825494920" | jq -e --arg sha 'f682ad42584792196e50d58b4435fe0c975c1256' --arg digest 'sha256:8823ba4e8e12c0568d85e48c642dea12371cbc2b2e36b0d21c49405642408d3b' '
+            .workflow_run.id == 45191576191 and .workflow_run.head_sha == $sha and .digest == $digest and (.expired == false) and .name == ("little-leaf-ci-inputs-" + $sha + "-1")'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: 14825494920
+          run-id: 45191576191
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Install shared pinned browser tools
+        if: env.PR_LOCKED_CHROMIUM_PROVISION != 'true'
+        timeout-minutes: 10
+        run: |
+          npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+          google-chrome --version
+      - name: Install pinned Playwright driver for ordinary PR
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 3
+        run: npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+      - name: Install exact checksum-pinned Chrome for ordinary browser gates
+        run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
+      - name: Activate and verify the pinned Chrome channel
+        run: |
+          sudo dpkg -i "$CHROME_DEB"
+          python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
+      - name: Install WebKit only for recovery lane
+        if: env.RECOVERY_ISOLATED_WEBKIT_PROVISION != 'true'
+        run: '"$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install --with-deps webkit'
+      - name: Install signed Ubuntu WebKit system prerequisites
+        if: env.RECOVERY_ISOLATED_WEBKIT_PROVISION == 'true'
+        timeout-minutes: 5
+        run: |
+          python3 tools/ci/recovery_webkit_provision.py "$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright-core" \
+            "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/webkit"
+      - name: Install pinned WebKit browser for recovery
+        if: env.RECOVERY_ISOLATED_WEBKIT_PROVISION == 'true'
+        timeout-minutes: 2
+        env:
+          PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: '20000'
+        run: |
+          set -euo pipefail
+          export PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/recovery-webkit-browsers"
+          /usr/bin/time -o "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/webkit/webkit-binary.seconds" -f %e \
+            "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install webkit
+          test -x "$PLAYWRIGHT_BROWSERS_PATH/webkit-2359/pw_run.sh"
+          test -d "$PLAYWRIGHT_BROWSERS_PATH/ffmpeg-1011"
+          printf 'PLAYWRIGHT_BROWSERS_PATH=%s\n' "$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
+      - name: Verify headed Chrome sandbox and OCR for ordinary PR
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 1
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
+        run: bash tools/ci/verify_locked_chromium.sh "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE"
+      - name: Verify cloud recovery in real IndexedDB before merge
+        timeout-minutes: 4
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/firebase-focused"
+          python3 tools/qualification/run_firebase_focused.py --gate adapter.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 tools/qualification/run_firebase_focused.py --gate delayed-network.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 tools/qualification/run_firebase_focused.py --gate recovery.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 tools/qualification/run_firebase_focused.py --gate choice.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 tools/qualification/run_firebase_focused.py --gate session.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 tools/qualification/run_firebase_focused.py --gate update-notice.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 tools/qualification/run_firebase_focused.py --gate recovery-presentation.log --output "$RUNNER_TEMP/firebase-focused"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" python3 tools/qualification/run_firebase_focused.py --gate recovery-browser.log --output "$RUNNER_TEMP/firebase-focused"
+      - name: Verify grid upgrade archive transaction and reopen
+        timeout-minutes: 3
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/firebase-focused"
+          node tests/persistence/pre_grid_archive_browser.js > "$RUNNER_TEMP/firebase-focused/pre-grid-archive-browser.json"
+      - name: Verify exported save diagnostic in sandboxed Chromium
+        timeout-minutes: 5
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/persistence/save_log_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/save-log-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json"
+      - name: Verify closed-connection recovery in actual exported WebKit game
+        timeout-minutes: 9
+        env:
+          RUNTIME_BROWSER: webkit
+        run: |
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/persistence/connection_recovery_browser.js --run-hosted --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/connection-recovery-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
+      - name: Collect lane evidence without profiles
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/browser-evidence/web-build/evidence"
+          cp -a "$RUNNER_TEMP/web-build/evidence/." "$RUNNER_TEMP/browser-evidence/web-build/evidence/"
+          if [ -d "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE" ]; then
+            mkdir -p "$RUNNER_TEMP/browser-evidence/web-build/evidence/chromium-provision"
+            cp -a "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE" "$RUNNER_TEMP/browser-evidence/web-build/evidence/chromium-provision/"
+          fi
+          if [ -d "$RUNNER_TEMP/firebase-focused" ]; then cp -a "$RUNNER_TEMP/firebase-focused" "$RUNNER_TEMP/browser-evidence/"; fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: qa-404-main-recovery-${{ matrix.provision }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/browser-evidence/
+          if-no-files-found: warn
+          retention-days: 7
