@@ -59,6 +59,24 @@ class QualificationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 reuse.resolve(api, SHA, 0)
 
+    def test_main_sibling_is_exact_push_only_and_must_succeed(self):
+        api = API()
+        sibling = dict(name='web / crazygames (main CI)', status='completed', conclusion='success')
+        api.jobs.append(sibling)
+        self.assertEqual(reuse.resolve(api, SHA, 0)[1]['id'], 11)
+        for conclusion in ('skipped', 'cancelled', 'failure'):
+            with self.subTest(conclusion=conclusion), self.assertRaises(ValueError):
+                api.jobs[-1] = sibling | {'conclusion': conclusion}
+                reuse.resolve(api, SHA, 0)
+        api.jobs[-1] = sibling
+        api.runs[0]['event'] = 'workflow_dispatch'
+        with self.assertRaises(ValueError):
+            reuse.resolve(api, SHA, 0)
+        api.runs[0]['event'] = 'push'
+        api.jobs.append(dict(name='web / crazygames', status='completed', conclusion='skipped'))
+        with self.assertRaises(ValueError):
+            reuse.resolve(api, SHA, 0)
+
     def test_rejects_other_commit_pr_fork_branch_or_workflow(self):
         for field, value in [('head_sha', 'd' * 40), ('event', 'pull_request'),
             ('head_branch', 'candidate'), ('workflow_id', 4),

@@ -42,7 +42,7 @@ class CommonTagTests(unittest.TestCase):
             'actions/artifacts/20':{'id':20,'expired':False,'digest':q['artifact_digest'],
                 'name':'little-leaf-web-'+source+'-1','workflow_run':{'id':10,'head_sha':source}}}
         jobs={'actions/runs/30/attempts/1/jobs':[{'name':'common_tag','run_id':30,'run_attempt':1,'status':'completed','conclusion':'success'}],
-            'actions/runs/10/attempts/1/jobs':[{'name':name,'status':'completed','conclusion':'success'} for name in REQUIRED_JOBS]}
+            'actions/runs/10/attempts/1/jobs':[{'name':name,'status':'completed','conclusion':'success'} for name in REQUIRED_JOBS | {'web / crazygames (main CI)'}]}
         api=Mock();api.read.side_effect=lambda path:copy.deepcopy(rows[path]);api.pages.side_effect=lambda path,key:copy.deepcopy(jobs[path])
         return api,receipt,rows,jobs
 
@@ -106,7 +106,9 @@ class CommonTagTests(unittest.TestCase):
             api,receipt,rows,jobs=self.api_fixture();source=receipt['source_commit']
             if case=='tag':rows['git/ref/tags/'+receipt['release_tag']]['object']['sha']='f'*40
             if case=='tree':rows['git/commits/'+source]['tree']['sha']='f'*40
-            if case=='job':jobs['actions/runs/10/attempts/1/jobs'].pop()
+            if case=='job':
+                name='actions/runs/10/attempts/1/jobs'
+                jobs[name]=[job for job in jobs[name] if job['name']!='web / engine (0)']
             if case=='digest':rows['actions/artifacts/20']['digest']='sha256:'+'f'*64
             if case=='expired':rows['actions/artifacts/20']['expired']=True
             if case=='wrong-main':rows['actions/runs/10/attempts/1']['head_branch']='feature'

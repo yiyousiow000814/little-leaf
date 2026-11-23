@@ -168,7 +168,7 @@ class AddedCoverageTest(unittest.TestCase):
         jobs = [dict(name=n, status="completed", conclusion="success")
                 for n in REQUIRED_JOBS if n != "web / engine (0)"]
         with self.assertRaises(ValueError):
-            require_jobs(jobs)
+            require_jobs(jobs, event="push")
 '''
         original = 'if len(names) != len(set(names)) or not REQUIRED_JOBS.issubset(names):'
         mutation = ('source = inspect.getsource(require_jobs)\n'

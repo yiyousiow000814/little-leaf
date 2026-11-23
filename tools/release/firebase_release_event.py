@@ -186,7 +186,7 @@ def select(api, run_id, output):
     require(receipt.get('tag') == tag and receipt.get('qualified_payload_unchanged') is True,
             'Released runtime must preserve qualified bytes')
     qualification_run = api.read(f"actions/runs/{receipt['qualification_run_id']}")
-    require_jobs(api.pages(f"actions/runs/{qualification_run['id']}/attempts/{qualification_run['run_attempt']}/jobs", 'jobs'))
+    require_jobs(api.pages(f"actions/runs/{qualification_run['id']}/attempts/{qualification_run['run_attempt']}/jobs", 'jobs'), event=qualification_run['event'])
     artifact = api.read(f"actions/artifacts/{receipt['artifact_id']}")
     plan = plan_release(release_run=run, publish_jobs=jobs, tag=tag, tag_commit=sha,
         tag_tree=commit['tree']['sha'], project_version=project_version, qualification_run=qualification_run,

@@ -240,13 +240,32 @@ class PlayProvisionTests(unittest.TestCase):
         jobs = yaml.safe_load((ROOT / ".github/workflows/build-web.yml").read_text())["jobs"]
         preflight, build = jobs["preflight"], jobs["build"]
         self.assertEqual(preflight["if"], "needs.guard.outputs.scope == 'full' && needs.guard.outputs.ordinary_pr == 'true'")
-        produced = next(step for step in preflight["steps"] if step.get("id") == "browser_packages")
+        packages = jobs["browser_packages"]
+        self.assertEqual(packages["needs"], "guard")
+        self.assertEqual(packages["if"], "needs.guard.outputs.scope == 'full' && needs.guard.outputs.locked_browser == 'true'")
+        self.assertIn("browser_packages", build["needs"])
+        self.assertIn("needs.browser_packages.result == 'success'", build["if"])
+        plan = next(s for s in jobs["guard"]["steps"] if s.get("id") == "engine_plan")
+        ordinary_pr = plan["env"]["ORDINARY_PR"]
+        ordinary = ordinary_pr.replace("github.event_name == 'pull_request'",
+            "(github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))", 1)
+        self.assertEqual(plan["env"]["LOCKED_BROWSER"], ordinary)
+        self.assertEqual(build["outputs"]["locked_browser"], "${{ needs.guard.outputs.locked_browser }}")
+        bind = next(s for s in packages["steps"] if s.get("id") == "bind")
+        self.assertIn('git rev-parse HEAD', bind["run"])
+        self.assertIn('"$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"', bind["run"])
+        require = next(s for s in build["steps"] if s.get("name", "").startswith("Require the current exact"))
+        self.assertEqual(require["if"], "needs.guard.outputs.locked_browser == 'true'")
+        self.assertEqual(require["env"]["PACKAGE_BINDING"], "${{ needs.browser_packages.outputs.binding }}")
+        self.assertEqual(require["run"], 'test "$PACKAGE_BINDING" = "$GITHUB_SHA:$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT"')
+        produced = next(step for step in packages["steps"] if step.get("id") == "browser_packages")
         self.assertEqual(produced["with"]["name"], "little-leaf-pinned-chromium-${{ github.sha }}-${{ github.run_attempt }}")
-        self.assertEqual(preflight["outputs"]["browser_packages_id"], "${{ steps.browser_packages.outcome == 'success' && steps.browser_packages.outputs.artifact-id || '' }}")
-        self.assertEqual(build["outputs"]["browser_packages_id"], "${{ needs.preflight.outputs.browser_packages_id }}")
-        self.assertEqual(build["outputs"]["browser_packages_binding"], "${{ needs.preflight.outputs.binding }}")
-        for name, route in (("play", "PLAY_LOCKED_PROVISION"), ("browser", "PR_LOCKED_CHROMIUM_PROVISION"),
-                            ("compatibility", "PR_LOCKED_CHROMIUM_PROVISION")):
+        self.assertEqual(packages["outputs"]["browser_packages_id"], "${{ steps.browser_packages.outcome == 'success' && steps.browser_packages.outputs.artifact-id || '' }}")
+        self.assertEqual(build["outputs"]["browser_packages_id"], "${{ needs.browser_packages.outputs.browser_packages_id }}")
+        self.assertEqual(build["outputs"]["browser_packages_binding"], "${{ needs.browser_packages.outputs.binding }}")
+        for name in ("play", "browser", "compatibility"):
+            route = "LOCKED_BROWSER_PROVISION"
+            self.assertEqual(jobs[name]["env"][route], "${{ needs.build.outputs.locked_browser }}")
             with self.subTest(job=name):
                 steps = jobs[name]["steps"]
                 restore = next(s for s in steps if s.get("name", "").startswith("Restore exact-attempt"))
@@ -274,7 +293,7 @@ class PlayProvisionTests(unittest.TestCase):
                 self.assertEqual(step["env"]["PLAY"], "${{ needs.play.result }}")
         self.assertNotIn("continue-on-error", json.dumps(play))
         self.assertIn('"$BUILD" "$PLAY" "$BROWSER"', workflow)
-        route = play["env"]["PLAY_LOCKED_PROVISION"]
+        route = play["env"]["ORDINARY_PR"]
         for safe_input in ("github.event_name == 'pull_request'", "inputs.release_tag == ''",
                            "!inputs.firebase_preview", "!inputs.itch_preview", "!inputs.itch_test_entry",
                            "inputs.publication_receipt == ''"):
@@ -282,8 +301,8 @@ class PlayProvisionTests(unittest.TestCase):
         steps = play["steps"]
         legacy = next(step for step in steps if step.get("name", "").startswith("Install shared"))
         checked = next(step for step in steps if step.get("name", "").startswith("Install only missing"))
-        self.assertEqual(legacy["if"], "env.PLAY_LOCKED_PROVISION != 'true'")
-        self.assertEqual(checked["if"], "env.PLAY_LOCKED_PROVISION == 'true'")
+        self.assertEqual(legacy["if"], "env.LOCKED_BROWSER_PROVISION != 'true'")
+        self.assertEqual(checked["if"], "env.LOCKED_BROWSER_PROVISION == 'true'")
         download = next(step for step in steps if "download-artifact@" in step.get("uses", "") and
                         step.get("with", {}).get("artifact-ids", "").endswith("outputs.inputs_id }}"))
         self.assertEqual(download["with"]["artifact-ids"], "${{ needs.build.outputs.inputs_id }}")

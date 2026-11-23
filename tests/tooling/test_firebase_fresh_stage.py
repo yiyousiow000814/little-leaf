@@ -192,7 +192,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(text.count("continue-on-error:"), 1)
         optional = [(job, step.get("id"), step.get("uses"), step["continue-on-error"])
                     for job, value in jobs.items() for step in value["steps"] if "continue-on-error" in step]
-        self.assertEqual(optional, [("preflight", "browser_packages",
+        self.assertEqual(optional, [("browser_packages", "browser_packages",
             "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", True)])
         self.assertIn('needs: [build, play, browser, compatibility]',text)
         self.assertIn('needs: [guard, preflight, engine, historical, build, crazygames, play, browser, compatibility, firebase]',text)

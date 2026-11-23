@@ -6,7 +6,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from release import stage_released_firebase as staging
 from qualification.artifacts import sha256
@@ -94,6 +94,48 @@ class ReleasedStagingTests(unittest.TestCase):
             report['diagnostic_only'] = True; path.write_text(json.dumps(report))
             with patch.object(staging, 'source_identity'), self.assertRaisesRegex(ValueError, 'full-flow'):
                 staging.stage(root, reuse, selection, evidence, focused, fullflow, folder / 'bad', 10, 1)
+
+    def test_prepare_verifies_trusted_ordinary_main_sibling_before_original_evidence(self):
+        from qualification.reuse_main_ci import REQUIRED_JOBS
+        source, tree = 'a' * 40, 'b' * 40
+        qualification = dict(qualification_run_id=20, qualification_attempt=1, artifact_id=30,
+                             artifact_digest='sha256:' + 'c' * 64,
+                             qualified_manifest_sha256='d' * 64, source_commit=source,
+                             source_tree=tree, version='0.1.10c', tag='',
+                             mandatory_gate_success=True, qualified_payload_unchanged=True,
+                             packed_startup='passed')
+        selection = dict(source_commit=source, source_tree=tree, qualification=qualification)
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); reuse=root/'reuse'; reuse.mkdir()
+            (reuse/'qualification.json').write_text(json.dumps(qualification))
+            native = json.dumps(dict(status='passed', player_save_used=False, source_commit=source,
+                                     total_checks=17, test_processes=3))
+            import hashlib
+            base = dict(release_reuse=qualification, test_report_sha256=hashlib.sha256(native.encode()).hexdigest(),
+                        engine_checks=17, test_processes=3)
+            export = dict(manifest={k:v for k,v in base.items() if k!='release_reuse'}, stages=[dict(exit_code=0)])
+            def materialize(api, evidence, out):
+                (out/'engine-evidence').mkdir(parents=True)
+                (out/'engine-evidence/summary.json').write_text(native)
+                ev=out/'web-build/evidence'; ev.mkdir(parents=True)
+                (ev/'export-report.json').write_text(json.dumps(export))
+                for name,(relative,key,expected) in staging.build_firebase.BROWSER_GATES.items():
+                    if name=='firebase-fullflow': continue
+                    path=ev/relative;path.parent.mkdir(parents=True,exist_ok=True)
+                    path.write_text(json.dumps({key:expected}))
+            api=Mock(); api.read.return_value=dict(id=20,run_attempt=1,event='push')
+            api.pages.return_value=[dict(name=n,status='completed',conclusion='success')
+                                    for n in REQUIRED_JOBS | {'web / crazygames (main CI)'}]
+            with patch.object(staging,'source_identity'), patch.object(staging,'bind_package',return_value=base), \
+                 patch.object(staging,'artifact_for',return_value=dict(id=123)) as select_artifact, \
+                 patch.object(staging,'download',side_effect=materialize):
+                proof=staging.prepare(root,reuse,selection,root/'ok',api)
+                self.assertEqual(proof['ordinary_evidence_artifact'],{'id':123})
+                api.read.return_value['event']='workflow_dispatch'
+                with self.assertRaisesRegex(ValueError,'ordinary main variant sibling'):
+                    staging.prepare(root,reuse,selection,root/'reject',api)
+                self.assertFalse((root/'reject').exists())
+                select_artifact.assert_called_once()
 
     def test_new_staging_contract_is_rejected_by_legacy_live_deployer(self):
         with tempfile.TemporaryDirectory() as d:
