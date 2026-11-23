@@ -94,6 +94,14 @@ const httpsEmulator=itchVariant?`
  const after=db._getSettings();
  if(db._authCredentials!==credentials||db._getEmulatorOptions()!==emulatorOptions||after.host!=='firestore.fullflow.test:443'||after.ssl!==true||Object.keys(before).some(key=>!['host','ssl'].includes(key)&&JSON.stringify(before[key])!==JSON.stringify(after[key])))throw Error('Only emulator transport may change');
 ` : '';
+// Use no live Functions service in this synthetic Firestore flow. Boot may
+// probe these read-only surfaces; fail closed and reject any other callable.
+const functions=`const optional=new Set(['ensureMyPublicUid','supportCapabilities','listMyMail']);
+export const getFunctions=()=>Object.freeze({});
+export const httpsCallable=(_functions,name)=>async()=>{
+ if(!optional.has(name))console.error('LITTLE_LEAF_FULLFLOW_UNEXPECTED_CALLABLE: '+String(name));
+ throw Object.assign(new Error('Callable Functions are outside this synthetic Firestore test'),{code:'functions/unavailable'});
+};`;
 const firestore=`import * as real from '/sdk/firebase-firestore.js';export * from '/sdk/firebase-firestore.js';
 // Observe the original SDK promises without replacing transaction callbacks.
 function sdkClock(receiver,method,args){
@@ -244,9 +252,11 @@ async function setup(uid,entry=null){
   return route.fulfill({response,headers});
  }
  if(isConnectivityProbe(u.href,route.request().resourceType())){report.blockedConnectivityProbes=(report.blockedConnectivityProbes||0)+1;checkpoint();return route.abort('internetdisconnected');}
- const prefix='https://www.gstatic.com/firebasejs/12.19.0/';if(['firebase-app.js','firebase-auth.js','firebase-firestore.js'].some(name=>u.href===prefix+name)){const name=u.pathname.split('/').pop();const p=name==='firebase-auth.js'?'/sdk/auth.js':name==='firebase-firestore.js'?'/sdk/firestore-wrapper.js':'/sdk/firebase-app.js';return route.fulfill({status:200,contentType:'text/javascript',headers:{'Access-Control-Allow-Origin':'*','Cross-Origin-Resource-Policy':'cross-origin'},body:p==='/sdk/auth.js'?auth:p==='/sdk/firestore-wrapper.js'?firestore.replaceAll("'/sdk/","'"+(itchVariant?officialOrigin+'/itch':origin)+"/sdk/"):fs.readFileSync(path.join(sdkRoot,'firebase-app.js'))});}errors.push('Unexpected external request blocked: '+u.origin+u.pathname);return route.abort('blockedbyclient');}));
+ const prefix='https://www.gstatic.com/firebasejs/12.19.0/';
+ if(u.href===prefix+'firebase-functions.js')return route.fulfill({status:200,contentType:'text/javascript',headers:{'Access-Control-Allow-Origin':'*','Cross-Origin-Resource-Policy':'cross-origin'},body:functions});
+ if(['firebase-app.js','firebase-auth.js','firebase-firestore.js'].some(name=>u.href===prefix+name)){const name=u.pathname.split('/').pop();const p=name==='firebase-auth.js'?'/sdk/auth.js':name==='firebase-firestore.js'?'/sdk/firestore-wrapper.js':'/sdk/firebase-app.js';return route.fulfill({status:200,contentType:'text/javascript',headers:{'Access-Control-Allow-Origin':'*','Cross-Origin-Resource-Policy':'cross-origin'},body:p==='/sdk/auth.js'?auth:p==='/sdk/firestore-wrapper.js'?firestore.replaceAll("'/sdk/","'"+(itchVariant?officialOrigin+'/itch':origin)+"/sdk/"):fs.readFileSync(path.join(sdkRoot,'firebase-app.js'))});}errors.push('Unexpected external request blocked: '+u.origin+u.pathname);return route.abort('blockedbyclient');}));
  await context.addInitScript(({uid})=>{globalThis.__qaUid=uid;},{uid});
- const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')networkObservation('console','browser',failureCategory(m.text()));if(/SCRIPT ERROR|Parse Error/.test(m.text()))errors.push(m.text());});
+ const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')networkObservation('console','browser',failureCategory(m.text()));if(/SCRIPT ERROR|Parse Error|^LITTLE_LEAF_FULLFLOW_UNEXPECTED_CALLABLE: /.test(m.text()))errors.push(m.text());});
  let seedFrame=page;
  if(itchVariant){
   await page.goto(itchPage);
