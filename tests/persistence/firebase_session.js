@@ -6,17 +6,103 @@ for(const name of ['little_leaf_vault','little_leaf_firebase','little_leaf_fireb
 const api=root.LittleLeafFirebase,sessionApi=root.LittleLeafFirebaseSession,codec=root.LittleLeafAuthorityCodec,payload=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
 const clone=x=>x==null?null:JSON.parse(JSON.stringify(x)),fail=code=>Object.assign(Error(code),{code});
 function environment({timeoutMs=15000}={}){
- let time=100000,session=null,cloud=null,uid='synthetic-owner',writeFail=false,writeGate=null,readGate=null,writeCalls=0;const watchers=[];
- const remote={ref:{path:'synthetic-session'},async read(){return clone(session);},async change(fn,guard){guard();const next=fn(clone(session),clone(cloud),()=>time);guard();session=clone(next);for(const w of watchers)w(clone(session));return clone(session);},watch(fn){watchers.push(fn);return()=>{const i=watchers.indexOf(fn);if(i>=0)watchers.splice(i,1);};}};
- function device(label,prepareReload=null){
-   const ownership=sessionApi.createSession({remote,uid:'synthetic-owner',currentUid:()=>uid,deviceLabel:label,now:()=>time});
+ let time=100000,session=null,cloud=null,uid='synthetic-owner',writeFail=false,writeGate=null,readGate=null,writeCalls=0,beforeChange=null,onCloudRead=null;const watchers=[],watchErrors=[],writtenRevisions=[];let ackWrites=0;
+ const remote={ref:{path:'synthetic-session'},async read(){return clone(session);},async change(fn,guard){guard();if(beforeChange)await beforeChange();const next=fn(clone(session),clone(cloud),()=>time);guard();if(next?.ack&&!session?.ack)ackWrites++;session=clone(next);for(const w of watchers)w(clone(session));return clone(session);},watch(fn,onError){watchers.push(fn);watchErrors.push(onError);return()=>{const i=watchers.indexOf(fn);if(i>=0){watchers.splice(i,1);watchErrors.splice(i,1);}};}};
+ function device(label,prepareReload=null,sessionId=undefined){
+   const ownership=sessionApi.createSession({remote,uid:'synthetic-owner',currentUid:()=>uid,deviceLabel:label,sessionId,now:()=>time});
    let local=null,replaceHook=null,readHook=null;const journal={async read(){if(readHook)await readHook();return clone(local);},async replace(id,expected,next){assert.deepEqual(local,clone(expected));local=clone(next);if(replaceHook)await replaceHook(next);},async readRecoveryBackup(){return null;}};
-   const saveRemote={async read(){if(readGate)await readGate;return clone(cloud);},async compareAndSet(id,base,next,guard){writeCalls++;if(writeGate)await writeGate;guard();const fence=ownership.assertActive(true);if(!session||session.owner!==fence.writerId||session.epoch!==fence.writerEpoch||session.ack)throw fail('OWNERSHIP_LOST');if(time-session.updatedAt>=60000)throw fail('permission-denied');if(writeFail)throw fail(writeFail===true?'OFFLINE':writeFail);if(cloud?.digest===next.digest)return;if((cloud?.digest||null)!==base)throw fail('REVISION_CONFLICT');cloud={...clone(next),...fence};guard();}};
+   const saveRemote={async read(){if(readGate){onCloudRead?.();await readGate;}return clone(cloud);},async compareAndSet(id,base,next,guard){writeCalls++;if(writeGate)await writeGate;guard();const fence=ownership.assertActive(true);if(!session||session.owner!==fence.writerId||session.epoch!==fence.writerEpoch||session.ack)throw fail('OWNERSHIP_LOST');if(time-session.updatedAt>=60000)throw fail('permission-denied');if(writeFail)throw fail(writeFail===true?'OFFLINE':writeFail);if(cloud?.digest===next.digest)return;if((cloud?.digest||null)!==base)throw fail('REVISION_CONFLICT');cloud={...clone(next),...fence};writtenRevisions.push(next.revision);guard();}};
    const client=api.createClient({uid:'synthetic-owner',codec,journal,remote:saveRemote,currentUid:()=>uid,status(){},ownership,now:()=>time,deviceLabel:label,networkTimeoutMs:timeoutMs,prepareReload});
    return {ownership,client,local:()=>clone(local),setLocal:x=>local=clone(x),onReplace:fn=>replaceHook=fn,onRead:fn=>readHook=fn};
  }
- return {device,remote,deliver:value=>{for(const watch of watchers)watch(clone(value));},setSession:x=>session=clone(x),setCloud:x=>cloud=clone(x),session:()=>clone(session),cloud:()=>clone(cloud),advance:ms=>time+=ms,failWrites:x=>writeFail=x,setUid:x=>uid=x,writeCalls:()=>writeCalls,holdWrites(){let resolve;writeGate=new Promise(r=>resolve=r);return ()=>{writeGate=null;resolve();};},holdReads(){let resolve;readGate=new Promise(r=>resolve=r);return ()=>{readGate=null;resolve();};}};
+ return {device,remote,watchError:i=>watchErrors[i](),onCloudRead:fn=>onCloudRead=fn,onSessionChange:fn=>beforeChange=fn,writtenRevisions:()=>[...writtenRevisions],ackWrites:()=>ackWrites,deliver:value=>{for(const watch of watchers)watch(clone(value));},setSession:x=>session=clone(x),setCloud:x=>cloud=clone(x),session:()=>clone(session),cloud:()=>clone(cloud),advance:ms=>time+=ms,failWrites:x=>writeFail=x,setUid:x=>uid=x,writeCalls:()=>writeCalls,holdWrites(){let resolve;writeGate=new Promise(r=>resolve=r);return ()=>{writeGate=null;resolve();};},holdReads(){let resolve;readGate=new Promise(r=>resolve=r);return ()=>{readGate=null;resolve();};}};
 }
+
+async function interruptedHandoffChecks(){
+ const requester='22222222-2222-4222-8222-222222222222';
+ const native=JSON.stringify({...JSON.parse(payload),coins:432});
+ async function awaitPhase(promise){
+   let timer;
+   try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Interrupted handoff did not reach its controlled phase')),5000);})]);}
+   finally{clearTimeout(timer);}
+ }
+ async function prepare(){
+   const e=environment(),a=e.device('Mac'),b=e.device('iPhone',null,requester);
+   await a.ownership.start();const boot=await a.client.boot();assert((await a.client.commit(payload,0,boot.profileId)).ok);await a.client.sync();
+   assert.equal(e.cloud().revision,1);await b.ownership.start();await b.client.boot();
+   const previous=e.session();
+   const request={id:webcrypto.randomUUID(),requester,device:'iPhone',at:{seconds:100,nanoseconds:1}};
+   return {e,a,b,boot,previous,requested:{...previous,request,ack:null}};
+ }
+ {
+   const {e,a,b,boot,requested}=await prepare();
+   for(let revision=1;revision<5;revision++)assert((await a.client.commit(payload,revision,boot.profileId)).ok);
+   let entered,release;const staged=new Promise(done=>entered=done),held=new Promise(done=>release=done);
+   e.onSessionChange(()=>{entered();return held;});
+   e.advance(30001);
+   const upload=a.client.sync();await awaitPhase(staged);
+   const oldPending=a.local().uploading.record;assert.equal(oldPending.revision,5);
+   // Request wins on the server, but withhold the old owner's watch callback.
+   e.setSession({...requested,request:{...requested.request,at:{seconds:130,nanoseconds:1}}});e.onSessionChange(null);release();await upload;
+   assert.equal(a.ownership.snapshot().status,'handoff-requested');assert.equal(e.session().ack,null);
+   assert.equal(e.cloud().revision,1);assert.deepEqual(e.writtenRevisions(),[1]);
+   const r=await a.client.preserveOwnerRuntime(native,5,boot.profileId);
+   assert(r.durable&&r.cloudConfirmed);assert.equal(r.revision,6);
+   assert.deepEqual(e.writtenRevisions(),[1,5,6]);
+   assert.equal(e.cloud().revision,6);assert.equal(e.cloud().digest,a.local().record.digest);
+   assert.notEqual(e.cloud().digest,oldPending.digest);assert.equal(e.ackWrites(),1);
+   assert.equal(e.session().ack.revision,6);assert.equal(e.session().ack.digest,e.cloud().digest);
+   await b.ownership.refresh();const resumed=await b.client.finishTakeover();assert.equal(resumed.payload,native);
+   assert.equal(e.session().epoch,2);assert.equal((await a.client.commit(payload,6,boot.profileId)).code,'OWNERSHIP_LOST');
+   assert.deepEqual(e.writtenRevisions(),[1,5,6]);assert.equal(e.ackWrites(),1);
+ }
+ for(const variant of ['unavailable','canceled','other-owner','acknowledged','invalid-request','older-lease']){
+   const {e,a,previous,requested}=await prepare();e.setSession(requested);
+   e.remote.read=async()=>{
+     if(variant==='unavailable')throw fail('OFFLINE');
+     if(variant==='canceled')return previous;
+     if(variant==='other-owner')return {...requested,owner:webcrypto.randomUUID()};
+     if(variant==='acknowledged')return {...requested,ack:{requestId:requested.request.id,revision:1,digest:'f'.repeat(64)}};
+     if(variant==='invalid-request')return {...requested,request:{...requested.request,requester:requested.owner}};
+     return {...requested,updatedAt:requested.updatedAt-1};
+   };
+   await assert.rejects(a.ownership.renew(),err=>err.code==='HANDOFF_CHANGED');
+   assert.equal(a.ownership.snapshot().status,'offline',variant);
+   assert.deepEqual(e.writtenRevisions(),[1],variant);assert.equal(e.ackWrites(),0,variant);
+ }
+ for(const variant of ['confirmed','canceled','changed-request','other-owner','account','closed','unavailable','cloud-moved','journal-moved']){
+   const {e,a,b,boot}=await prepare();
+   assert((await b.client.requestTakeover()).ok);assert.equal(a.ownership.snapshot().status,'handoff-requested');
+   let entered;const reading=new Promise(done=>entered=done);e.onCloudRead(entered);
+   const release=e.holdReads(),pending=a.client.preserveOwnerRuntime(native,1,boot.profileId);
+   await awaitPhase(reading);
+   const frozen=a.local();assert.equal(frozen.record.revision,2);assert.equal(frozen.record.payload,native);
+   e.watchError(0);assert.equal(a.ownership.snapshot().status,'offline');
+   release();const r=await pending;assert(r.durable&&!r.cloudConfirmed&&!r.handoffError);
+   assert.deepEqual(a.local(),frozen);
+   assert.deepEqual(e.writtenRevisions(),[1]);assert.equal(e.ackWrites(),0);
+   if(variant==='canceled')e.setSession({...e.session(),request:null});
+   if(variant==='changed-request')e.setSession({...e.session(),request:{...e.session().request,id:webcrypto.randomUUID()}});
+   if(variant==='other-owner')e.setSession({...e.session(),owner:webcrypto.randomUUID(),epoch:2,request:null});
+   if(variant==='account')e.setUid('different-account');
+   if(variant==='closed')a.client.close();
+   if(variant==='unavailable')e.remote.read=async()=>{throw fail('OFFLINE');};
+   if(variant==='cloud-moved')e.setCloud({...e.cloud(),digest:'x'.repeat(64)});
+   if(variant==='journal-moved')a.setLocal({...a.local(),device:'changed other tab'});
+   if(variant==='confirmed'){
+     await Promise.all([a.client.refreshOwnership(),a.client.renewOwnership(),a.client.refreshOwnership()]);
+     assert.deepEqual(e.writtenRevisions(),[1,2]);assert.equal(e.cloud().digest,frozen.record.digest);
+     assert.equal(e.session().ack.digest,frozen.record.digest);assert.equal(e.session().ack.revision,2);assert.equal(e.ackWrites(),1);
+     assert.equal((await b.client.finishTakeover()).payload,native);assert.equal(e.session().epoch,2);
+     await a.client.refreshOwnership();assert.deepEqual(e.writtenRevisions(),[1,2]);assert.equal(e.ackWrites(),1);
+   }else{
+     await a.client.refreshOwnership();assert.deepEqual(e.writtenRevisions(),[1],variant);assert.equal(e.ackWrites(),0,variant);
+     assert.equal(a.local().record.digest,frozen.record.digest,variant);assert(a.local().pending,variant);
+   }
+ }
+ console.log('Interrupted handoff: stale renewal and held r5 upload before r6 ACK, offline frozen continuation, 14 fail-closed cases passed.');
+}
+
 async function renewalCoalescingChecks(){
  function fixture(){
   let value=null,uid='renewal-fixture',runtimeHeld=true,time=100000,held=false,confirmationHeld=false,receive,writes=0;
@@ -158,6 +244,7 @@ async function ackLeaseWriteChecks(){
 (async()=>{
  await ackLeaseWriteChecks();
  await renewalCoalescingChecks();
+ await interruptedHandoffChecks();
  // A successful write is followed by an independent transaction readback,
  // not a document read that can still reflect queued pre-transition state.
  let confirmedSession=null,transactionCalls=0,writes=0;
