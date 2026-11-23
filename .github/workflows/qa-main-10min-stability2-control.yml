@@ -1,0 +1,12 @@
+# Diagnostic only: never merge this workflow or publish its artifacts.
+name: QA main 10m 407 stability2 control (no release)
+on:
+  push:
+    branches: [qa/main-10min-ci-407-stability2-control]
+    paths: [.github/workflows/qa-main-10min-stability2-control.yml]
+permissions:
+  contents: read
+jobs:
+  web:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event_name == 'push' && github.ref == 'refs/heads/qa/main-10min-ci-407-stability2-control' && github.event.created && !github.event.deleted && github.run_attempt == 1
+    uses: ./.github/workflows/qa-main-10min-stability2-control-reusable.yml

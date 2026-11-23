@@ -50,7 +50,7 @@ class PreflightOverlapTests(unittest.TestCase):
         self.assertEqual(sibling['steps'][-1]['id'],'bind')
         self.assertEqual(sibling['outputs']['binding'], '${{ steps.bind.outputs.binding }}')
         self.assertEqual(jobs['engine']['needs'], 'guard');self.assertEqual(jobs['historical']['needs'],'guard')
-        self.assertEqual(jobs['build']['needs'],['guard','preflight','engine'])
+        self.assertEqual(jobs['build']['needs'],['guard','preflight','engine','browser_packages'])
         check=lambda job:next(s for s in job['steps'] if s.get('run')=='python3 tools/ci/pr_ci_scope.py --check-preflight-join')
         for name in ('build','gate'):
             job=jobs[name];self.assertIn('preflight',job['needs']);self.assertEqual(job['steps'].index(check(job)),1)
