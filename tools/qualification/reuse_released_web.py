@@ -21,7 +21,7 @@ def prepare(api, root, selection, output):
     trusted_run(run, QUALIFICATION_WORKFLOW, ('push', 'workflow_dispatch'))
     require(run['head_branch'] == 'main' and run['head_sha'] == selection['source_commit']
             and run['run_attempt'] == expected['qualification_attempt'], 'Original main run/attempt changed')
-    reuse.require_jobs(api.pages(f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs", 'jobs'))
+    reuse.require_jobs(api.pages(f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs", 'jobs'), event=run['event'])
     artifact = artifact_for(api, run, f"little-leaf-web-{run['head_sha']}-{run['run_attempt']}")
     require(artifact['id'] == expected['artifact_id'] and artifact['digest'] == expected['artifact_digest'],
             'The original publication artifact is missing or changed')

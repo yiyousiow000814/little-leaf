@@ -1,5 +1,6 @@
 """Balance complete engine coverage; merge only same-source, complete shard reports."""
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
@@ -43,7 +44,28 @@ def expected_records(names):
         {'staff-start-' + case for case in STAFF} if 'staff-start' in names else set())
 
 
-def merge_reports(paths, count, source, output):
+def required_archive_free_sources(root):
+    # Independent inventory reconstructed in full Build checkout. Native shards
+    # may omit only archived score materials, not a runtime asset or a test.
+    tracked = subprocess.check_output(['git', '-C', str(root), 'ls-files', '-z']).split(b'\0')
+    result = {}
+    for value in tracked:
+        if not value:
+            continue
+        name = os.fsdecode(value)
+        if name.startswith('docs/art-audio/scores/'):
+            continue
+        path = root / name
+        if path.is_symlink() or not path.is_file():
+            raise ValueError('Expected retained native source: ' + name)
+        with path.open('rb') as stream:
+            result[name] = hashlib.file_digest(stream, 'sha256').hexdigest()
+    if not result:
+        raise ValueError('Missing independently reconstructed native sources')
+    return result
+
+
+def merge_reports(paths, count, source, output, *, required_sources=None):
     assignments = plan(count)
     if len(paths) != count:
         raise ValueError('All shard reports are mandatory')
@@ -64,6 +86,8 @@ def merge_reports(paths, count, source, output):
         hashes = report.get('source_sha256')
         if not hashes or (source_hashes is not None and source_hashes != hashes):
             raise ValueError('Shard source bytes differ')
+        if required_sources is not None and hashes != required_sources:
+            raise ValueError('Native archive-free source scope differs from exact tracked bytes')
         source_hashes = hashes
         rows = report.get('records', [])
         expected = expected_records(assignments[index]) | {'import'}
@@ -132,7 +156,12 @@ def main():
         path.write_text(json.dumps(report, indent=2) + '\n')
     else:
         source = subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip()
-        merge_reports(sorted(args.reports.glob('*/summary.json')), args.count, source, args.output)
+        scope = os.environ.get('NATIVE_ARCHIVE_FREE', 'false')
+        if scope not in ('true', 'false') or scope == 'true' and args.count != 9:
+            raise ValueError('Unknown archive-free native scope or matrix size')
+        required = required_archive_free_sources(ROOT) if scope == 'true' else None
+        merge_reports(sorted(args.reports.glob('*/summary.json')), args.count, source, args.output,
+                      required_sources=required)
 
 
 if __name__ == '__main__':

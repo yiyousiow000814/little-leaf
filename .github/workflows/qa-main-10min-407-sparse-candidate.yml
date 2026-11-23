@@ -1,0 +1,12 @@
+# Local proposal only; never merge or publish this diagnostic.
+name: QA main 10m 407 sparse candidate (no release)
+on:
+  push:
+    branches: [qa/main-10min-ci-407-sparse-candidate]
+    paths: [.github/workflows/qa-main-10min-407-sparse-candidate.yml]
+permissions:
+  contents: read
+jobs:
+  web:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event_name == 'push' && github.ref == 'refs/heads/qa/main-10min-ci-407-sparse-candidate' && github.event.created && !github.event.deleted && github.run_attempt == 1
+    uses: ./.github/workflows/qa-main-10min-407-sparse-candidate-reusable.yml

@@ -88,7 +88,9 @@ def trusted(run, sha, workflow_id):
             and run.get('head_repository', {}).get('full_name') == REPOSITORY)
 
 
-def require_jobs(jobs):
+def require_jobs(jobs, *, event):
+    if event not in {'push', 'workflow_dispatch'}:
+        raise ValueError('Trusted main push or dispatch required')
     names = [j['name'] for j in jobs]
     if len(names) != len(set(names)) or not REQUIRED_JOBS.issubset(names):
         raise ValueError('Complete mandatory main CI job inventory is required')
@@ -96,7 +98,12 @@ def require_jobs(jobs):
     if len(gates) != 1 or gates[0]['conclusion'] != 'success':
         raise ValueError('The complete main CI acceptance gate must pass')
     # These inventories are already bound to a trusted main push or dispatch.
-    # Ordinary PRs alone use the separate exporter; older main inventories omit it.
+    # The old PR-only name retains its skip contract. Only the explicitly named
+    # ordinary-main sibling can contribute proof on a trusted push.
+    sibling = [j for j in jobs if j['name'] == 'web / crazygames (main CI)']
+    if sibling and (event != 'push' or 'web / crazygames' in names
+                    or sibling[0].get('status') != 'completed' or sibling[0].get('conclusion') != 'success'):
+        raise ValueError('The ordinary main variant sibling must pass on an exact main push')
     if any(j['name'] in {'web / crazygames', 'web / preflight'} and
            (j['status'] != 'completed' or j['conclusion'] != 'skipped') for j in jobs):
         raise ValueError('PR-only jobs must be skipped in main CI')
@@ -120,7 +127,7 @@ def resolve(api, sha, wait_seconds=1200, *, clock=time.monotonic, sleep=time.sle
             if run['status'] == 'completed':
                 if run['conclusion'] != 'success':
                     raise ValueError(f"Exact main CI {run['id']} failed; require a successful qualifying build")
-                require_jobs(api.pages(f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs", 'jobs'))
+                require_jobs(api.pages(f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs", 'jobs'), event=run['event'])
                 expected = f"little-leaf-web-{sha}-{run['run_attempt']}"
                 artifacts = [a for a in api.pages(f"actions/runs/{run['id']}/artifacts", 'artifacts')
                              if a.get('name') == expected]

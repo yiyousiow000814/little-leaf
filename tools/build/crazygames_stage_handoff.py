@@ -14,6 +14,7 @@ if __name__ == "__main__":
 
 from build.build_web import ROOT, PRODUCTION_DIRS, PRODUCTION_FILES, git, verify_installer_receipt
 from build.project_layout import resource_name, source_path
+from ci.crazygames_pr_evidence import ordinary_sibling_route
 from qualification.artifacts import sha256, validate_export_inventory, validate_web_gate
 from release.release_metadata import projected_metadata, version
 
@@ -81,8 +82,8 @@ def expected_directories(names):
 def exact_inputs(build):
     require(not git("status", "--porcelain", "--untracked-files=no"), "Tracked checkout must be clean")
     commit, tree = git("rev-parse", "HEAD"), git("rev-parse", "HEAD^{tree}")
-    require(commit == os.environ.get("GITHUB_SHA") and os.environ.get("GITHUB_EVENT_NAME") == "pull_request",
-            "Exact ordinary PR checkout required")
+    require(commit == os.environ.get("GITHUB_SHA") and ordinary_sibling_route(os.environ),
+            "Exact ordinary CI checkout required")
     manifest = validate_export_inventory(build / "web")
     run, attempt = (os.environ.get(key, "") for key in ("GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT"))
     binding = {"source_commit": commit, "source_tree": tree, "workflow_run": run, "workflow_attempt": attempt}

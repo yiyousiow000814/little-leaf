@@ -71,7 +71,8 @@ class API:
     def pages(self, path, key):
         if key == 'jobs':
             return self.args['publish_jobs'] if '/10/' in path else [
-                {'name': n, 'status': 'completed', 'conclusion': 'success'} for n in REQUIRED_JOBS]
+                {'name': n, 'status': 'completed', 'conclusion': 'success'} for n in REQUIRED_JOBS] + [
+                    {'name': 'web / crazygames (main CI)', 'status': 'completed', 'conclusion': 'success'}]
         return self.release_artifacts()
 
 

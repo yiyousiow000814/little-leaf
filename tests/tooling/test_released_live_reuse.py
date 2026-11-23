@@ -209,6 +209,7 @@ class ManualReuseTests(unittest.TestCase):
             def pages(self, path, key):
                 if path.startswith('actions/runs/20/'):
                     rows = [{'name': name, 'status': 'completed', 'conclusion': 'success'} for name in REQUIRED_JOBS]
+                    rows.append({'name': 'web / crazygames (main CI)', 'status': 'completed', 'conclusion': 'success'})
                     if self.change and self.change[0] == 'main-jobs': rows[0]['conclusion'] = 'failure'
                     return rows
                 return [{'name': 'publish', 'run_id': 40, 'run_attempt': self.release_attempt, 'status': 'completed', 'conclusion': 'success'}]

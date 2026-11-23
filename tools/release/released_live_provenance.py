@@ -144,7 +144,7 @@ def authenticate_origin(api, manifest, origin):
     trusted_run(qualification_run, '.github/workflows/ci.yml', ('push', 'workflow_dispatch'))
     require(qualification_run['head_sha'] == source and qualification_run.get('head_branch') == 'main'
         and qualification_run['run_attempt'] == q['qualification_attempt'], 'Original main qualification became stale')
-    require_jobs(api.pages(f"actions/runs/{qualification_run['id']}/attempts/{qualification_run['run_attempt']}/jobs", 'jobs'))
+    require_jobs(api.pages(f"actions/runs/{qualification_run['id']}/attempts/{qualification_run['run_attempt']}/jobs", 'jobs'), event=qualification_run['event'])
     original = api.read('actions/artifacts/' + str(q['artifact_id']))
     require(original.get('expired') is False and original.get('digest') == q['artifact_digest']
         and original.get('name') == f"little-leaf-web-{source}-{q['qualification_attempt']}"

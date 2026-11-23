@@ -15,23 +15,24 @@ class BrowserProvisionExtensionTests(unittest.TestCase):
     def setUp(self):
         workflow = yaml.safe_load((ROOT / ".github/workflows/build-web.yml").read_text())
         self.jobs = workflow["jobs"]
-        self.route = self.jobs["play"]["env"]["PLAY_LOCKED_PROVISION"]
+        self.route = self.jobs["play"]["env"]["ORDINARY_PR"]
+        self.locked = self.jobs["play"]["env"]["LOCKED_BROWSER_PROVISION"]
 
     @staticmethod
     def step(job, prefix):
         return next(step for step in job["steps"] if step.get("name", "").startswith(prefix))
 
-    def test_ordinary_pr_selection_matches_validated_play_without_a_fallback(self):
+    def test_normal_selection_matches_validated_play_without_a_fallback(self):
         for role in ("browser", "compatibility"):
             with self.subTest(role=role):
                 job = self.jobs[role]
-                self.assertEqual(job["env"]["PR_LOCKED_CHROMIUM_PROVISION"], self.route)
+                self.assertEqual(job["env"]["LOCKED_BROWSER_PROVISION"], self.locked)
                 self.assertEqual(self.step(job, "Install shared pinned")["if"],
-                                 "env.PR_LOCKED_CHROMIUM_PROVISION != 'true'")
+                                 "env.LOCKED_BROWSER_PROVISION != 'true'")
                 for prefix in ("Install pinned Playwright driver", "Install only missing pinned",
                                "Verify headed Chrome sandbox"):
                     self.assertEqual(self.step(job, prefix)["if"],
-                                     "env.PR_LOCKED_CHROMIUM_PROVISION == 'true'")
+                                     "env.LOCKED_BROWSER_PROVISION == 'true'")
                 self.assertIn("playwright@1.63.0", self.step(job, "Install pinned Playwright driver")["run"])
                 self.assertIn('play_provision.py candidate "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/package-transaction.json"',
                               self.step(job, "Install only missing pinned")["run"])
