@@ -3,7 +3,7 @@
   "status": "released",
   "version": "0.1.11-pre",
   "prerelease": true,
-  "date": "2026-10-15",
+  "date": "2026-11-23",
   "label": "Latest progress prerelease",
   "new": [
     "Added multi-cell floor and wall painting.",
@@ -30,6 +30,9 @@
     "Saved meals keep their stored durations."
   ],
   "fixed": [
+    "Furniture placement warnings are checked faster.",
+    "Reduced repeated work when drawing walls.",
+    "Staff choose work positions faster.",
     "Fixed Google play to start from the cloud save.",
     "Unsynced local progress is not restored at Google startup.",
     "Fixed decorations shifting when panning over a parcel.",
