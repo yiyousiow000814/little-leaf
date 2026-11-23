@@ -50,7 +50,7 @@ class PreflightOverlapTests(unittest.TestCase):
         self.assertEqual(sibling['steps'][-1]['id'],'bind')
         self.assertEqual(sibling['outputs']['binding'], '${{ steps.bind.outputs.binding }}')
         self.assertEqual(jobs['engine']['needs'], 'guard');self.assertEqual(jobs['historical']['needs'],'guard')
-        self.assertEqual(jobs['build']['needs'],['guard','preflight','engine'])
+        self.assertEqual(jobs['build']['needs'],['guard','preflight','engine','browser_packages'])
         check=lambda job:next(s for s in job['steps'] if s.get('run')=='python3 tools/ci/pr_ci_scope.py --check-preflight-join')
         for name in ('build','gate'):
             job=jobs[name];self.assertIn('preflight',job['needs']);self.assertEqual(job['steps'].index(check(job)),1)
@@ -96,8 +96,8 @@ class PreflightOverlapTests(unittest.TestCase):
     def test_trusted_main_only_recognizes_exact_skipped_optional_name(self):
         base=[{'name':n,'status':'completed','conclusion':'success'} for n in REQUIRED_JOBS]
         sibling={'name':'web / preflight','status':'completed','conclusion':'skipped'}
-        require_jobs(base); require_jobs(base+[sibling])
+        require_jobs(base, event='push'); require_jobs(base+[sibling], event='push')
         for change in [{'status':'queued'},{'conclusion':'success'},{'conclusion':'failure'},
                        {'conclusion':'cancelled'},{'name':'web / other preflight'}]:
-            self.assertRaises(ValueError,require_jobs,base+[sibling|change])
-        self.assertRaises(ValueError,require_jobs,base+[sibling,sibling])
+            self.assertRaises(ValueError,require_jobs,base+[sibling|change], event='push')
+        self.assertRaises(ValueError,require_jobs,base+[sibling,sibling], event='push')

@@ -125,7 +125,7 @@ def authenticate(api, receipt, run_id):
             and q.get('version') == receipt['version'] and q.get('tag') == tag
             and q.get('mandatory_gate_success') is True and q.get('packed_startup') == 'passed'
             and q.get('qualified_payload_unchanged') is True, 'Original exact-main qualification differs')
-    require_jobs(api.pages(f"actions/runs/{original['id']}/attempts/{original['run_attempt']}/jobs",'jobs'))
+    require_jobs(api.pages(f"actions/runs/{original['id']}/attempts/{original['run_attempt']}/jobs",'jobs'), event=original['event'])
     artifact=api.read(f"actions/artifacts/{q['artifact_id']}")
     require(artifact.get('expired') is False and artifact.get('digest') == q['artifact_digest']
             and artifact.get('name') == f"little-leaf-web-{source}-{q['qualification_attempt']}"

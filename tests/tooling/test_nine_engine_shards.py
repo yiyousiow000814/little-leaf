@@ -1,4 +1,4 @@
-"""Verify the ordinary PR pilot never changes the complete qualification contract."""
+"""Verify the ordinary validation fanout never changes the complete qualification contract."""
 import json
 import os
 from pathlib import Path
@@ -15,32 +15,34 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class NineEngineShardsTests(unittest.TestCase):
-    def test_ordinary_pr_only_fanout_and_literal_non_pr_matrix(self):
+    def test_ordinary_pr_and_main_fanout_and_qualification_matrix(self):
         jobs = yaml.safe_load((ROOT / '.github/workflows/build-web.yml').read_text())['jobs']
         guard, engine, build = (jobs[k] for k in ('guard', 'engine', 'build'))
         selection = next(s for s in guard['steps'] if s.get('id') == 'engine_plan')
-        self.assertEqual(selection['env']['ORDINARY_PR'], jobs['play']['env']['PLAY_LOCKED_PROVISION'])
+        self.assertEqual(selection['env']['ORDINARY_PR'], jobs['play']['env']['ORDINARY_PR'])
         self.assertEqual(guard['outputs']['engine_count'], '${{ steps.engine_plan.outputs.count }}')
         self.assertEqual(guard['outputs']['engine_matrix'], '${{ steps.engine_plan.outputs.matrix }}')
         self.assertEqual(engine['strategy']['matrix']['shard'], '${{ fromJSON(needs.guard.outputs.engine_matrix) }}')
         self.assertEqual(engine['strategy']['max-parallel'], '${{ fromJSON(needs.guard.outputs.engine_count) }}')
         self.assertEqual(engine['needs'], 'guard')
-        self.assertEqual(build['needs'], ['guard', 'preflight', 'engine'])
+        self.assertEqual(build['needs'], ['guard', 'preflight', 'engine', 'browser_packages'])
         for job, verb in ((engine, 'run'), (build, 'merge')):
             command = next(s for s in job['steps'] if 'engine_shards.py ' + verb in s.get('run', ''))
             self.assertEqual(command['env']['ENGINE_COUNT'], '${{ needs.guard.outputs.engine_count }}')
             self.assertIn('--count "$ENGINE_COUNT"', command['run'])
         with tempfile.TemporaryDirectory() as td:
             dest = Path(td) / 'out'
-            for event, count in (('true', 9), ('false', 5)):
+            for ordinary_pr, locked, count in (('true', 'true', 9), ('false', 'true', 9), ('false', 'false', 5)):
                 subprocess.run(['bash', '-c', selection['run']], check=True,
-                               env={**os.environ, 'ORDINARY_PR': event, 'GITHUB_OUTPUT': str(dest)})
+                               env={**os.environ, 'ORDINARY_PR': ordinary_pr, 'LOCKED_BROWSER': locked, 'GITHUB_OUTPUT': str(dest)})
                 output = dict(row.split('=', 1) for row in dest.read_text().splitlines())
+                self.assertEqual(output['ordinary_pr'], ordinary_pr)
+                self.assertEqual(output['locked_browser'], locked)
                 self.assertEqual(int(output['count']), count)
                 self.assertEqual(json.loads(output['matrix']), list(range(count)))
                 dest.unlink()
             refused = subprocess.run(['bash', '-c', selection['run']], capture_output=True,
-                                    env={**os.environ, 'ORDINARY_PR': '', 'GITHUB_OUTPUT': str(dest)})
+                                    env={**os.environ, 'ORDINARY_PR': 'false', 'LOCKED_BROWSER': '', 'GITHUB_OUTPUT': str(dest)})
             self.assertNotEqual(refused.returncode, 0)
             self.assertFalse(dest.exists())
 

@@ -55,7 +55,7 @@ def prepare(root, reuse, selection, output, api, *, common_tag=False):
     if common_tag:
         endpoint+=f"/attempts/{qualification['qualification_attempt']}"
     run = api.read(endpoint)
-    require_jobs(api.pages(f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs", 'jobs'))
+    require_jobs(api.pages(f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs", 'jobs'), event=run['event'])
     base = bind_package(reuse / 'web', root, selection['source_commit'], selection['source_tree'], run,
                         selection['release_tag'] if common_tag else '')
     require(base.get('release_reuse') == qualification, 'Ordinary reuse manifest differs')
