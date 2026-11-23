@@ -228,16 +228,34 @@ async function setup(uid,entry=null){
   if(connectivityEpoch===null||!connectivity.isOnlineNow(connectivityEpoch))return route.abort('internetdisconnected');
   const rpc=/\/(Listen|Write)\/channel$/.exec(u.pathname)?.[1] || /:(batchGet|commit)$/.exec(u.pathname)?.[1];
   const clock=rpcClock(rpc,route.request().method());
+  let response;
   try{
-   const response=await route.fetch({url:target,maxRedirects:0,timeout:45000});
-   clock.fetchCompleted=Date.now();clock.status=response.status();clock.phase='online-check';
-   if(!await connectivity.isOnline(connectivityEpoch)||!connectivity.isOnlineNow(connectivityEpoch))return route.abort('internetdisconnected');
-   clock.phase='fulfill-submitted';
-   return route.fulfill({response,headers:{...response.headers(),'access-control-allow-origin':officialOrigin,'access-control-allow-credentials':'true','cross-origin-resource-policy':'cross-origin'}});
+   response=await route.fetch({url:target,maxRedirects:0,timeout:45000});
   }catch(error){
    clock.error=/timeout|timed out/i.test(error.message)?'timeout':/ECONNRESET/.test(error.message)?'connection-reset':/Target.*closed/.test(error.message)?'target-closed':failureCategory(error.message);
-   networkObservation('proxy','synthetic-emulator',failureCategory(error.message));return route.abort('failed');
+   networkObservation('proxy','synthetic-emulator',failureCategory(error.message));
+   try{return await route.abort('failed');}finally{clock.callbackFinallyAt=Date.now();}
+  }
+  try{
+   const status=response.status(),headers={...response.headers(),'access-control-allow-origin':officialOrigin,'access-control-allow-credentials':'true','cross-origin-resource-policy':'cross-origin'};
+   clock.fetchCompleted=Date.now();clock.status=status;clock.phase='response-body';
+   // Only small synthetic Firestore RPCs use this path. Detach the content
+   // from Playwright's context-owned handle before awaiting delivery.
+   const body=await response.body();
+   clock.phase='online-check';
+   if(!await connectivity.isOnline(connectivityEpoch)||!connectivity.isOnlineNow(connectivityEpoch))return await route.abort('internetdisconnected');
+   clock.phase='fulfill-submitted';
+   await route.fulfill({status,headers,body});
+   clock.phase='fulfilled';
+  }catch(error){
+   if(clock.phase==='response-body' && /^(?:apiResponse\.body: )?(?:Fetch response|Response) has been disposed(?:\n|$)/.test(String(error?.message))){
+    clock.error='response-disposed';
+    throw Error('apiResponse.body: Response has been disposed',{cause:error});
+   }
+   clock.error=failureCategory(error?.message);
+   throw error;
   }finally{clock.callbackFinallyAt=Date.now();}
+
  }
  if(itchVariant && u.href===itchPage)return route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><style>html,body,iframe{margin:0;width:100%;height:100%;border:0;overflow:hidden}</style><iframe src="'+classicPage+'" allow="autoplay; fullscreen"></iframe>'});
  if(itchVariant && u.href===classicPage)return route.fulfill({status:200,contentType:'text/html',body:fs.readFileSync(path.join(itchVariant,'itch-wrapper/index.html'))});

@@ -285,7 +285,7 @@ for(const guarded of [false,true])for(const interleave of ['none','before-forwar
  const connectivity=createContextConnectivity(context);await connectivity.initialize(frame);
  const method=interleave==='before-forward'?'capture':interleave==='before-fulfill'?'isOnline':null;
  if(method){const original=connectivity[method];connectivity[method]=function(...args){const result=original.apply(this,args);queueMicrotask(()=>{transition=connectivity.setOffline(frame,true);});return result;};}
- const route={request:()=>({method:()=> 'POST'}),fetch:async()=>{forwarded++;return {headers:()=>({}),status:()=>200};},fulfill:async()=>{fulfilled++;},abort:async reason=>{aborted.push(reason);}};
+ const route={request:()=>({method:()=> 'POST'}),fetch:async()=>{forwarded++;return {headers:()=>({}),status:()=>200,body:async()=>Buffer.from([0,255])};},fulfill:async()=>{fulfilled++;},abort:async reason=>{aborted.push(reason);}};
  const body=guarded?proxyBody:proxyBody.replaceAll('||!connectivity.isOnlineNow(connectivityEpoch)','');
  const execute=vm.runInNewContext('(async function(route){'+body+'})',{
   connectivity,rpcClock:()=>({}),u:new URL(syntheticRPCOrigin+'/v1/projects/demo-little-leaf/databases/(default)/documents:commit'),
@@ -300,3 +300,55 @@ for(const guarded of [false,true])for(const interleave of ['none','before-forwar
  if(interleave!=='none')assert.equal(actualOnline,false);
 }
 console.log('Exact proxy driver: offline fences close in both await-to-forward and await-to-fulfill gaps; synchronous guards prevent forwarding/delivery, while confirmed online traffic still passes.');
+
+// This handle becomes invalid while the synthetic RPC fulfillment stalls.
+// Replay the exact driver with production body bytes (including non-UTF8).
+for(const scenario of ['delivered','retired','live','unconfirmed','unrequested','other','retired-body','live-body']){
+ const submitted=deferred(),delivery=deferred(),clock={};let aborts=0,disposed=false;
+ const bodyPhase=scenario.endsWith('-body'),body=Buffer.from([0,255]),headers={'content-type':'application/octet-stream','x-test':'1'};
+ const disposal=Error(scenario==='live-body'?'Response has been disposed':'apiResponse.body: Response has been disposed');
+ const unexpected=Error('route.fulfill: Fetch response has been disposed');
+ const error=bodyPhase?disposal:scenario==='other'?unexpected:closedError('route.fulfill');
+ const h=routeHarness({emitClose:scenario!=='unconfirmed',onClose:()=>{
+   disposed=true;
+   if(['retired','retired-body','unconfirmed','other'].includes(scenario))delivery.reject(error);
+ }});
+ const response={headers:()=>headers,status:()=>201,body:async()=>{if(bodyPhase){submitted.resolve();return delivery.promise;}return body;}};
+ const route={
+  request:()=>({method:()=> 'POST'}),
+  fetch:async()=>response,
+  fulfill:async options=>{
+   if(options.response){submitted.resolve();await delivery.promise;if(disposed)throw Error("route.fulfill: Fetch response has been disposed");}
+   assert.equal(options.response,undefined,'browser fulfillment does not dereference an APIResponse handle');
+   assert.equal(options.status,201);assert.equal(options.body,body);assert.equal(options.headers['content-type'],headers['content-type']);
+   assert.equal(options.headers['x-test'],'1');assert.equal(options.headers['cross-origin-resource-policy'],'cross-origin');
+   submitted.resolve();await delivery.promise;
+   if(scenario==='delivered')assert.equal(disposed,true,'static bytes survive provider disposal');
+  },
+  abort:async()=>{aborts++;},
+ };
+ const u=new URL(syntheticRPCOrigin+'/v1/projects/demo-little-leaf/databases/(default)/documents:commit');
+ const execute=vm.runInNewContext('(async function(route){'+proxyBody+'})',{
+  connectivity:{capture:async()=>1,isOnline:async()=>true,isOnlineNow:()=>true},
+  rpcClock:()=>clock,u,target:emulatorProxyTarget(u.href,'POST'),
+  officialOrigin:'https://little-leaf-41e5d.firebaseapp.com',networkObservation:()=>{},failureCategory,
+ });
+ const pending=h.routes.handle(execute)(route);
+ await submitted.promise;
+ assert.equal(clock.phase,bodyPhase?'response-body':'fulfill-submitted');
+ assert.equal(clock.callbackFinallyAt,undefined,'submitting fulfillment is not completion');
+ if(scenario==='delivered'){const closing=h.routes.close();delivery.resolve();await closing;}
+ else if(scenario==='unconfirmed')await assert.rejects(h.routes.close(),/Fixture context close not confirmed/);
+ else if(['live','live-body','unrequested','other'].includes(scenario)){
+   if(scenario==='unrequested')h.context.emit('close');
+   if(scenario!=='other'){delivery.reject(error);await pending;}
+   await assert.rejects(h.routes.close(),failure=>bodyPhase?failure.cause===error:failure===error);
+ }else await h.routes.close();
+ await pending;
+ assert.equal(aborts,0,'no invented alternate transport result after a fulfill attempt');
+ assert.equal(clock.phase,scenario==='delivered'?'fulfilled':bodyPhase?'response-body':'fulfill-submitted');
+ assert.equal(typeof clock.callbackFinallyAt,'number');
+ if(['delivered','retired','retired-body'].includes(scenario))assert.deepEqual(h.errors,[]);
+ else assert(h.errors.includes('Fixture route callback failed: '+(scenario==='other'?'other':bodyPhase?'response-disposed':'target-closed')),scenario+JSON.stringify(h.errors));
+}
+console.log('Exact stalled fulfillment uses detached status/headers/binary bytes; only owned confirmed close cancels outstanding delivery/body reads, and all live failures stay fatal.');
