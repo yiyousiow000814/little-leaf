@@ -51,15 +51,26 @@ class BrowserProvisionExtensionTests(unittest.TestCase):
             for line in uses:
                 self.assertIn('"$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE', line)
 
+    def test_webkit_route_extends_only_ordinary_main_push(self):
+        # Reuse the entire ordinary-PR input mask, widening only the event/ref predicate.
+        recovery = self.jobs["browser"]
+        main_or_pr = "(github.event_name == 'pull_request' || " \
+                     "(github.event_name == 'push' && github.ref == 'refs/heads/main'))"
+        expected = self.route.replace("github.event_name == 'pull_request'", main_or_pr, 1)
+        self.assertEqual(recovery["env"]["RECOVERY_ISOLATED_WEBKIT_PROVISION"], expected)
+        for name, job in self.jobs.items():
+            if name != "browser":
+                self.assertNotIn("RECOVERY_ISOLATED_WEBKIT_PROVISION", json.dumps(job))
+
     def test_independent_webkit_phase_and_probe_before_real_checks(self):
         recovery = self.jobs["browser"]
         webkit = self.step(recovery, "Install WebKit only")
         self.assertIn("install --with-deps webkit", webkit["run"])
-        self.assertEqual(webkit["if"], "env.PR_LOCKED_CHROMIUM_PROVISION != 'true'")
+        self.assertEqual(webkit["if"], "env.RECOVERY_ISOLATED_WEBKIT_PROVISION != 'true'")
         deps = self.step(recovery, "Install signed Ubuntu WebKit")
         binary = self.step(recovery, "Install pinned WebKit browser")
         for step in (deps, binary):
-            self.assertEqual(step["if"], "env.PR_LOCKED_CHROMIUM_PROVISION == 'true'")
+            self.assertEqual(step["if"], "env.RECOVERY_ISOLATED_WEBKIT_PROVISION == 'true'")
             self.assertNotIn("continue-on-error", step)
             self.assertNotIn("install --with-deps", step["run"])
         self.assertIn("recovery_webkit_provision.py", deps["run"])

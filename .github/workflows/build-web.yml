@@ -508,6 +508,7 @@ jobs:
     timeout-minutes: 20
     env:
       PR_LOCKED_CHROMIUM_PROVISION: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
+      RECOVERY_ISOLATED_WEBKIT_PROVISION: ${{ (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
       CHROMIUM_PROVISION_RELATIVE: chromium-provision/recovery
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -553,16 +554,16 @@ jobs:
           sudo dpkg -i "$CHROME_DEB"
           python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
       - name: Install WebKit only for recovery lane
-        if: env.PR_LOCKED_CHROMIUM_PROVISION != 'true'
+        if: env.RECOVERY_ISOLATED_WEBKIT_PROVISION != 'true'
         run: '"$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install --with-deps webkit'
-      - name: Install signed Ubuntu WebKit system prerequisites for ordinary PR
-        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+      - name: Install signed Ubuntu WebKit system prerequisites
+        if: env.RECOVERY_ISOLATED_WEBKIT_PROVISION == 'true'
         timeout-minutes: 5
         run: |
           python3 tools/ci/recovery_webkit_provision.py "$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright-core" \
             "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/webkit"
-      - name: Install pinned WebKit browser for ordinary PR recovery
-        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+      - name: Install pinned WebKit browser for recovery
+        if: env.RECOVERY_ISOLATED_WEBKIT_PROVISION == 'true'
         timeout-minutes: 2
         env:
           PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: '20000'
