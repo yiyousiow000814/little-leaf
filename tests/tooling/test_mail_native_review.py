@@ -20,23 +20,33 @@ class MailNativeReviewTests(unittest.TestCase):
         # Actor/workface successor: the current source pin is distinct from
         # the frozen capture; focused Godot 4.6.3 fixtures do not recapture pixels.
         current_main = "4d318dd9f63a7e3fd5fb04fcc80f58886662f7d69d46a70f14e3a37a75e9b607"
+        adapter = "platform/web/little_leaf_firebase.js"
+        captured_adapter = "d63b7ec0343aebb534e9c0b4f86197519ce7ac2dbf14476d510dcaeba550d027"
+        # The ownership continuation is not part of the historical Mail capture.
+        current_adapter = "d637747b96d713d691b8f9675bdd05a77a3a686dc3ec752022751ddca87375f0"
         original = review.sha
         self.assertEqual(review.REVIEWED_POSTIMAGES[main], captured_main)
+        self.assertEqual(review.REVIEWED_POSTIMAGES[adapter], captured_adapter)
         self.assertEqual(original(ROOT / main), current_main)
+        self.assertEqual(original(ROOT / adapter), current_adapter)
         # The old capture verifier still refuses a successor on live files.
         with self.assertRaisesRegex(RuntimeError, "postimage"):
             review.verify_postimages(review.REVIEWED_POSTIMAGES, ROOT)
 
         def historical_sha(path):
-            # Exercise the frozen capture guard with a fixture for only its
-            # archived Main postimage; every other byte is read normally.
-            return captured_main if path == ROOT / main else original(path)
+            # Exercise the frozen guard with only the archived postimages
+            # replaced; every other byte is read normally.
+            if path == ROOT / main:
+                return captured_main
+            if path == ROOT / adapter:
+                return captured_adapter
+            return original(path)
 
         with patch.object(review, "sha", side_effect=historical_sha):
             review.verify_postimages(review.REVIEWED_POSTIMAGES, ROOT)
             with self.assertRaisesRegex(RuntimeError, "paths"):
                 review.verify_postimages([*review.REVIEWED_POSTIMAGES, "game/scripts/unreviewed.gd"], ROOT)
-        for name in (main, "platform/firebase/support_mail_service.mjs", review.FIXTURE):
+        for name in (main, adapter, "platform/firebase/support_mail_service.mjs", review.FIXTURE):
             with patch.object(review, "sha", side_effect=lambda p: "0" * 64 if p == ROOT / name else historical_sha(p)):
                 with self.assertRaises(RuntimeError):
                     review.verify_postimages(review.REVIEWED_POSTIMAGES, ROOT)

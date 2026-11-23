@@ -268,13 +268,14 @@
       } else if(gridRecord(next.record)) next.preGrid=emptyPreGridRequirement();
       return proof;
     }
-    async function durableSnapshot(payload,revision,profileId){
+    async function durableSnapshot(payload,revision,profileId,onDurable=null){
       return serial(async()=>{
         accountGuard();if(!entry || !bootReady || entry.record.profileId!==profileId || entry.record.revision!==revision)
           throw error('REVISION_CONFLICT','The active save changed before it could be preserved. Keep this page open.');
         const record=await nextRecord(entry.record,payload);accountGuard();const next={...entry,record,pending:true,device:savedDevice};
         const proof=await preservePreGrid(entry,next,accountGuard);
         await journal.replace(uid,entry,next,{proof,guard:accountGuard});accountGuard();entry=next;
+        if(onDurable)onDurable(record);
         return {ok:true,durable:true,profileId,revision:record.revision};
       });
     }
@@ -370,6 +371,9 @@
     function retryOwnerHandoff(){
       if(handoffRetryTask)return handoffRetryTask;
       const intent=ownerHandoff;if(!intent?.retryable)return Promise.resolve();
+      // A real temporary observer failure can interrupt the first durable
+      // snapshot. Only a new server observation can resume its original fence.
+      if(intent.waitingForOwnership&&ownership.snapshot().status==='offline')return Promise.resolve();
       handoffRetryTask=(async()=>{
         let drainedError=null;
         try{
@@ -438,6 +442,19 @@
         }
         finally{if(intent.generation===handoffGeneration){handoffMode=false;stopped=true;}}
       })().finally(()=>{handoffRetryTask=null;});return handoffRetryTask;
+    }
+    // Native freezes input/simulation and waits for existing save receipts.
+    // Remote conflict does not reject its final LOCAL snapshot; account and
+    // local-tab CAS protections still apply. Never auto-reload the live model.
+    async function preserveNativeRuntime(payload,revision,profileId,onDurable=null){
+      if(recoveryBusy)return failure(error('RECOVERY_BUSY','A save choice is already in progress.'));recoveryBusy=true;let preserved=null;
+      try {
+        accountGuard();preserved=await durableSnapshot(payload,revision,profileId,onDurable);
+        stopped=true;const cloud=await validate(await networkWait(remote.read(uid)));accountGuard();
+        if(!cloud)throw error('RECOVERY_MISSING','Synced progress is unavailable. This device’s snapshot is preserved.');
+        if(cloud.digest!==entry.base && cloud.digest!==entry.record.digest && cloud.digest!==entry.uploading?.record?.digest)await previewRecovery(entry,cloud);else recovery=null;
+        return preserved;
+      }catch(e){return preserved?{...preserved,reconciliationError:failure(e)}:failure(e);}finally{recoveryBusy=false;}
     }
     const client={storageKind:'firebase-firestore',bootJson:'',creditForSave(){return 0;},
       async boot() {
@@ -612,9 +629,13 @@
         const generation=++handoffGeneration;
         let fence=null;if(ownership.snapshot().status==='handoff-requested'){try{fence=ownership.handoffReceipt();}catch(_){/* Still preserve the native snapshot locally. */}}
         // Always keep the native snapshot. Only the still-current owner flushes.
-        const saved=await client.preserveRuntime(payload,revision,profileId);if(!saved.ok)return saved;
-        if(generation!==handoffGeneration||!fence||ownership.snapshot().status!=='handoff-requested')return {...saved,cloudConfirmed:false};
-        const intent={generation,fence,record:entry.record,retryable:false,ackTask:null,wakeTasks:new WeakSet()};ownerHandoff=intent;
+        let frozen=null;
+        const saved=await preserveNativeRuntime(payload,revision,profileId,record=>{frozen=record;});if(!saved.ok)return saved;
+        if(generation!==handoffGeneration||!fence||!frozen||!same(entry?.record,frozen))return {...saved,cloudConfirmed:false};
+        const status=ownership.snapshot().status;
+        if(status!=='handoff-requested'&&status!=='offline')return {...saved,cloudConfirmed:false};
+        const intent={generation,fence,record:frozen,retryable:status==='offline',waitingForOwnership:status==='offline',ackTask:null,wakeTasks:new WeakSet()};ownerHandoff=intent;
+        if(intent.waitingForOwnership)return {...saved,cloudConfirmed:false};
         try {handoffMode=true;stopped=false;while(entry.pending)await networkWait(upload());assertHandoffIntent(intent);intent.ackTask=ownership.acknowledge(entry.record.digest,entry.record.revision,fence);await networkWait(intent.ackTask);assertHandoffIntent(intent);ownerHandoff=null;const {reconciliationError,...durableSaved}=saved;return {...durableSaved,cloudConfirmed:true};}
         catch(e){
           intent.retryable=ownerHandoff===intent&&generation===handoffGeneration&&e.code==='NETWORK_TIMEOUT'&&!permissionDenied;
@@ -665,19 +686,7 @@
           accountGuard();if(ownership)ownership.assertActive();operation.complete=true;recovery=null;state('saved');const result=acceptedBoot();opened=Promise.resolve(result);return result;
         } catch(e) {stopped=true;state(offline(e)?'offline':'conflict');return failure(e);}finally {recoveryBusy=false;}
       },
-      // Native freezes input/simulation and waits for existing save receipts.
-      // Remote conflict does not reject its final LOCAL snapshot; account and
-      // local-tab CAS protections still apply. Never auto-reload the live model.
-      async preserveRuntime(payload,revision,profileId) {
-        if(recoveryBusy)return failure(error('RECOVERY_BUSY','A save choice is already in progress.'));recoveryBusy=true;let preserved=null;
-        try {
-          accountGuard();preserved=await durableSnapshot(payload,revision,profileId);
-          stopped=true;const cloud=await validate(await networkWait(remote.read(uid)));accountGuard();
-          if(!cloud)throw error('RECOVERY_MISSING','Synced progress is unavailable. This device’s snapshot is preserved.');
-          if(cloud.digest!==entry.base && cloud.digest!==entry.record.digest && cloud.digest!==entry.uploading?.record?.digest)await previewRecovery(entry,cloud);else recovery=null;
-          return preserved;
-        }catch(e){return preserved?{...preserved,reconciliationError:failure(e)}:failure(e);}finally{recoveryBusy=false;}
-      },
+      preserveRuntime(payload,revision,profileId){return preserveNativeRuntime(payload,revision,profileId);},
       async exportRecovery() {
         try {
           accountGuard();

@@ -213,9 +213,21 @@
             receive(result);
           }catch(e){
             let fenced=false;
-            if(stillCurrent()&&(e.code==='OWNERSHIP_LOST'||e.code==='permission-denied')){
-              try{const observed=await remote.read();guard();if(stillCurrent()&&observed&&renewalKey(observed)!==key){receive(observed);fenced=true;}}
-              catch(_){/* Unconfirmed ownership remains paused offline. */}
+            if(stillCurrent()&&(e.code==='OWNERSHIP_LOST'||e.code==='permission-denied'||e.code==='HANDOFF_CHANGED')){
+              try{
+                const observed=await remote.read();guard();
+                // A request may win before its watch event reaches this owner.
+                // Adopt only a confirmed pending handoff, never authority from
+                // the obsolete renewal or an earlier/canceled request.
+                const requested=observed?.request;
+                const freshHandoff=e.code!=='HANDOFF_CHANGED'||(
+                  current?.request===null&&current.ack===null&&observed?.schema===1&&
+                  observed.owner===sessionId&&observed.epoch===epoch&&observed.device===current.device&&
+                  observed.ack===null&&identifier(requested?.id)&&identifier(requested?.requester)&&
+                  requested.requester!==sessionId&&timestamp(requested.at)!==null&&
+                  [0,1].includes(compareTimestamp(timestamp(observed.updatedAt),timestamp(current.updatedAt))));
+                if(stillCurrent()&&freshHandoff&&observed&&renewalKey(observed)!==key){receive(observed);fenced=true;}
+              }catch(_){/* Unconfirmed ownership remains paused offline. */}
             }
             if(!fenced&&stillCurrent()){status='offline';onChange(snapshot());}throw e;
           }finally{if(pendingRenewal===work)pendingRenewal=null;}
