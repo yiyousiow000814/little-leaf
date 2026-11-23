@@ -352,3 +352,42 @@ for(const scenario of ['delivered','retired','live','unconfirmed','unrequested',
  else assert(h.errors.includes('Fixture route callback failed: '+(scenario==='other'?'other':bodyPhase?'response-disposed':'target-closed')),scenario+JSON.stringify(h.errors));
 }
 console.log('Exact stalled fulfillment uses detached status/headers/binary bytes; only owned confirmed close cancels outstanding delivery/body reads, and all live failures stay fatal.');
+
+// Run the complete registered callback, including its unknown-external
+// fallthrough. Isolating the synthetic RPC branch cannot detect a missing
+// terminal return after a successful awaited fulfillment.
+{
+ const start='await context.route(\'**/*\',routes.handle(';
+ const end='}));\n await context.addInitScript';
+ assert(driver.includes(start)&&driver.includes(end));
+ const handler=driver.slice(driver.indexOf(start)+start.length,driver.indexOf(end)+1);
+ const errors=[],calls=[],origin='http://127.0.0.1:43123',officialOrigin='https://little-leaf-41e5d.firebaseapp.com';
+ const clock={};
+ const execute=vm.runInNewContext('('+handler+')',{
+  URL,itchVariant:true,origin,officialOrigin,syntheticRPCOrigin,emulatorProxyTarget,emulatorPreflightHeaders,
+  connectivity:{capture:async()=>1,isOnline:async()=>true,isOnlineNow:()=>true},
+  rpcClock:()=>clock,networkObservation:()=>{},failureCategory,
+  itchPage:'https://siowyiyou.itch.io/exact-fixture',classicPage:'https://html-classic.itch.zone/exact-fixture',
+  isConnectivityProbe,errors,
+ });
+ const fakeRoute=href=>{
+  let settled=false;
+  const finish=kind=>{assert.equal(settled,false,kind+' cannot follow a terminal operation');settled=true;calls.push(kind);};
+  return {
+   request:()=>({url:()=>href,method:()=> 'POST',frame:()=>({url:()=>officialOrigin+'/itch/'}),resourceType:()=> 'fetch'}),
+   fetch:async options=>{
+    assert.equal(options.url,'http://127.0.0.1:8080/v1/projects/demo-little-leaf/databases/(default)/documents:commit');
+    calls.push('fetch');
+    return {status:()=>200,headers:()=>({}),body:async()=>Buffer.from([0,255])};
+   },
+   fulfill:async options=>{assert.deepEqual([...options.body],[0,255]);finish('fulfill');},
+   abort:async reason=>{assert.equal(reason,'blockedbyclient');finish('abort');},
+  };
+ };
+ await execute(fakeRoute(syntheticRPCOrigin+'/v1/projects/demo-little-leaf/databases/(default)/documents:commit'));
+ assert.equal(clock.phase,'fulfilled');assert.deepEqual(calls,['fetch','fulfill']);assert.deepEqual(errors,[]);
+ await execute(fakeRoute('https://unknown.invalid/not-allowed'));
+ assert.deepEqual(calls,['fetch','fulfill','abort']);
+ assert.deepEqual(errors,['Unexpected external request blocked: https://unknown.invalid/not-allowed']);
+}
+console.log('Complete route: successful synthetic emulator RPC terminates once; genuinely unknown external URL is still blocked.');

@@ -247,6 +247,7 @@ async function setup(uid,entry=null){
    clock.phase='fulfill-submitted';
    await route.fulfill({status,headers,body});
    clock.phase='fulfilled';
+   return;
   }catch(error){
    if(clock.phase==='response-body' && /^(?:apiResponse\.body: )?(?:Fetch response|Response) has been disposed(?:\n|$)/.test(String(error?.message))){
     clock.error='response-disposed';
