@@ -1514,12 +1514,20 @@ func table_service_cells(table:Dictionary,layout:Array[Dictionary]=items,query:D
 	# closest reachable unoccupied face, never the customer's seated side.
 	var result=[]
 	var center=Vector2i(int(table.x),int(table.z))
-	var guest_side=_table_guest_direction_in(table,layout) if query.is_empty() else _wall_warning_guest_direction(table,center,query,layout)
+	var guest_side=_table_guest_side_for_query(table,center,layout,query)
 	for direction in [Vector2i.LEFT,Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN]:
 		if direction==guest_side:continue
 		var cell=center+direction
 		if _table_side_open_for_query(cell,layout,query) and not edge_blocked(center,cell):result.append(cell)
 	return result
+
+func _table_guest_side_for_query(table:Dictionary,center:Vector2i,layout:Array[Dictionary],query:Dictionary)->Vector2i:
+	return _table_guest_direction_in(table,layout) if query.is_empty() else _wall_warning_guest_direction(table,center,query,layout)
+
+func ordinary_table_service_face(table:Dictionary,cell:Vector2i,query:Dictionary)->bool:
+	var center=Vector2i(int(table.x),int(table.z))
+	var offset=cell-center
+	return absi(offset.x)+absi(offset.y)==1 and offset!=_table_guest_side_for_query(table,center,items,query) and _table_side_open_for_query(cell,items,query) and not edge_blocked(center,cell)
 
 func _table_side_open_for_query(cell:Vector2i,layout:Array[Dictionary],query:Dictionary)->bool:
 	if query.is_empty():return _table_side_open_in(cell,layout)
