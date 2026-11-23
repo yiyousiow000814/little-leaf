@@ -58,11 +58,15 @@ export function emulatorPreflightHeaders(value,headers){
 // evaluations/fetches; drain those callbacks before starting the next case.
 // Only cancellation from an explicitly requested, confirmed close is expected.
 export function createRouteLifetime(context,errors){
-  let retiring=false,closed=false,closing,callbackFailure;
+  let retiring=false,closed=false,closing,closeFailed=false,callbackFailure;
   const pending=new Set(),cancelled=[];
   context.on('close',()=>{closed=true;});
   const targetClosed=error=>/^(frame\.evaluate|route\.(fetch|fulfill|abort|continue|fallback)): Target page, context or browser has been closed(?:\n|$)/.test(String(error?.message));
-  const failed=error=>{callbackFailure??=error;errors.push('Fixture route callback failed: '+(targetClosed(error)?'target-closed':failureCategory(error?.message||error)));};
+  // The owned APIRequestContext can dispose a fetched body while the driver
+  // reads it. An already detached fulfillment must not have this failure.
+  const cancellationKind=error=>targetClosed(error)?'target-closed':
+    /^apiResponse\.body: (?:Fetch response|Response) has been disposed(?:\n|$)/.test(String(error?.message))?'response-disposed':null;
+  const failed=error=>{callbackFailure??=error;errors.push('Fixture route callback failed: '+(cancellationKind(error)||failureCategory(error?.message||error)));};
   return {
     handle(callback){return route=>{
       const operation=(async()=>{
@@ -70,7 +74,7 @@ export function createRouteLifetime(context,errors){
           if(retiring){if(!closed)await route.abort('blockedbyclient');return;}
           await callback(route);
         }catch(error){
-          if(retiring && targetClosed(error))cancelled.push(error);
+          if(retiring && !closeFailed && cancellationKind(error))cancelled.push(error);
           else failed(error);
         }
       })();
@@ -84,9 +88,9 @@ export function createRouteLifetime(context,errors){
         closing=(async()=>{
           let failure;
           try{await context.close();if(!closed)throw Error('Fixture context close not confirmed');}
-          catch(error){failure=error;}
+          catch(error){failure=error;closeFailed=true;}
           if(closed)while(pending.size)await Promise.all([...pending]);
-          if(!closed)for(const error of cancelled)failed(error);
+          if(failure)for(const error of cancelled)failed(error);
           cancelled.length=0;
           if(failure)errors.push('Fixture context cleanup failed');
           if(failure || callbackFailure)throw failure || callbackFailure;
