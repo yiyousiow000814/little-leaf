@@ -1,0 +1,12 @@
+# Diagnostic only. Never merge this file or publish its artifacts.
+name: QA main 10m candidate (no release)
+on:
+  push:
+    branches: [qa/main-10min-ci-405-once]
+    paths: [.github/workflows/qa-main-10min-control.yml, .github/workflows/qa-main-10min-candidate.yml]
+permissions:
+  contents: read
+jobs:
+  web:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event_name == 'push' && github.ref == 'refs/heads/qa/main-10min-ci-405-once' && github.event.created && !github.event.deleted && github.run_attempt == 1
+    uses: ./.github/workflows/qa-main-10min-candidate-reusable.yml

@@ -23,7 +23,7 @@ class SiblingTests(unittest.TestCase):
         def step(n, phrase):
             return next(s for s in steps(n) if phrase in s.get('name',''))
         s = step('guard','Select ordinary PR')
-        self.assertEqual(s['env']['ORDINARY_PR'],j['play']['env']['PLAY_LOCKED_PROVISION'])
+        self.assertEqual(s['env']['ORDINARY_PR'],j['play']['env']['ORDINARY_PR'])
         self.assertIn("ordinary_pr=%s",s['run'])
         self.assertEqual(j['crazygames']['if'],"needs.guard.outputs.scope == 'full' && needs.guard.outputs.ordinary_pr == 'true'")
         self.assertEqual(j['crazygames']['needs'],['guard','build'])

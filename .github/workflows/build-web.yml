@@ -40,6 +40,7 @@ jobs:
       scope: ${{ steps.scope.outputs.scope }}
       ordinary_pr: ${{ steps.engine_plan.outputs.ordinary_pr }}
       inline_preflight: ${{ steps.inline_preflight.outcome }}
+      locked_browser: ${{ steps.engine_plan.outputs.locked_browser }}
       engine_count: ${{ steps.engine_plan.outputs.count }}
       engine_matrix: ${{ steps.engine_plan.outputs.matrix }}
     runs-on: ubuntu-24.04
@@ -68,18 +69,20 @@ jobs:
             test "$GITHUB_RUN_ATTEMPT" = 1
           fi
           python3 tools/ci/pr_ci_scope.py
-      - name: Select ordinary PR native-engine fanout
+      - name: Select ordinary PR scope and native-engine fanout
         id: engine_plan
         env:
           ORDINARY_PR: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
+          LOCKED_BROWSER: ${{ (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
         run: |
-          case "$ORDINARY_PR" in
+          case "$ORDINARY_PR" in true|false) ;; *) exit 1 ;; esac
+          case "$LOCKED_BROWSER" in
             true) count=9; matrix='[0,1,2,3,4,5,6,7,8]' ;;
             false) count=5; matrix='[0,1,2,3,4]' ;;
             *) echo "Unrecognized engine fanout route" >&2; exit 1 ;;
           esac
           printf 'count=%s\nmatrix=%s\n' "$count" "$matrix" >> "$GITHUB_OUTPUT"
-          printf 'ordinary_pr=%s\n' "$ORDINARY_PR" >> "$GITHUB_OUTPUT"
+          printf 'ordinary_pr=%s\nlocked_browser=%s\n' "$ORDINARY_PR" "$LOCKED_BROWSER" >> "$GITHUB_OUTPUT"
       - name: Verify metadata and CI guard tests
         id: inline_preflight
         if: steps.scope.outputs.scope != 'full' || steps.engine_plan.outputs.ordinary_pr != 'true'
@@ -93,7 +96,6 @@ jobs:
     timeout-minutes: 5
     outputs:
       binding: ${{ steps.bind.outputs.binding }}
-      browser_packages_id: ${{ steps.browser_packages.outcome == 'success' && steps.browser_packages.outputs.artifact-id || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -103,6 +105,25 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: python3 tools/ci/preflight.py
+      - name: Bind successful complete preflight to this exact PR merge and attempt
+        id: bind
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=no)"
+          printf 'binding=%s:%s:%s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+  browser_packages:
+    needs: guard
+    if: needs.guard.outputs.scope == 'full' && needs.guard.outputs.locked_browser == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      binding: ${{ steps.bind.outputs.binding }}
+      browser_packages_id: ${{ steps.browser_packages.outcome == 'success' && steps.browser_packages.outputs.artifact-id || '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
       - name: Prefetch verified Chromium dependencies during native tests
         id: prefetch_browser_packages
         timeout-minutes: 2
@@ -124,7 +145,7 @@ jobs:
           compression-level: 0
           if-no-files-found: error
           retention-days: 1
-      - name: Bind successful complete preflight to this exact PR merge and attempt
+      - name: Bind anticipatory browser packages to this source and attempt
         id: bind
         run: |
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
@@ -223,15 +244,16 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   build:
-    # A deliberately skipped PR-only job must not suppress the original non-PR path.
-    if: ${{ !cancelled() && needs.guard.result == 'success' && needs.engine.result == 'success' && needs.guard.outputs.scope == 'full' && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped') }}
-    needs: [guard, preflight, engine]
+    # A deliberately skipped optional route must not suppress the original path.
+    if: ${{ !cancelled() && needs.guard.result == 'success' && needs.engine.result == 'success' && needs.guard.outputs.scope == 'full' && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped') && (needs.browser_packages.result == 'success' || needs.browser_packages.result == 'skipped') }}
+    needs: [guard, preflight, engine, browser_packages]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
-      browser_packages_id: ${{ needs.preflight.outputs.browser_packages_id }}
-      browser_packages_binding: ${{ needs.preflight.outputs.binding }}
+      locked_browser: ${{ needs.guard.outputs.locked_browser }}
+      browser_packages_id: ${{ needs.browser_packages.outputs.browser_packages_id }}
+      browser_packages_binding: ${{ needs.browser_packages.outputs.binding }}
       inputs_id: ${{ steps.inputs.outputs.artifact-id }}
       inputs_digest: ${{ steps.inputs.outputs.artifact-digest }}
       compact_id: ${{ steps.compact.outputs.artifact-id }}
@@ -255,6 +277,11 @@ jobs:
           PREFLIGHT: ${{ needs.preflight.result }}
           PREFLIGHT_BINDING: ${{ needs.preflight.outputs.binding }}
         run: python3 tools/ci/pr_ci_scope.py --check-preflight-join
+      - name: Require the current exact browser preparation attempt
+        if: needs.guard.outputs.locked_browser == 'true'
+        env:
+          PACKAGE_BINDING: ${{ needs.browser_packages.outputs.binding }}
+        run: test "$PACKAGE_BINDING" = "$GITHUB_SHA:$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT"
       - name: Install checksum-pinned Godot and official Web template
         run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -401,16 +428,17 @@ jobs:
       ARCHIVE_FREE_CHECKOUT: |
         /*
         !/docs/art-audio/scores/
-      PLAY_LOCKED_PROVISION: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
+      ORDINARY_PR: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
+      LOCKED_BROWSER_PROVISION: ${{ needs.build.outputs.locked_browser }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
           persist-credentials: false
           sparse-checkout-cone-mode: false
-          sparse-checkout: ${{ env.PLAY_LOCKED_PROVISION == 'true' && env.ARCHIVE_FREE_CHECKOUT || '' }}
+          sparse-checkout: ${{ env.ORDINARY_PR == 'true' && env.ARCHIVE_FREE_CHECKOUT || '' }}
       - name: Install shared pinned browser tools
-        if: env.PLAY_LOCKED_PROVISION != 'true'
+        if: env.LOCKED_BROWSER_PROVISION != 'true'
         timeout-minutes: 10
         run: |
           npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
@@ -418,15 +446,15 @@ jobs:
           sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
           google-chrome --version
       - name: Restore exact-attempt verified Chromium package bytes
-        if: env.PLAY_LOCKED_PROVISION == 'true' && needs.build.outputs.browser_packages_id != '' && needs.build.outputs.browser_packages_binding == format('{0}:{1}:{2}', github.sha, github.run_id, github.run_attempt)
+        if: env.LOCKED_BROWSER_PROVISION == 'true' && needs.build.outputs.browser_packages_id != '' && needs.build.outputs.browser_packages_binding == format('{0}:{1}:{2}', github.sha, github.run_id, github.run_attempt)
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           artifact-ids: ${{ needs.build.outputs.browser_packages_id }}
           path: ${{ runner.temp }}/pinned-chromium-packages
           merge-multiple: true
           digest-mismatch: error
-      - name: Install only missing pinned Ubuntu packages and pinned Playwright for PR Play
-        if: env.PLAY_LOCKED_PROVISION == 'true'
+      - name: Install only missing pinned Ubuntu packages and pinned Playwright for Play
+        if: env.LOCKED_BROWSER_PROVISION == 'true'
         timeout-minutes: 3
         shell: bash
         run: |
@@ -454,8 +482,8 @@ jobs:
         run: |
           sudo dpkg -i "$CHROME_DEB"
           python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
-      - name: Verify headed Chrome sandbox and OCR for PR Play
-        if: env.PLAY_LOCKED_PROVISION == 'true'
+      - name: Verify headed Chrome sandbox and OCR for Play
+        if: env.LOCKED_BROWSER_PROVISION == 'true'
         timeout-minutes: 1
         env:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
@@ -507,7 +535,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      PR_LOCKED_CHROMIUM_PROVISION: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
+      LOCKED_BROWSER_PROVISION: ${{ needs.build.outputs.locked_browser }}
       RECOVERY_ISOLATED_WEBKIT_PROVISION: ${{ (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
       CHROMIUM_PROVISION_RELATIVE: chromium-provision/recovery
     steps:
@@ -522,19 +550,19 @@ jobs:
           merge-multiple: true
           digest-mismatch: error
       - name: Install shared pinned browser tools
-        if: env.PR_LOCKED_CHROMIUM_PROVISION != 'true'
+        if: env.LOCKED_BROWSER_PROVISION != 'true'
         timeout-minutes: 10
         run: |
           npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
           "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
           sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
           google-chrome --version
-      - name: Install pinned Playwright driver for ordinary PR
-        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+      - name: Install pinned Playwright driver for checked browser gates
+        if: env.LOCKED_BROWSER_PROVISION == 'true'
         timeout-minutes: 3
         run: npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
       - name: Restore exact-attempt verified Chromium package bytes
-        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true' && needs.build.outputs.browser_packages_id != '' && needs.build.outputs.browser_packages_binding == format('{0}:{1}:{2}', github.sha, github.run_id, github.run_attempt)
+        if: env.LOCKED_BROWSER_PROVISION == 'true' && needs.build.outputs.browser_packages_id != '' && needs.build.outputs.browser_packages_binding == format('{0}:{1}:{2}', github.sha, github.run_id, github.run_attempt)
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           artifact-ids: ${{ needs.build.outputs.browser_packages_id }}
@@ -542,7 +570,7 @@ jobs:
           merge-multiple: true
           digest-mismatch: error
       - name: Install only missing pinned Ubuntu Chromium dependencies
-        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        if: env.LOCKED_BROWSER_PROVISION == 'true'
         timeout-minutes: 3
         run: |
           mkdir -p "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE"
@@ -575,8 +603,8 @@ jobs:
           test -x "$PLAYWRIGHT_BROWSERS_PATH/webkit-2359/pw_run.sh"
           test -d "$PLAYWRIGHT_BROWSERS_PATH/ffmpeg-1011"
           printf 'PLAYWRIGHT_BROWSERS_PATH=%s\n' "$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
-      - name: Verify headed Chrome sandbox and OCR for ordinary PR
-        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+      - name: Verify headed Chrome sandbox and OCR for checked browser gates
+        if: env.LOCKED_BROWSER_PROVISION == 'true'
         timeout-minutes: 1
         env:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
@@ -646,7 +674,7 @@ jobs:
         lane: [compatibility]
         case: [old_opened_after_new, already_open_old]
     env:
-      PR_LOCKED_CHROMIUM_PROVISION: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
+      LOCKED_BROWSER_PROVISION: ${{ needs.build.outputs.locked_browser }}
       CHROMIUM_PROVISION_RELATIVE: chromium-provision/compatibility-${{ matrix.case }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -666,19 +694,19 @@ jobs:
           merge-multiple: true
           digest-mismatch: error
       - name: Install shared pinned browser tools
-        if: env.PR_LOCKED_CHROMIUM_PROVISION != 'true'
+        if: env.LOCKED_BROWSER_PROVISION != 'true'
         timeout-minutes: 10
         run: |
           npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
           "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
           sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
           google-chrome --version
-      - name: Install pinned Playwright driver for ordinary PR
-        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+      - name: Install pinned Playwright driver for checked browser gates
+        if: env.LOCKED_BROWSER_PROVISION == 'true'
         timeout-minutes: 3
         run: npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
       - name: Restore exact-attempt verified Chromium package bytes
-        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true' && needs.build.outputs.browser_packages_id != '' && needs.build.outputs.browser_packages_binding == format('{0}:{1}:{2}', github.sha, github.run_id, github.run_attempt)
+        if: env.LOCKED_BROWSER_PROVISION == 'true' && needs.build.outputs.browser_packages_id != '' && needs.build.outputs.browser_packages_binding == format('{0}:{1}:{2}', github.sha, github.run_id, github.run_attempt)
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           artifact-ids: ${{ needs.build.outputs.browser_packages_id }}
@@ -686,7 +714,7 @@ jobs:
           merge-multiple: true
           digest-mismatch: error
       - name: Install only missing pinned Ubuntu Chromium dependencies
-        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        if: env.LOCKED_BROWSER_PROVISION == 'true'
         timeout-minutes: 3
         run: |
           mkdir -p "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE"
@@ -697,8 +725,8 @@ jobs:
         run: |
           sudo dpkg -i "$CHROME_DEB"
           python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
-      - name: Verify headed Chrome sandbox and OCR for ordinary PR
-        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+      - name: Verify headed Chrome sandbox and OCR for checked browser gates
+        if: env.LOCKED_BROWSER_PROVISION == 'true'
         timeout-minutes: 1
         env:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright

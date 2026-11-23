@@ -12,7 +12,7 @@ PATTERNS = "/*\n!/docs/art-audio/scores/\n"
 class PrArchivedScoresCheckoutTests(unittest.TestCase):
     def test_checkout_has_mutually_exclusive_routes_and_one_archive_exclusion(self):
         jobs = yaml.safe_load((ROOT / ".github/workflows/build-web.yml").read_text())["jobs"]
-        by_job = {"build": "needs.guard.outputs.ordinary_pr", "play": "env.PLAY_LOCKED_PROVISION"}
+        by_job = {"build": "needs.guard.outputs.ordinary_pr", "play": "env.ORDINARY_PR"}
         for name, selector in by_job.items():
             with self.subTest(job=name):
                 job = jobs[name]

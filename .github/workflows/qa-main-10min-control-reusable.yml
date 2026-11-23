@@ -1,0 +1,1090 @@
+name: Reusable Web build
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: Empty for CI; exact version tag for release verification
+        type: string
+        default: ''
+      firebase_preview:
+        description: Stage Firebase from this complete fresh run; never deploy
+        type: boolean
+        default: false
+      itch_preview:
+        description: Prepare trusted-frame bootstrap after the unchanged fresh Firebase gates
+        type: boolean
+        default: false
+      itch_test_entry:
+        description: Qualify the fixed stable /itch iframe using the same complete Firebase gates
+        type: boolean
+        default: false
+      publication_receipt:
+        description: Exact completed receipt selected by the read-only Firebase coordinator
+        type: string
+        default: ''
+    outputs:
+      artifact_id:
+        description: Exact artifact from this tested source
+        value: ${{ jobs.gate.outputs.artifact_id }}
+      firebase_artifact_id:
+        description: Same-run Firebase preview after all gates passed
+        value: ${{ jobs.gate.outputs.firebase_artifact_id }}
+      firebase_manifest_sha256:
+        description: Exact newly generated Firebase manifest hash
+        value: ${{ jobs.gate.outputs.firebase_manifest_sha256 }}
+permissions:
+  contents: read
+jobs:
+  guard:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event_name == 'push' && github.ref == 'refs/heads/qa/main-10min-ci-405-once' && github.event.created && !github.event.deleted && github.run_attempt == 1 && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == ''
+    outputs:
+      scope: ${{ steps.scope.outputs.scope }}
+      ordinary_pr: ${{ steps.engine_plan.outputs.ordinary_pr }}
+      inline_preflight: ${{ steps.inline_preflight.outcome }}
+      engine_count: ${{ steps.engine_plan.outputs.count }}
+      engine_matrix: ${{ steps.engine_plan.outputs.matrix }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Classify the verified PR merge-tree diff (uncertainty runs full CI)
+        id: scope
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          FIREBASE_PREVIEW: ${{ inputs.firebase_preview }}
+          ITCH_PREVIEW: ${{ inputs.itch_preview }}
+          ITCH_TEST_ENTRY: ${{ inputs.itch_test_entry }}
+          PUBLICATION_RECEIPT: ${{ inputs.publication_receipt }}
+        run: |
+          if [[ "$ITCH_TEST_ENTRY" == true ]]; then
+            test "$FIREBASE_PREVIEW" = true
+            test "$ITCH_PREVIEW" = false
+            test -z "$PUBLICATION_RECEIPT"
+            test -z "$RELEASE_TAG"
+            test "$GITHUB_EVENT_NAME" = workflow_dispatch
+            test "$GITHUB_REF" = refs/heads/main
+            test "$GITHUB_RUN_ATTEMPT" = 1
+          fi
+          python3 tools/ci/pr_ci_scope.py
+      - name: Select ordinary PR native-engine fanout
+        id: engine_plan
+        env:
+          ORDINARY_PR: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
+        run: |
+          case "$ORDINARY_PR" in
+            true) count=9; matrix='[0,1,2,3,4,5,6,7,8]' ;;
+            false) count=5; matrix='[0,1,2,3,4]' ;;
+            *) echo "Unrecognized engine fanout route" >&2; exit 1 ;;
+          esac
+          printf 'count=%s\nmatrix=%s\n' "$count" "$matrix" >> "$GITHUB_OUTPUT"
+          printf 'ordinary_pr=%s\n' "$ORDINARY_PR" >> "$GITHUB_OUTPUT"
+      - name: Verify metadata and CI guard tests
+        id: inline_preflight
+        if: steps.scope.outputs.scope != 'full' || steps.engine_plan.outputs.ordinary_pr != 'true'
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python3 tools/ci/preflight.py
+  preflight:
+    needs: guard
+    if: needs.guard.outputs.scope == 'full' && needs.guard.outputs.ordinary_pr == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      binding: ${{ steps.bind.outputs.binding }}
+      browser_packages_id: ${{ steps.browser_packages.outcome == 'success' && steps.browser_packages.outputs.artifact-id || '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify metadata and CI guard tests
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python3 tools/ci/preflight.py
+      - name: Prefetch verified Chromium dependencies during native tests
+        id: prefetch_browser_packages
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          python3 tools/ci/play_provision.py prefetch "$RUNNER_TEMP/pinned-chromium-prefetch"
+          if compgen -G "$RUNNER_TEMP/pinned-chromium-prefetch/*.deb" > /dev/null; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Retain verified browser dependency bytes for this attempt
+        id: browser_packages
+        timeout-minutes: 1
+        if: steps.prefetch_browser_packages.outputs.present == 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-pinned-chromium-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pinned-chromium-prefetch/*.deb
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 1
+      - name: Bind successful complete preflight to this exact PR merge and attempt
+        id: bind
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=no)"
+          printf 'binding=%s:%s:%s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+  engine:
+    if: needs.guard.outputs.scope != 'lightweight'
+    needs: guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(needs.guard.outputs.engine_count) }}
+      matrix:
+        shard: ${{ fromJSON(needs.guard.outputs.engine_matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Install checksum-pinned Godot for native tests
+        run: python3 tools/ci/install_tools.py godot --native-only --output "$RUNNER_TEMP/godot-tools"
+      - name: Run balanced complete engine shard
+        env:
+          ENGINE_COUNT: ${{ needs.guard.outputs.engine_count }}
+        run: python3 tools/ci/engine_shards.py run --shard ${{ matrix.shard }} --count "$ENGINE_COUNT" --output "$RUNNER_TEMP/engine-${{ matrix.shard }}"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: little-leaf-engine-${{ matrix.shard }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/engine-${{ matrix.shard }}/*.json
+            ${{ runner.temp }}/engine-${{ matrix.shard }}/*.log
+          if-no-files-found: warn
+          retention-days: 7
+  historical:
+    if: needs.guard.outputs.scope != 'lightweight'
+    needs: guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      inputs_id: ${{ steps.inputs.outputs.artifact-id }}
+      inputs_digest: ${{ steps.inputs.outputs.artifact-digest }}
+      compact_id: ${{ steps.compact.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install checksum-pinned Godot and official Web template
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+      - name: Check out the exact historical wall-format-1 client
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
+          path: .compatibility-old
+          persist-credentials: false
+      - name: Test and export the unchanged historical client once
+        run: |
+          test "$(git -C .compatibility-old rev-parse HEAD)" = 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
+          cmp tools/ci/toolchain.json .compatibility-old/ci/toolchain.json
+          python3 .compatibility-old/tests/run_integration_candidate.py --output "$RUNNER_TEMP/old-engine-evidence" --lock "$RUNNER_TEMP/old-engine.lock"
+          python3 .compatibility-old/ci/build_web.py --output "$RUNNER_TEMP/old-web-build" --test-report "$RUNNER_TEMP/old-engine-evidence/summary.json"
+      - name: Prepare the exact historical native layout once
+        run: python3 tools/qualification/prepare_browser_qa.py wall --prepare-side old --old-source .compatibility-old --old-build "$RUNNER_TEMP/old-web-build" --output "$RUNNER_TEMP/old-web-build/evidence/wall-layout"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        id: inputs
+        if: always()
+        with:
+          name: little-leaf-historical-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/old-engine-evidence/*.json
+            ${{ runner.temp }}/old-engine-evidence/*.log
+            ${{ runner.temp }}/old-web-build/web/
+            ${{ runner.temp }}/old-web-build/evidence/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Bind compact historical gate inputs to the full archive
+        if: needs.guard.outputs.ordinary_pr == 'true'
+        env:
+          FULL_ARTIFACT_ID: ${{ steps.inputs.outputs.artifact-id }}
+          FULL_ARTIFACT_DIGEST: ${{ steps.inputs.outputs.artifact-digest }}
+        run: python3 tools/ci/pr_gate_inputs.py record historical "$RUNNER_TEMP"
+      - name: Retain compact historical gate inputs (no packed game)
+        id: compact
+        if: needs.guard.outputs.ordinary_pr == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-pr-gate-historical-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/old-engine-evidence/*.json
+            ${{ runner.temp }}/old-engine-evidence/*.log
+            ${{ runner.temp }}/old-web-build/web/release-manifest.json
+            ${{ runner.temp }}/old-web-build/evidence/
+            ${{ runner.temp }}/pr-gate-historical.json
+          if-no-files-found: error
+          retention-days: 7
+  build:
+    # A deliberately skipped PR-only job must not suppress the original non-PR path.
+    if: ${{ !cancelled() && needs.guard.result == 'success' && needs.engine.result == 'success' && needs.guard.outputs.scope == 'full' && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped') }}
+    needs: [guard, preflight, engine]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      browser_packages_id: ${{ needs.preflight.outputs.browser_packages_id }}
+      browser_packages_binding: ${{ needs.preflight.outputs.binding }}
+      inputs_id: ${{ steps.inputs.outputs.artifact-id }}
+      inputs_digest: ${{ steps.inputs.outputs.artifact-digest }}
+      compact_id: ${{ steps.compact.outputs.artifact-id }}
+    env:
+      # These source score archives are not inputs to Web export or live Play proof.
+      ARCHIVE_FREE_CHECKOUT: |
+        /*
+        !/docs/art-audio/scores/
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: ${{ needs.guard.outputs.ordinary_pr == 'true' && env.ARCHIVE_FREE_CHECKOUT || '' }}
+      - name: Require the route-correct complete preflight
+        env:
+          CI_SCOPE: ${{ needs.guard.outputs.scope }}
+          ORDINARY_PR: ${{ needs.guard.outputs.ordinary_pr }}
+          INLINE_PREFLIGHT: ${{ needs.guard.outputs.inline_preflight }}
+          PREFLIGHT: ${{ needs.preflight.result }}
+          PREFLIGHT_BINDING: ${{ needs.preflight.outputs.binding }}
+        run: python3 tools/ci/pr_ci_scope.py --check-preflight-join
+      - name: Install checksum-pinned Godot and official Web template
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: little-leaf-engine-*-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/engine-shards
+          merge-multiple: false
+          digest-mismatch: error
+      - name: Require all same-source shards and merge complete engine evidence
+        env:
+          ENGINE_COUNT: ${{ needs.guard.outputs.engine_count }}
+        run: python3 tools/ci/engine_shards.py merge --count "$ENGINE_COUNT" --reports "$RUNNER_TEMP/engine-shards" --output "$RUNNER_TEMP/engine-evidence"
+      - name: Export exact source and verify packed resources
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python3 tools/build/build_web.py --output "$RUNNER_TEMP/web-build" --test-report "$RUNNER_TEMP/engine-evidence/summary.json" --tag "$RELEASE_TAG"
+      - name: Prepare the exact candidate native layout once
+        run: python3 tools/qualification/prepare_browser_qa.py wall --prepare-side new --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-layout"
+      - name: Bind exact post-import staging metadata for the PR variant sibling
+        if: needs.guard.outputs.ordinary_pr == 'true'
+        run: python3 tools/build/crazygames_stage_handoff.py pack --web-build "$RUNNER_TEMP/web-build" --packet "$RUNNER_TEMP/crazygames-stage.json"
+      - name: Export separate CrazyGames variant after the unchanged complete Web gate
+        if: needs.guard.outputs.ordinary_pr == 'false'
+        run: python3 tools/build/build_crazygames.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/crazygames-build"
+      - name: Retain separate CrazyGames export for review
+        if: needs.guard.outputs.ordinary_pr == 'false'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-crazygames-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/crazygames-build/web/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Retain engine-tested Web export before browser validation
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-web-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/web-build/web/
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        id: inputs
+        if: always()
+        with:
+          name: little-leaf-ci-inputs-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/engine-evidence/
+            ${{ runner.temp }}/web-build/web/
+            ${{ runner.temp }}/web-build/evidence/
+            ${{ runner.temp }}/crazygames-build/evidence/
+            ${{ runner.temp }}/crazygames-stage.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Bind compact current gate inputs to the full archive
+        if: needs.guard.outputs.ordinary_pr == 'true'
+        env:
+          FULL_ARTIFACT_ID: ${{ steps.inputs.outputs.artifact-id }}
+          FULL_ARTIFACT_DIGEST: ${{ steps.inputs.outputs.artifact-digest }}
+        run: python3 tools/ci/pr_gate_inputs.py record current "$RUNNER_TEMP"
+      - name: Retain compact current gate inputs (no packed game)
+        id: compact
+        if: needs.guard.outputs.ordinary_pr == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-pr-gate-current-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/engine-evidence/*.json
+            ${{ runner.temp }}/engine-evidence/*.log
+            ${{ runner.temp }}/web-build/web/release-manifest.json
+            ${{ runner.temp }}/web-build/evidence/
+            ${{ runner.temp }}/crazygames-stage.json
+            ${{ runner.temp }}/pr-gate-current.json
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: inputs.firebase_preview
+        with:
+          name: little-leaf-candidate-project-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/web-build/project/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+  crazygames:
+    needs: [guard, build]
+    if: needs.guard.outputs.scope == 'full' && needs.guard.outputs.ordinary_pr == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      artifact_id: ${{ steps.variant.outputs.artifact-id }}
+      evidence_id: ${{ steps.evidence.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Install checksum-pinned Godot and official Web template
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+      - name: Require immutable ID from the ordinary build
+        env:
+          CI_INPUTS_ID: ${{ needs.build.outputs.inputs_id }}
+        run: '[[ "$CI_INPUTS_ID" =~ ^[1-9][0-9]*$ ]]'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.build.outputs.inputs_id }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Restore and verify the exact ordinary post-import stage
+        run: python3 tools/build/crazygames_stage_handoff.py restore --web-build "$RUNNER_TEMP/web-build" --packet "$RUNNER_TEMP/crazygames-stage.json"
+      - name: Export the independent PR variant through all original stages
+        run: python3 tools/build/build_crazygames.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/crazygames-build"
+      - name: Retain the original variant ZIP for review
+        id: variant
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-crazygames-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/crazygames-build/web/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Bind variant upload and original eight stage logs
+        env:
+          VARIANT_ID: ${{ steps.variant.outputs.artifact-id }}
+          CI_INPUTS_ID: ${{ needs.build.outputs.inputs_id }}
+        run: python3 tools/ci/crazygames_pr_evidence.py record --root "$RUNNER_TEMP"
+      - name: Retain variant evidence, including partial logs on a failure
+        id: evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-crazygames-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/crazygames-build/evidence/
+          if-no-files-found: warn
+          retention-days: 7
+  play:
+    name: browser (play)
+    # The PR-only preflight is a deliberately skipped ancestor on non-PR routes.
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      # These source score archives are not inputs to Web export or live Play proof.
+      ARCHIVE_FREE_CHECKOUT: |
+        /*
+        !/docs/art-audio/scores/
+      PLAY_LOCKED_PROVISION: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: ${{ env.PLAY_LOCKED_PROVISION == 'true' && env.ARCHIVE_FREE_CHECKOUT || '' }}
+      - name: Install shared pinned browser tools
+        if: env.PLAY_LOCKED_PROVISION != 'true'
+        timeout-minutes: 10
+        run: |
+          npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+          google-chrome --version
+      - name: Restore exact-attempt verified Chromium package bytes
+        if: env.PLAY_LOCKED_PROVISION == 'true' && needs.build.outputs.browser_packages_id != '' && needs.build.outputs.browser_packages_binding == format('{0}:{1}:{2}', github.sha, github.run_id, github.run_attempt)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.build.outputs.browser_packages_id }}
+          path: ${{ runner.temp }}/pinned-chromium-packages
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Install only missing pinned Ubuntu packages and pinned Playwright for PR Play
+        if: env.PLAY_LOCKED_PROVISION == 'true'
+        timeout-minutes: 3
+        shell: bash
+        run: |
+          # npm writes only to the private driver prefix, while the OS installer owns dpkg.
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/play-provision"
+          timeout --kill-after=5s 170s npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0 &
+          driver_pid=$!
+          timeout --kill-after=5s 170s python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/play-provision/package-transaction.json" "$RUNNER_TEMP/pinned-chromium-packages" &
+          packages_pid=$!
+          trap 'kill "$driver_pid" "$packages_pid" 2>/dev/null || true; wait || true; exit 130' INT
+          trap 'kill "$driver_pid" "$packages_pid" 2>/dev/null || true; wait || true; exit 143' TERM
+          driver_status=0
+          packages_status=0
+          wait "$driver_pid" || driver_status=$?
+          wait "$packages_pid" || packages_status=$?
+          trap - INT TERM
+          if (( driver_status != 0 || packages_status != 0 )); then
+            printf 'Play provision failed: driver=%s packages=%s\n' "$driver_status" "$packages_status" >&2
+            exit 1
+          fi
+      - name: Install exact checksum-pinned Chrome for ordinary browser gates
+        run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
+      - name: Activate and verify the pinned Chrome channel
+        run: |
+          sudo dpkg -i "$CHROME_DEB"
+          python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
+      - name: Verify headed Chrome sandbox and OCR for PR Play
+        if: env.PLAY_LOCKED_PROVISION == 'true'
+        timeout-minutes: 1
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/play-provision"
+          ldd /opt/google/chrome/chrome > "$d/chrome-ldd.txt"
+          ldd /usr/bin/tesseract > "$d/ocr-ldd.txt"
+          if grep -F 'not found' "$d/chrome-ldd.txt" "$d/ocr-ldd.txt"; then exit 1; fi
+          tesseract --version > "$d/tesseract-version.txt"
+          tesseract --list-langs > "$d/tesseract-languages.txt"
+          grep -Fx eng "$d/tesseract-languages.txt"
+          fc-match sans-serif > "$d/font-default.txt"
+          xvfb-run -a node tools/ci/play_canary.cjs > "$d/browser-canary.json"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.build.outputs.inputs_id }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Verify fresh tutorial and natural first payment in ordinary Web
+        timeout-minutes: 6
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          node tests/presentation/fresh_tutorial_browser_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-ocr-fixtures.log"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/presentation/fresh_tutorial_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_interactive_tutorial-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
+      - name: Collect Play evidence without profiles
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/browser-evidence/web-build/evidence"
+          if [ -d "$RUNNER_TEMP/web-build/evidence" ]; then
+            cp -a "$RUNNER_TEMP/web-build/evidence/." "$RUNNER_TEMP/browser-evidence/web-build/evidence/"
+          fi
+          if [ -d "$RUNNER_TEMP/play-provision" ]; then
+            cp -a "$RUNNER_TEMP/play-provision" "$RUNNER_TEMP/browser-evidence/web-build/evidence/"
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: little-leaf-browser-play-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/browser-evidence/
+          if-no-files-found: warn
+          retention-days: 7
+  browser:
+    name: browser (recovery)
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PR_LOCKED_CHROMIUM_PROVISION: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
+      RECOVERY_ISOLATED_WEBKIT_PROVISION: ${{ (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/qa/main-10min-ci-405-once')) && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
+      CHROMIUM_PROVISION_RELATIVE: chromium-provision/recovery
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.build.outputs.inputs_id }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Install shared pinned browser tools
+        if: env.PR_LOCKED_CHROMIUM_PROVISION != 'true'
+        timeout-minutes: 10
+        run: |
+          npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+          google-chrome --version
+      - name: Install pinned Playwright driver for ordinary PR
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 3
+        run: npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+      - name: Restore exact-attempt verified Chromium package bytes
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true' && needs.build.outputs.browser_packages_id != '' && needs.build.outputs.browser_packages_binding == format('{0}:{1}:{2}', github.sha, github.run_id, github.run_attempt)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.build.outputs.browser_packages_id }}
+          path: ${{ runner.temp }}/pinned-chromium-packages
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Install only missing pinned Ubuntu Chromium dependencies
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 3
+        run: |
+          mkdir -p "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE"
+          python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/package-transaction.json" "$RUNNER_TEMP/pinned-chromium-packages"
+      - name: Install exact checksum-pinned Chrome for ordinary browser gates
+        run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
+      - name: Activate and verify the pinned Chrome channel
+        run: |
+          sudo dpkg -i "$CHROME_DEB"
+          python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
+      - name: Install WebKit only for recovery lane
+        if: env.RECOVERY_ISOLATED_WEBKIT_PROVISION != 'true'
+        run: '"$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install --with-deps webkit'
+      - name: Install signed Ubuntu WebKit system prerequisites
+        if: env.RECOVERY_ISOLATED_WEBKIT_PROVISION == 'true'
+        timeout-minutes: 5
+        run: |
+          python3 tools/ci/recovery_webkit_provision.py "$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright-core" \
+            "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/webkit"
+      - name: Install pinned WebKit browser for recovery
+        if: env.RECOVERY_ISOLATED_WEBKIT_PROVISION == 'true'
+        timeout-minutes: 2
+        env:
+          PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: '20000'
+        run: |
+          set -euo pipefail
+          export PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/recovery-webkit-browsers"
+          /usr/bin/time -o "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/webkit/webkit-binary.seconds" -f %e \
+            "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install webkit
+          test -x "$PLAYWRIGHT_BROWSERS_PATH/webkit-2359/pw_run.sh"
+          test -d "$PLAYWRIGHT_BROWSERS_PATH/ffmpeg-1011"
+          printf 'PLAYWRIGHT_BROWSERS_PATH=%s\n' "$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
+      - name: Verify headed Chrome sandbox and OCR for ordinary PR
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 1
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
+        run: bash tools/ci/verify_locked_chromium.sh "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE"
+      - name: Verify cloud recovery in real IndexedDB before merge
+        timeout-minutes: 4
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/firebase-focused"
+          python3 tools/qualification/run_firebase_focused.py --gate adapter.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 tools/qualification/run_firebase_focused.py --gate delayed-network.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 tools/qualification/run_firebase_focused.py --gate recovery.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 tools/qualification/run_firebase_focused.py --gate choice.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 tools/qualification/run_firebase_focused.py --gate session.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 tools/qualification/run_firebase_focused.py --gate update-notice.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 tools/qualification/run_firebase_focused.py --gate recovery-presentation.log --output "$RUNNER_TEMP/firebase-focused"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" python3 tools/qualification/run_firebase_focused.py --gate recovery-browser.log --output "$RUNNER_TEMP/firebase-focused"
+      - name: Verify grid upgrade archive transaction and reopen
+        timeout-minutes: 3
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/firebase-focused"
+          node tests/persistence/pre_grid_archive_browser.js > "$RUNNER_TEMP/firebase-focused/pre-grid-archive-browser.json"
+      - name: Verify exported save diagnostic in sandboxed Chromium
+        timeout-minutes: 5
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/persistence/save_log_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/save-log-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json"
+      - name: Verify closed-connection recovery in actual exported WebKit game
+        timeout-minutes: 9
+        env:
+          RUNTIME_BROWSER: webkit
+        run: |
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/persistence/connection_recovery_browser.js --run-hosted --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/connection-recovery-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
+      - name: Collect lane evidence without profiles
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/browser-evidence/web-build/evidence"
+          cp -a "$RUNNER_TEMP/web-build/evidence/." "$RUNNER_TEMP/browser-evidence/web-build/evidence/"
+          if [ -d "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE" ]; then
+            mkdir -p "$RUNNER_TEMP/browser-evidence/web-build/evidence/chromium-provision"
+            cp -a "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE" "$RUNNER_TEMP/browser-evidence/web-build/evidence/chromium-provision/"
+          fi
+          if [ -d "$RUNNER_TEMP/firebase-focused" ]; then cp -a "$RUNNER_TEMP/firebase-focused" "$RUNNER_TEMP/browser-evidence/"; fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: little-leaf-browser-recovery-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/browser-evidence/
+          if-no-files-found: warn
+          retention-days: 7
+  compatibility:
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.historical.result == 'success' }}
+    needs: [build, historical]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        lane: [compatibility]
+        case: [old_opened_after_new, already_open_old]
+    env:
+      PR_LOCKED_CHROMIUM_PROVISION: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
+      CHROMIUM_PROVISION_RELATIVE: chromium-provision/compatibility-${{ matrix.case }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.build.outputs.inputs_id }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: little-leaf-historical-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Install shared pinned browser tools
+        if: env.PR_LOCKED_CHROMIUM_PROVISION != 'true'
+        timeout-minutes: 10
+        run: |
+          npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+          google-chrome --version
+      - name: Install pinned Playwright driver for ordinary PR
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 3
+        run: npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+      - name: Restore exact-attempt verified Chromium package bytes
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true' && needs.build.outputs.browser_packages_id != '' && needs.build.outputs.browser_packages_binding == format('{0}:{1}:{2}', github.sha, github.run_id, github.run_attempt)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.build.outputs.browser_packages_id }}
+          path: ${{ runner.temp }}/pinned-chromium-packages
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Install only missing pinned Ubuntu Chromium dependencies
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 3
+        run: |
+          mkdir -p "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE"
+          python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/package-transaction.json" "$RUNNER_TEMP/pinned-chromium-packages"
+      - name: Install exact checksum-pinned Chrome for both compatibility cases
+        run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
+      - name: Activate and verify the pinned Chrome channel
+        run: |
+          sudo dpkg -i "$CHROME_DEB"
+          python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
+      - name: Verify headed Chrome sandbox and OCR for ordinary PR
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 1
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
+        run: bash tools/ci/verify_locked_chromium.sh "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE"
+      - name: Verify compensation history in sandboxed Chromium
+        if: matrix.lane == 'compatibility' && matrix.case == 'old_opened_after_new'
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          node tests/tooling/engine_launch_hook_test.js "$RUNNER_TEMP/web-build/web/index.js" > "$RUNNER_TEMP/web-build/evidence/engine-launch-hook.json"
+          mkdir -p "$RUNNER_TEMP/web-build/evidence/inbox-browser"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/persistence/compensation_inbox_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/inbox-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_compensation_inbox-result.json"
+      - name: Check out the exact historical wall-format-1 client
+        if: matrix.lane == 'compatibility'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
+          path: .compatibility-old
+          persist-credentials: false
+      - name: Bind identical producer layouts without native work
+        if: matrix.lane == 'compatibility'
+        run: python3 tools/qualification/prepare_browser_qa.py wall --merge-only --old-source .compatibility-old --old-build "$RUNNER_TEMP/old-web-build" --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-preflight"
+      - name: Verify actual old and new Web save compatibility
+        if: matrix.lane == 'compatibility'
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          node tests/rendering/wall_compatibility_ocr_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/wall-ocr-fixtures.log"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/rendering/wall_compatibility_browser.js --case ${{ matrix.case }} --old-source .compatibility-old --old-web "$RUNNER_TEMP/old-web-build/web" --new-web "$RUNNER_TEMP/web-build/web" --layout-dir "$RUNNER_TEMP/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/web-build/evidence/wall-browser/${{ matrix.case }}"
+      - name: Collect lane evidence without profiles
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/browser-evidence/web-build/evidence"
+          cp -a "$RUNNER_TEMP/web-build/evidence/." "$RUNNER_TEMP/browser-evidence/web-build/evidence/"
+          if [ -d "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE" ]; then
+            mkdir -p "$RUNNER_TEMP/browser-evidence/web-build/evidence/chromium-provision"
+            cp -a "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE" "$RUNNER_TEMP/browser-evidence/web-build/evidence/chromium-provision/"
+          fi
+          if [ -d "$RUNNER_TEMP/firebase-focused" ]; then cp -a "$RUNNER_TEMP/firebase-focused" "$RUNNER_TEMP/browser-evidence/"; fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: little-leaf-browser-${{ matrix.lane }}-${{ matrix.case }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/browser-evidence/
+          if-no-files-found: warn
+          retention-days: 7
+  firebase:
+    if: ${{ !cancelled() && inputs.firebase_preview && needs.build.result == 'success' && needs.play.result == 'success' && needs.browser.result == 'success' && needs.compatibility.result == 'success' }}
+    needs: [build, play, browser, compatibility]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    outputs:
+      artifact_id: ${{ steps.firebase_upload.outputs.artifact-id }}
+      manifest_sha256: ${{ steps.firebase_prepare.outputs.manifest_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install checksum-pinned Godot and official Web template
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.build.outputs.inputs_id }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: little-leaf-candidate-project-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/web-build/project
+          merge-multiple: true
+          digest-mismatch: error
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: little-leaf-browser-*-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Require both bound compatibility case receipts
+        run: node tests/rendering/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
+      - name: Install shared pinned browser tools
+        timeout-minutes: 10
+        run: |
+          npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+          google-chrome --version
+      - name: Install exact checksum-pinned Chrome for fresh Firebase qualification
+        run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
+      - name: Activate and verify the pinned Chrome channel
+        run: |
+          sudo dpkg -i "$CHROME_DEB"
+          python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
+      - name: Check Firebase adapter and fresh staging contracts
+        if: inputs.firebase_preview
+        timeout-minutes: 4
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/firebase-focused"
+          python3 tools/qualification/run_firebase_focused.py --gate staging-tests.log --output "$RUNNER_TEMP/firebase-focused"
+          node --check platform/web/little_leaf_firebase_boot.mjs
+      - name: Verify Firebase rules and SDK CAS in a disposable local emulator
+        if: inputs.firebase_preview
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="${JAVA_HOME_21_X64:?Java 21 is required}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          npm --prefix platform/firebase ci --ignore-scripts --no-audit --no-fund
+          python3 tools/qualification/run_firebase_focused.py --gate rules.log --output "$RUNNER_TEMP/firebase-focused"
+      - name: Prepare exact-message native geometry for compiled cloud flow
+        if: inputs.firebase_preview
+        run: python3 tools/qualification/prepare_browser_qa.py cloud --output "$RUNNER_TEMP/cloud-geometry"
+      - name: Verify compiled two-device cloud recovery and safe update in the emulator
+        if: inputs.firebase_preview
+        timeout-minutes: 12
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+          CLOUD_GEOMETRY_PROJECT: ${{ runner.temp }}/cloud-geometry/project
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
+        run: |
+          set -euo pipefail
+          test '${{ inputs.itch_test_entry }}' != true || test '${{ inputs.itch_preview }}' != true
+          if [[ '${{ inputs.itch_test_entry }}' == true ]]; then
+            python3 - <<'PY'
+          import json, os, pathlib, subprocess, sys
+          sys.path.insert(0,'tools')
+          from build.build_itch_trusted_preview import prepare_stable
+          git=lambda key:subprocess.check_output(['git','rev-parse',key],text=True).strip()
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          prepare_stable(root/'web-build',root/'itch-test-preflight',json.loads(pathlib.Path('platform/firebase/public-config.json').read_text()),git('HEAD'),git('HEAD^{tree}'))
+          PY
+          fi
+          export JAVA_HOME="${JAVA_HOME_21_X64:?Java 21 is required}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          cd platform/firebase
+          test_args=''
+          if [[ '${{ inputs.itch_test_entry }}' == true ]]; then test_args="--itch-test-variant '$RUNNER_TEMP/itch-test-preflight'"; fi
+          ./node_modules/.bin/firebase emulators:exec --only firestore --project demo-little-leaf "xvfb-run -a node fullflow.test.mjs --web-build '$RUNNER_TEMP/web-build/web' --output '$RUNNER_TEMP/web-build/evidence/firebase-fullflow' --engine-report '$RUNNER_TEMP/engine-evidence/summary.json' $test_args"
+      - name: Stage Firebase only from this exact fresh all-gates build
+        if: inputs.firebase_preview
+        id: firebase_prepare
+        env:
+          PUBLICATION_RECEIPT: ${{ inputs.publication_receipt }}
+        run: |
+          preview_args=()
+          if [[ '${{ inputs.itch_preview }}' == 'true' ]]; then preview_args=(--itch-preview-bootstrap); fi
+          if [[ '${{ inputs.itch_test_entry }}' == true ]]; then
+            test '${{ inputs.itch_preview }}' != true
+            test -z "$PUBLICATION_RECEIPT"
+            preview_args=(--itch-test-entry)
+          fi
+          if [[ -n "$PUBLICATION_RECEIPT" ]]; then
+            test '${{ inputs.itch_preview }}' != true
+            python3 -c 'import json,os,pathlib; pathlib.Path(os.environ["RUNNER_TEMP"],"publication.json").write_text(json.dumps(json.loads(os.environ["PUBLICATION_RECEIPT"])))'
+            preview_args+=(--publication-receipt "$RUNNER_TEMP/publication.json")
+          fi
+          python3 tools/build/build_firebase.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/firebase-variant" --public-config platform/firebase/public-config.json --require-fresh-ci --engine-report "$RUNNER_TEMP/engine-evidence/summary.json" --focused-logs "$RUNNER_TEMP/firebase-focused" "${preview_args[@]}"
+      - name: Retain the fresh tested Firebase preview without publication
+        if: inputs.firebase_preview
+        id: firebase_upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.firebase_prepare.outputs.artifact_name }}
+          path: ${{ runner.temp }}/firebase-variant/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Record fresh preview handoff
+        if: inputs.firebase_preview
+        env:
+          ARTIFACT_ID: ${{ steps.firebase_upload.outputs.artifact-id }}
+          MANIFEST_SHA256: ${{ steps.firebase_prepare.outputs.manifest_sha256 }}
+        run: |
+          printf 'Fresh source: %s\nRun: %s\nArtifact ID: %s\nManifest SHA256: %s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$ARTIFACT_ID" "$MANIFEST_SHA256" >> "$GITHUB_STEP_SUMMARY"
+          printf 'All existing native/export/browser gates and focused Firebase/emulator checks passed in this run. No historical CI artifact reuse, deployment, or hosted/device acceptance is claimed.\n' >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep test and export evidence (never profiles or credentials)
+        if: always() && needs.guard.outputs.scope != 'lightweight'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-firebase-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/engine-evidence/*.json
+            ${{ runner.temp }}/engine-evidence/*.log
+            ${{ runner.temp }}/web-build/evidence/
+            ${{ runner.temp }}/crazygames-build/evidence/
+            ${{ runner.temp }}/old-engine-evidence/*.json
+            ${{ runner.temp }}/old-engine-evidence/*.log
+            ${{ runner.temp }}/old-web-build/evidence/
+            ${{ runner.temp }}/firebase-focused/
+          if-no-files-found: warn
+          retention-days: 7
+  gate:
+    if: always()
+    needs: [guard, preflight, engine, historical, build, crazygames, play, browser, compatibility, firebase]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      artifact_id: ${{ steps.accept.outputs.artifact_id }}
+      firebase_artifact_id: ${{ steps.accept.outputs.firebase_artifact_id }}
+      firebase_manifest_sha256: ${{ steps.accept.outputs.firebase_manifest_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /tests/rendering/wall_compatibility_parallel.js
+            /tests/rendering/wall_compatibility_helpers.js
+            /tests/tooling/source_paths.js
+            /tools/ci/pr_ci_scope.py
+            /tools/ci/pr_gate_inputs.py
+            /tools/ci/crazygames_pr_evidence.py
+      - name: Require the route-correct complete preflight
+        env:
+          CI_SCOPE: ${{ needs.guard.outputs.scope }}
+          ORDINARY_PR: ${{ needs.guard.outputs.ordinary_pr }}
+          INLINE_PREFLIGHT: ${{ needs.guard.outputs.inline_preflight }}
+          PREFLIGHT: ${{ needs.preflight.result }}
+          PREFLIGHT_BINDING: ${{ needs.preflight.outputs.binding }}
+        run: python3 tools/ci/pr_ci_scope.py --check-preflight-join
+      - name: Require numeric current compact archive ID distinct from the full archive
+        id: current_compact_id
+        if: always() && needs.build.result == 'success' && needs.guard.outputs.ordinary_pr == 'true'
+        env:
+          COMPACT_ID: ${{ needs.build.outputs.compact_id }}
+          FULL_ID: ${{ needs.build.outputs.inputs_id }}
+        run: '[[ "$COMPACT_ID" =~ ^[1-9][0-9]*$ && "$COMPACT_ID" != "$FULL_ID" ]]'
+      - name: Collect exact current compact gate inputs
+        if: always() && needs.build.result == 'success' && needs.guard.outputs.ordinary_pr == 'true' && steps.current_compact_id.outcome == 'success'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.build.outputs.compact_id }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Verify compact current evidence before browser evidence joins
+        if: always() && needs.build.result == 'success' && needs.guard.outputs.ordinary_pr == 'true'
+        env:
+          FULL_ARTIFACT_ID: ${{ needs.build.outputs.inputs_id }}
+          FULL_ARTIFACT_DIGEST: ${{ needs.build.outputs.inputs_digest }}
+        run: python3 tools/ci/pr_gate_inputs.py verify current "$RUNNER_TEMP"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        if: always() && needs.build.result == 'success' && needs.guard.outputs.ordinary_pr != 'true'
+        with:
+          artifact-ids: ${{ needs.build.outputs.inputs_id }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        if: always() && needs.build.result == 'success' && (needs.play.result != 'skipped' || needs.browser.result != 'skipped')
+        with:
+          pattern: little-leaf-browser-*-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Require numeric historical compact archive ID distinct from the full archive
+        id: historical_compact_id
+        if: always() && needs.historical.result == 'success' && needs.guard.outputs.ordinary_pr == 'true'
+        env:
+          COMPACT_ID: ${{ needs.historical.outputs.compact_id }}
+          FULL_ID: ${{ needs.historical.outputs.inputs_id }}
+        run: '[[ "$COMPACT_ID" =~ ^[1-9][0-9]*$ && "$COMPACT_ID" != "$FULL_ID" ]]'
+      - name: Collect exact historical compact gate inputs
+        if: always() && needs.historical.result == 'success' && needs.guard.outputs.ordinary_pr == 'true' && steps.historical_compact_id.outcome == 'success'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.historical.outputs.compact_id }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Verify compact historical evidence before browser evidence joins
+        if: always() && needs.historical.result == 'success' && needs.guard.outputs.ordinary_pr == 'true'
+        env:
+          FULL_ARTIFACT_ID: ${{ needs.historical.outputs.inputs_id }}
+          FULL_ARTIFACT_DIGEST: ${{ needs.historical.outputs.inputs_digest }}
+        run: python3 tools/ci/pr_gate_inputs.py verify historical "$RUNNER_TEMP"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        if: always() && needs.historical.result == 'success' && needs.guard.outputs.ordinary_pr != 'true'
+        with:
+          name: little-leaf-historical-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        if: always() && needs.firebase.result == 'success'
+        with:
+          name: little-leaf-firebase-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Collect the exact sibling evidence artifact, without name matching
+        if: always() && needs.crazygames.outputs.evidence_id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.crazygames.outputs.evidence_id }}
+          path: ${{ runner.temp }}/crazygames-build/evidence
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Verify the sibling receipt and eight original stage logs before archiving
+        id: sibling_verify
+        if: needs.guard.outputs.ordinary_pr == 'true' && needs.guard.outputs.scope == 'full'
+        env:
+          VARIANT_ID: ${{ needs.crazygames.outputs.artifact_id }}
+          CI_INPUTS_ID: ${{ needs.build.outputs.inputs_id }}
+        run: python3 tools/ci/crazygames_pr_evidence.py verify --root "$RUNNER_TEMP"
+      - name: Require both bound compatibility case receipts
+        if: needs.build.result == 'success' && needs.compatibility.result == 'success'
+        run: node tests/rendering/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
+      - name: Keep test and export evidence (never profiles or credentials)
+        id: gate_evidence
+        if: always() && needs.guard.outputs.scope != 'lightweight'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/engine-evidence/*.json
+            ${{ runner.temp }}/engine-evidence/*.log
+            ${{ runner.temp }}/web-build/evidence/
+            ${{ runner.temp }}/crazygames-build/evidence/
+            ${{ runner.temp }}/old-engine-evidence/*.json
+            ${{ runner.temp }}/old-engine-evidence/*.log
+            ${{ runner.temp }}/old-web-build/evidence/
+            ${{ runner.temp }}/firebase-focused/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Accept explicitly limited PR guard result
+        if: needs.guard.outputs.scope == 'lightweight'
+        env:
+          CI_SCOPE: ${{ needs.guard.outputs.scope }}
+          FIREBASE_PREVIEW: ${{ inputs.firebase_preview }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ITCH_PREVIEW: ${{ inputs.itch_preview }}
+          GUARD: ${{ needs.guard.result }}
+          PREFLIGHT: ${{ needs.preflight.result }}
+          ENGINE: ${{ needs.engine.result }}
+          HISTORICAL: ${{ needs.historical.result }}
+          BUILD: ${{ needs.build.result }}
+          CRAZYGAMES: ${{ needs.crazygames.result }}
+          CRAZYGAMES_ARTIFACT: ${{ needs.crazygames.outputs.artifact_id }}
+          CRAZYGAMES_EVIDENCE: ${{ needs.crazygames.outputs.evidence_id }}
+          PLAY: ${{ needs.play.result }}
+          BROWSER: ${{ needs.browser.result }}
+          COMPATIBILITY: ${{ needs.compatibility.result }}
+          FIREBASE: ${{ needs.firebase.result }}
+          FIREBASE_REQUIRED: ${{ inputs.firebase_preview }}
+          WEB_ARTIFACT: ${{ needs.build.outputs.artifact_id }}
+          FIREBASE_ARTIFACT: ${{ needs.firebase.outputs.artifact_id }}
+          FIREBASE_MANIFEST: ${{ needs.firebase.outputs.manifest_sha256 }}
+        run: python3 tools/ci/pr_ci_scope.py --check-lightweight-gate
+      - name: Require every mandatory gate before exposing release outputs
+        id: accept
+        if: needs.guard.outputs.scope != 'lightweight'
+        env:
+          ORDINARY_PR: ${{ needs.guard.outputs.ordinary_pr }}
+          GATE_EVIDENCE: ${{ steps.gate_evidence.outputs.artifact-id }}
+          SIBLING_VERIFIED: ${{ steps.sibling_verify.outcome }}
+          GUARD: ${{ needs.guard.result }}
+          ENGINE: ${{ needs.engine.result }}
+          HISTORICAL: ${{ needs.historical.result }}
+          BUILD: ${{ needs.build.result }}
+          CRAZYGAMES: ${{ needs.crazygames.result }}
+          CRAZYGAMES_ARTIFACT: ${{ needs.crazygames.outputs.artifact_id }}
+          CRAZYGAMES_EVIDENCE: ${{ needs.crazygames.outputs.evidence_id }}
+          PLAY: ${{ needs.play.result }}
+          BROWSER: ${{ needs.browser.result }}
+          COMPATIBILITY: ${{ needs.compatibility.result }}
+          FIREBASE: ${{ needs.firebase.result }}
+          FIREBASE_REQUIRED: ${{ inputs.firebase_preview }}
+          WEB_ARTIFACT: ${{ needs.build.outputs.artifact_id }}
+          FIREBASE_ARTIFACT: ${{ needs.firebase.outputs.artifact_id }}
+          FIREBASE_MANIFEST: ${{ needs.firebase.outputs.manifest_sha256 }}
+        run: |
+          for result in "$GUARD" "$ENGINE" "$HISTORICAL" "$BUILD" "$PLAY" "$BROWSER" "$COMPATIBILITY"; do test "$result" = success || exit 1; done
+          if [ "$FIREBASE_REQUIRED" = true ]; then test "$FIREBASE" = success && test -n "$FIREBASE_ARTIFACT" && test -n "$FIREBASE_MANIFEST" || exit 1; else test "$FIREBASE" = skipped || exit 1; fi
+          case "$ORDINARY_PR" in
+            true) test "$CRAZYGAMES" = success && test "$SIBLING_VERIFIED" = success && test -n "$CRAZYGAMES_ARTIFACT" && test -n "$CRAZYGAMES_EVIDENCE" && test -n "$GATE_EVIDENCE" || exit 1 ;;
+            false) test "$CRAZYGAMES" = skipped && test -z "$CRAZYGAMES_ARTIFACT$CRAZYGAMES_EVIDENCE" || exit 1 ;;
+            *) exit 1 ;;
+          esac
+          test -n "$WEB_ARTIFACT"
+          echo "artifact_id=$WEB_ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "firebase_artifact_id=$FIREBASE_ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "firebase_manifest_sha256=$FIREBASE_MANIFEST" >> "$GITHUB_OUTPUT"
