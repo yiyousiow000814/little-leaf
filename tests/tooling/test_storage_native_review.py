@@ -186,7 +186,7 @@ class StorageNativeReviewTests(unittest.TestCase):
                 expected = "5854f2deabb6d99781847c33497a3eb66fb0a1a99f40f755b2b51820a15e12e3"
             if name == "game/scripts/main.gd":
                 self.assertEqual(captured_sha, "4c1fb1afcb0d1c72797bd42b07937bb5828f4c389f0e1607a57c1aa9a50192be")
-                expected = "40dae8ba534bdfd9ee58f47d724a241fd4cd033c526b8751c6ea0c0841bdc286"
+                expected = "4d318dd9f63a7e3fd5fb04fcc80f58886662f7d69d46a70f14e3a37a75e9b607"
             if name == "game/data/prebaked_atlas_manifest.json":
                 self.assertEqual(captured_sha, "81724088c204877ce1f31d2620f8cd9db27aabffca12f2bc3d74d813c526b283")
                 expected = "ed101c2b61ceab0b2b9fc94461afb96918fde93a726a1f9ad74854b7b508151e"
@@ -195,7 +195,7 @@ class StorageNativeReviewTests(unittest.TestCase):
     def test_post_capture_exceptions_accept_only_exact_qualified_postimages(self):
         expected = dict(review.REVIEWED_POSTIMAGES)
         expected["game/scripts/ui/cafe_shop_ui.gd"] = "5854f2deabb6d99781847c33497a3eb66fb0a1a99f40f755b2b51820a15e12e3"
-        expected["game/scripts/main.gd"] = "40dae8ba534bdfd9ee58f47d724a241fd4cd033c526b8751c6ea0c0841bdc286"
+        expected["game/scripts/main.gd"] = "4d318dd9f63a7e3fd5fb04fcc80f58886662f7d69d46a70f14e3a37a75e9b607"
         expected["game/data/prebaked_atlas_manifest.json"] = "ed101c2b61ceab0b2b9fc94461afb96918fde93a726a1f9ad74854b7b508151e"
         def current(path):
             return expected[path.relative_to(ROOT).as_posix()]

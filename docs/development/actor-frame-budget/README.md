@@ -36,8 +36,7 @@ The checkout membership change reduces the checkout scan from O(F×G) to
 O(F+G) across one uninterrupted sweep with F queries and G guests. Instrumented
 table checkout scans were 15,856 before and 267 after, with equivalent work
 counts and final state. The final candidate passed 2,948 native checks and a
-targeted live callback regression. Source is not pushed: refreshed source-bound
-atlas/pixel evidence and the normal CI gate are required first. No diagnostics
+targeted live callback regression. This isolated experiment predates the integrated #399 source qualification. No diagnostics
 belong in the production source.
 
 ## Prepared occupancy, pinned headless check
@@ -75,9 +74,9 @@ callback read the updated signature; disabling invalidation exposed stale
 route keys. See the **Workface sweep A-B** tab. This is a workface measurement
 only, not a full-frame FPS result, the 0.5 ms target, or a published change.
 
-## Draft successor on the integrated main branch
+## Integrated source: #399
 
-This source-only successor is based on `3e58b3f9c8a5fbc627b28303564c716ff4825195`.
+The source-only #399 successor merged at `ec0696211a3bcd0434e88d34a5447d27364912f8` and was based on `3e58b3f9c8a5fbc627b28303564c716ff4825195`.
 It preserves the #398 guest segment change and combines it with the measured
 staff workface changes. Earlier workface rows isolate staff costs on the
 pre-guest-change model. A new pinned Godot 4.6.3 ABBA keeps the **same #398
@@ -88,3 +87,24 @@ selections, 206 route searches), final state, and zero saves. This is not
 an estimate of the guest improvement or a full-frame result. Mail and Storage
 tests bind the new current Main separately; historical pixel and atlas receipts
 remain unchanged.
+
+## Local trial: check the ordinary table pin first
+
+Control: merged #399 (`ec0696211a3bcd0434e88d34a5447d27364912f8`).
+Candidate Main: `f22e7958d2b139b79414caab68ddd1701586e41b`; candidate
+Model: `530508f43489421b1d4928985285207fdbb8cc6d`. No cache was added.
+An ordinary pinned order face is tested before building the full face list or
+checking the rear. If the pin fails, selection keeps the old alternative order,
+rear precedence, and live claim checks.
+
+Pinned Godot 4.6.3 ABBA averaged **2.201 → 1.741 ms/tick** for work-position
+selection and **1.234 → 0.815 ms/tick** for table work. Both candidate runs beat
+both controls. Each 600-tick run had the same per-tick work, 26,492 selections,
+206 route searches, final state, and zero saves. Separate counters measured
+15,640 → 0 full side lists and 15,640 → 0 rear checks inside the hot table
+selector. The native subset passed 2,842 checks, including blocked pins,
+walls, claims, rear precedence and equal-distance ties. See **Workface sweep A-B**.
+
+This trial has not been published. It does not measure renderer performance
+or FPS and does not meet the 0.5 ms selection target. The renderer candidate
+remains separate.

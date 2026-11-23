@@ -40,6 +40,25 @@ func equal_route_tie_uses_existing_order():
  s.table_face_id=-1;s.table_face_cell=INVALID
  check(g._service_destination(s,target,from,[],{"planning":true,"route_geometry":g.model.navigation_signature()})==left,"scoped geometry retains the same equal-length tie")
  cleanup(g)
+func retained_ordinary_face_checks_live_constraints():
+ var g=fixture();pin_order(g);var s=g.staff_states[0];var model=g.model
+ var left=Vector2i(4,4);var right=Vector2i(6,4)
+ var from=Vector2i(5,2);s.pos=model.cell_center(from)
+ model.items.erase(model.get_item(103));model.items.erase(model.get_item(105))
+ var table=model.get_item(101)
+ s.table_face_id=101;s.table_face_cell=right
+ check(g._service_destination(s,table,from)==right,"ordinary right pin survives an equally short left face")
+ check(g._service_destination(s,table,from,[right])==left,"anonymous claim on ordinary pin replans to the other face")
+ s.table_face_id=101;s.table_face_cell=right
+ model.built_walls.append(Walls.make("z",6,4,"half"));model.navigation_cells()
+ check(g._service_destination(s,table,from)==left,"new wall blocks ordinary pin and preserves alternative order")
+ model.built_walls.clear();model.navigation_cells()
+ s.table_face_id=101;s.table_face_cell=REAR
+ check(g._service_destination(s,table,from)==REAR,"valid rear pin retains precedence over ordinary faces")
+ s.table_face_id=101;s.table_face_cell=right
+ model.items.append({"id":106,"kind":"plant","x":6,"z":4,"rot":0});model.navigation_cells()
+ check(g._service_destination(s,table,from)==left,"furnishing blocks ordinary pin and forces fallback")
+ cleanup(g)
 func check(ok,label):
  checks+=1
  if not ok:failures.append(label);printerr("FAIL ",label)
@@ -57,6 +76,7 @@ func pin_order(g):
 func run():
  check_live_route_reuse()
  equal_route_tie_uses_existing_order()
+ retained_ordinary_face_checks_live_constraints()
  check_order_retry_scope()
  var g=fixture();var s=g.staff_states[0];var record=g.service_guests[201]
  check(g.model.table_service_cells(g.model.get_item(101)).is_empty(),"fixture blocks all physical table faces")

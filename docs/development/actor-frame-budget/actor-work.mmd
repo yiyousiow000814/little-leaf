@@ -21,7 +21,7 @@ flowchart TD
     C -->|"No"| P["Draw the original action without cooking-only work"]
     H --> P
 
-    F -.-> A["Local workface sweep candidate"]
+    F -.-> A["Workface sweep merged in #399"]
     A --> Q["Lazily share static layout and checkout membership within the sweep"]
     A --> I["Find possible peers by work cell, in roster order"]
     A --> Y["Two workface checks read the already prepared furniture occupancy"]
@@ -40,3 +40,9 @@ flowchart TD
     Z --> J
     T --> J
     J --> O
+
+    O -.-> PI{"Local trial: does the current ordinary pin still work?"}
+    PI -->|"Yes"| PR["Keep the pin after the existing route and claim checks"]
+    PI -->|"No, or rear pin"| PA["Use the original ordered faces, rear eligibility and tie rules"]
+    PR --> E
+    PA --> E

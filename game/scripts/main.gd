@@ -1128,13 +1128,16 @@ func _table_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,c
 	var prospective={}
 	if not order_guest.is_empty() and staff.job_kind=="":prospective={"role":staff.role,"job_kind":"order","job_step":0,"job_guest_id":int(order_guest.id),"job_token":int(service_guests[int(order_guest.id)].token)}
 	var intent=_work_intent(staff,item,Vector2i(-1,-1),prospective)
-	var cells=model.table_service_cells(item,model.items,order_layout)
-	var rear=model.order_rear_cell(item,order_guest,order_layout) if not order_guest.is_empty() else Vector2i(-1,-1)
-	if rear!=Vector2i(-1,-1):cells.append(rear)
 	var pinned:Vector2i=staff.get("table_face_cell",Vector2i(-1,-1))
 	var staff_index=staff_states.find(staff)
 	var force_replan=float(staff.get("stalled_time",0.0))>.65
-	if int(staff.get("table_face_id",-1))==int(item.id) and cells.has(pinned):
+	var pinned_to_table=int(staff.get("table_face_id",-1))==int(item.id)
+	var tried_ordinary_order_pin=pinned_to_table and not order_guest.is_empty() and model.ordinary_table_service_face(item,pinned,order_layout)
+	if tried_ordinary_order_pin and _order_face_route_length(staff,staff_index,from,pinned,claimed,intent,frame_claims)>=0:return pinned
+	var cells=model.table_service_cells(item,model.items,order_layout)
+	var rear=model.order_rear_cell(item,order_guest,order_layout) if not order_guest.is_empty() else Vector2i(-1,-1)
+	if rear!=Vector2i(-1,-1):cells.append(rear)
+	if not tried_ordinary_order_pin and pinned_to_table and cells.has(pinned):
 		if not order_guest.is_empty():
 			if _order_face_route_length(staff,staff_index,from,pinned,claimed,intent,frame_claims)>=0:return pinned
 		elif _table_face_available(pinned,staff,claimed,intent,frame_claims) and not _static_service_path(from,pinned).is_empty():

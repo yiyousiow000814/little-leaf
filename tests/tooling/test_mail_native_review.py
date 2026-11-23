@@ -19,7 +19,7 @@ class MailNativeReviewTests(unittest.TestCase):
         captured_main = "a585cfa764e893bb974343fe8dc77d5365ff8b8ac7ae17be5dbf6167bdf47b78"
         # Actor/workface successor: the current source pin is distinct from
         # the frozen capture; focused Godot 4.6.3 fixtures do not recapture pixels.
-        current_main = "40dae8ba534bdfd9ee58f47d724a241fd4cd033c526b8751c6ea0c0841bdc286"
+        current_main = "4d318dd9f63a7e3fd5fb04fcc80f58886662f7d69d46a70f14e3a37a75e9b607"
         original = review.sha
         self.assertEqual(review.REVIEWED_POSTIMAGES[main], captured_main)
         self.assertEqual(original(ROOT / main), current_main)
