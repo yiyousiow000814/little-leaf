@@ -816,8 +816,9 @@ func _process(delta):
 	if not editing and not paused and not save_recovery_blocked:
 		if model.first_guest_pending and model.operating_open and model._arrival_elapsed+world_delta+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/gameplay/cafe_first_guest.gd").offscreen_start(self)
 		_tick_live_service(world_delta)
-		# Resolve cooking/contact before deadlines and before any autosave.
-		_animate_staff(world_delta)
+		# The preceding live tick ended with guest synchronization. Resolve
+		# cooking/contact before deadlines and before any autosave.
+		_animate_staff(world_delta,true)
 		# Arrival/payroll/customer/staff timers advance saved state during play.
 		if world_delta>0.0:_mark_platform_dirty()
 	visual_timer+=world_delta
@@ -2006,8 +2007,8 @@ func _chef_work_order()->Array:
 		if not model.layout_held("staff",order[slot]) and staff_states[order[slot]].role=="chef" and staff_states[order[slot]].job_kind=="cook":order[slot]=chefs[cursor];cursor+=1
 	return order
 
-func _animate_staff(delta: float):
-	_sync_service_guests()
+func _animate_staff(delta: float, guests_synced:bool=false):
+	if not guests_synced:_sync_service_guests()
 	_refresh_idle_homes()
 	for staff in staff_states:
 		if not _layout_staff_held(staff):staff.idle_return_delay=maxf(0.0,float(staff.get("idle_return_delay",0.0))-delta)

@@ -14,12 +14,27 @@ spec.loader.exec_module(review)
 
 
 class MailNativeReviewTests(unittest.TestCase):
+    def check_current_main_postimage(self):
+        # Local Godot 4.6.3 Mail claim/render/UI and live pending-claim checks,
+        # receipt 7a4ca1078ba1eedc44751f6d168e43c767d4c6e914b8f1ad256be6e655653337.
+        # Six-path review manifest 8da990e757d6da53f8098b0ccd41db6ae9dfce3f055b4c4d81a666eef1b70c0c.
+        # Headless behavior only; this is not a new historical capture.
+        current_main = "ac49ba2ababf93738e3a8d50852804e404c7c49bfbab6eb8d56b8543bd77467c"
+        self.assertEqual(review.sha(ROOT / "game/scripts/main.gd"), current_main,
+                         "current Mail Main postimage")
+
+    def test_current_main_rejects_stale_and_unexpected_postimages(self):
+        main = ROOT / "game/scripts/main.gd"
+        original = review.sha
+        for stale in ("4d318dd9f63a7e3fd5fb04fcc80f58886662f7d69d46a70f14e3a37a75e9b607", "0" * 64):
+            with self.subTest(stale=stale):
+                with patch.object(review, "sha", side_effect=lambda p: stale if p == main else original(p)):
+                    with self.assertRaisesRegex(AssertionError, "current Mail Main postimage"):
+                        self.check_current_main_postimage()
+
     def test_exact_postimages_and_no_unreviewed_production(self):
         main = "game/scripts/main.gd"
         captured_main = "a585cfa764e893bb974343fe8dc77d5365ff8b8ac7ae17be5dbf6167bdf47b78"
-        # Actor/workface successor: the current source pin is distinct from
-        # the frozen capture; focused Godot 4.6.3 fixtures do not recapture pixels.
-        current_main = "4d318dd9f63a7e3fd5fb04fcc80f58886662f7d69d46a70f14e3a37a75e9b607"
         adapter = "platform/web/little_leaf_firebase.js"
         captured_adapter = "d63b7ec0343aebb534e9c0b4f86197519ce7ac2dbf14476d510dcaeba550d027"
         # The ownership continuation is not part of the historical Mail capture.
@@ -27,7 +42,7 @@ class MailNativeReviewTests(unittest.TestCase):
         original = review.sha
         self.assertEqual(review.REVIEWED_POSTIMAGES[main], captured_main)
         self.assertEqual(review.REVIEWED_POSTIMAGES[adapter], captured_adapter)
-        self.assertEqual(original(ROOT / main), current_main)
+        self.check_current_main_postimage()
         self.assertEqual(original(ROOT / adapter), current_adapter)
         # The old capture verifier still refuses a successor on live files.
         with self.assertRaisesRegex(RuntimeError, "postimage"):

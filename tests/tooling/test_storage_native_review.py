@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import struct
 import sys
 import tempfile
@@ -177,8 +178,12 @@ class StorageNativeReviewTests(unittest.TestCase):
         # PR378 advances three sink producers and PR380 independently qualifies
         # two floor-stance closure changes. None of these is evidence from the
         # old Storage capture. Other pins stay.
-        # Actor/workface successor: the current source pin is distinct from
-        # the frozen capture; focused Godot 4.6.3 fixtures do not recapture pixels.
+        # Current staff sync and forwarding-only Intro fixture are separate
+        # from the frozen capture. Godot 4.6.3 Storage/Parking and live Cancel
+        # behavior: c629a16bf8fdb309fcb474beced2645845d2e68badebc9ff86a6705f8cf01a98.
+        # Six-path review manifest 8da990e757d6da53f8098b0ccd41db6ae9dfce3f055b4c4d81a666eef1b70c0c.
+        # The same exact Main and Intro postimages passed current Intro/Pause
+        # and first-payment checks; none asserts new historical pixels.
         for name, captured_sha in review.REVIEWED_POSTIMAGES.items():
             expected = captured_sha
             if name == "game/scripts/ui/cafe_shop_ui.gd":
@@ -186,7 +191,10 @@ class StorageNativeReviewTests(unittest.TestCase):
                 expected = "5854f2deabb6d99781847c33497a3eb66fb0a1a99f40f755b2b51820a15e12e3"
             if name == "game/scripts/main.gd":
                 self.assertEqual(captured_sha, "4c1fb1afcb0d1c72797bd42b07937bb5828f4c389f0e1607a57c1aa9a50192be")
-                expected = "4d318dd9f63a7e3fd5fb04fcc80f58886662f7d69d46a70f14e3a37a75e9b607"
+                expected = "ac49ba2ababf93738e3a8d50852804e404c7c49bfbab6eb8d56b8543bd77467c"
+            if name == "tests/presentation/test_intro_lifecycle_headless.gd":
+                self.assertEqual(captured_sha, "1dd53cc071c75f442077c9db626f5298d186f8db3a10d73d5bac4d51ca867693")
+                expected = "980dd75b0c50c5c38e4858eb754da1a1e08d31d0182ae01e3948827218f70957"
             if name == "game/data/prebaked_atlas_manifest.json":
                 self.assertEqual(captured_sha, "81724088c204877ce1f31d2620f8cd9db27aabffca12f2bc3d74d813c526b283")
                 expected = "ed101c2b61ceab0b2b9fc94461afb96918fde93a726a1f9ad74854b7b508151e"
@@ -195,18 +203,51 @@ class StorageNativeReviewTests(unittest.TestCase):
     def test_post_capture_exceptions_accept_only_exact_qualified_postimages(self):
         expected = dict(review.REVIEWED_POSTIMAGES)
         expected["game/scripts/ui/cafe_shop_ui.gd"] = "5854f2deabb6d99781847c33497a3eb66fb0a1a99f40f755b2b51820a15e12e3"
-        expected["game/scripts/main.gd"] = "4d318dd9f63a7e3fd5fb04fcc80f58886662f7d69d46a70f14e3a37a75e9b607"
+        expected["game/scripts/main.gd"] = "ac49ba2ababf93738e3a8d50852804e404c7c49bfbab6eb8d56b8543bd77467c"
+        intro = "tests/presentation/test_intro_lifecycle_headless.gd"
+        expected[intro] = "980dd75b0c50c5c38e4858eb754da1a1e08d31d0182ae01e3948827218f70957"
         expected["game/data/prebaked_atlas_manifest.json"] = "ed101c2b61ceab0b2b9fc94461afb96918fde93a726a1f9ad74854b7b508151e"
         def current(path):
             return expected[path.relative_to(ROOT).as_posix()]
         with patch.object(review, "file_sha", side_effect=current):
             self.check_current_postimages()
-            for name in ("game/scripts/ui/cafe_shop_ui.gd", "game/scripts/main.gd", "game/data/prebaked_atlas_manifest.json"):
+            for name in ("game/scripts/ui/cafe_shop_ui.gd", "game/scripts/main.gd", intro,
+                         "game/data/prebaked_atlas_manifest.json"):
                 exact = expected[name]
                 expected[name] = "0" * 64
-                with self.assertRaises(AssertionError):
+                with self.assertRaisesRegex(AssertionError, re.escape(name)):
                     self.check_current_postimages()
                 expected[name] = exact
+            # Valid prior digests are stale for the current scope, too.
+            expected["game/scripts/main.gd"] = "4d318dd9f63a7e3fd5fb04fcc80f58886662f7d69d46a70f14e3a37a75e9b607"
+            with self.assertRaisesRegex(AssertionError, r"game/scripts/main\.gd"):
+                self.check_current_postimages()
+            expected["game/scripts/main.gd"] = "ac49ba2ababf93738e3a8d50852804e404c7c49bfbab6eb8d56b8543bd77467c"
+            expected[intro] = "1dd53cc071c75f442077c9db626f5298d186f8db3a10d73d5bac4d51ca867693"
+            with self.assertRaisesRegex(AssertionError, re.escape(intro)):
+                self.check_current_postimages()
+
+    def test_frozen_capture_refuses_current_main_and_intro_independently(self):
+        captured = dict(review.REVIEWED_POSTIMAGES)
+        current = {
+            "game/scripts/main.gd": "ac49ba2ababf93738e3a8d50852804e404c7c49bfbab6eb8d56b8543bd77467c",
+            "tests/presentation/test_intro_lifecycle_headless.gd":
+                "980dd75b0c50c5c38e4858eb754da1a1e08d31d0182ae01e3948827218f70957",
+        }
+
+        def captured_digest(path):
+            return captured[path.relative_to(ROOT).as_posix()]
+
+        with patch.object(review, "file_sha", side_effect=captured_digest):
+            review.check_reviewed_postimages(captured, ROOT)
+
+        for path, digest in current.items():
+            with self.subTest(path=path):
+                def current_digest(filename):
+                    return digest if filename == ROOT / path else captured_digest(filename)
+                with patch.object(review, "file_sha", side_effect=current_digest):
+                    with self.assertRaisesRegex(RuntimeError, "postimage"):
+                        review.check_reviewed_postimages(captured, ROOT)
 
     def test_qualified_manifest_keeps_complete_old_provenance_and_new_receipt(self):
         manifest = json.loads((ROOT / "game/data/prebaked_atlas_manifest.json").read_text())

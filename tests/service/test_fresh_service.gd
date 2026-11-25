@@ -5,6 +5,18 @@ class ClockMain extends Main:
   save_writes_suppressed=true;fresh_start=true;paused=true;model.reset_new()
   for item in model.items:
    if item.kind in ["stove","beverage","sink"]:item.rot=2
+class GuestSyncMain extends Main:
+ var sync_calls=0
+ var staff_sync_deltas=[]
+ var staff_sync_flags=[]
+ func _sync_service_guests():
+  sync_calls+=1
+  super()
+ func _animate_staff(delta:float, guests_synced:bool=false):
+  var before=sync_calls
+  super(delta,guests_synced)
+  staff_sync_deltas.append(sync_calls-before)
+  staff_sync_flags.append(guests_synced)
 var checks=0
 var failures=[]
 func _initialize():run.call_deferred()
@@ -156,6 +168,24 @@ func eating_clock(game):
  game.paused=was_paused;game._tick_live_service(.1)
  check(guest.phase!="eating","exactly 25 active service seconds finish eating through the existing settlement path")
  check(FileAccess.get_sha256("user://eating-boundary.json")==checksum,"boundary verification preserves the generated source save")
+func check_live_guest_sync_handoff():
+ var game=GuestSyncMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false)
+ game.paused=false
+ game.model._spawn_customer()
+ check(game.model.customers.size()==1,"guest sync handoff starts with one real fresh guest")
+ if game.model.customers.size()!=1:
+  await release_game(game);return
+ var guest=game.model.customers[0];var id=int(guest.id)
+ var before=game.sync_calls
+ game._process(0.0)
+ check(game.sync_calls-before==2 and game.staff_sync_deltas==[0] and game.staff_sync_flags==[true],"live tick retains both authoritative syncs and staff skips the consecutive repeat")
+ check(game.service_guests.has(id) and is_same(game.service_guests[id].guest,guest),"live staff consumes the authoritative guest identity")
+ game.service_guests.erase(id)
+ var old_serial=game.service_serial
+ game._animate_staff(0.0)
+ check(game.staff_sync_deltas==[0,1] and game.staff_sync_flags==[true,false],"standalone staff call still synchronizes its own guests")
+ check(game.service_serial==old_serial+1 and game.service_guests.has(id) and is_same(game.service_guests[id].guest,guest),"standalone sync reinstates missing record from the live roster")
+ await release_game(game)
 func run():
  root.size=Vector2i(1360,880)
  check(OS.get_environment("XDG_DATA_HOME")!="" and OS.get_user_data_dir().begins_with(OS.get_environment("XDG_DATA_HOME")),"isolated generated profile")
@@ -179,5 +209,6 @@ func run():
  check(not game.model.customers.is_empty() and not game.model.customers[0].meal_abandoned,"fresh diner finishes without meal abandonment")
  await release_game(game)
  await completion_clock()
+ await check_live_guest_sync_handoff()
  print("FRESH_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"initial":initial,"first_payment_seconds":seconds,"player_save_used":false}))
  quit(0 if failures.is_empty() else 1)

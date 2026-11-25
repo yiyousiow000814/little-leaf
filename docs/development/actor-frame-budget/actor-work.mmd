@@ -8,6 +8,12 @@ flowchart TD
     S -->|"Budget remains"| L["Check subsequent segment"]
     L --> S
     Sim --> F["Staff choose work position and honor live claims"]
+    Sim -.-> GS["Local trial: live service and staff run consecutively"]
+    GS --> GSA["Keep the live tick final guest synchronization"]
+    GSA --> GSB["Staff consumes the just-synchronized state"]
+    GSB --> GSC["Standalone staff updates still synchronize first"]
+    GSC -.-> GSD["Headless A/A then B/B then late A: staff inclusive mean 6.039 to 5.804 ms, 3.9 percent less; not FPS, historical staff self, or a 50 percent result"]
+    GSD -.-> GSE["Overlaps station reference retirement; do not add savings"]
     F --> O["Order at table: reuse the live verdict's route length only for the same start cell"]
     O --> E{"Retained path has remaining points?"}
     E -->|"Yes"| V["Existing signature check, validation and replan rules"]
