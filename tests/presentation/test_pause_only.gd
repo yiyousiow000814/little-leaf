@@ -13,9 +13,9 @@ class TestMain extends "res://scripts/main.gd":
  func _tick_live_service(delta:float):
   service_seconds+=delta
   super(delta)
- func _animate_staff(delta:float):
+ func _animate_staff(delta:float, guests_synced:bool=false):
   staff_seconds+=delta
-  super(delta)
+  super(delta,guests_synced)
 class TestSettings extends Settings:
  func _review_mode():return false
 class BrowserApi extends RefCounted:
