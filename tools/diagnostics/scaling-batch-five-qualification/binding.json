@@ -1,0 +1,25 @@
+{
+  "control": "08833edad5a6ed5c7e4c661c81a245dba2fd6018",
+  "control_tree": "56f0a226fda4de9011676f0630e9d19d1ace1f15",
+  "candidate": "d4fb134fde0dce38527b0cf83cf4388974c293da",
+  "candidate_tree": "3c5a582f8e0e5e86832c4e0acb6b1e5c130f24d9",
+  "reviewed_paths": {
+    "docs/development/scaling-hotpaths-5/README.md": "91fe212b5bb7da0a22c3f7d453adcef8849db91dab4ccb893c794349ac7609f4",
+    "docs/development/scaling-hotpaths-5/scaling-hotpaths-5.mmd": "96d88954b44f5704c32c2c244ccef23f5313a291dfdd9024bcf5cd8dab299da0",
+    "docs/development/scaling-hotpaths-5/scaling-ledger-5.xlsx": "2ea6d3cc9aa77fca60bd96d7949811237067f738dce74fa55e48883453e6d923",
+    "game/scripts/gameplay/cafe_dishwashing.gd": "b11e60709bf0ab3935029b55046e03416560e2ff736dbd138056027c1ac5f23a",
+    "game/scripts/rendering/cafe_sink_wash_art.gd": "295a503c4f8b7341155d9108e2056c6aaefaab76bde255210a2c58252f256b28",
+    "game/scripts/rendering/illustrated_cafe.gd": "543564c57d1dbdff604941f1f3938877789d2d7366877bd185eeb206bc2966f2",
+    "tests/service/test_dishwashing_queue.gd": "e954fa070347af312403ddf4ec5449457af9f1231f4f8f4bce7c0f2c3f761446",
+    "tests/service/test_sink_basin_visual.gd": "d445c05bdcc756f9e5b7752b758294450c840d87397cc374b85ca7bd122263b0"
+  },
+  "closure_delta": {
+    "changed": [
+      "scripts/gameplay/cafe_dishwashing.gd",
+      "scripts/rendering/cafe_sink_wash_art.gd",
+      "scripts/rendering/illustrated_cafe.gd"
+    ],
+    "added": [],
+    "removed": []
+  }
+}
